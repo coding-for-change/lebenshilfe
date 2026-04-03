@@ -1,15 +1,14 @@
 services:
   db:
-    image: postgres:17-alpine
+    image: mysql:8.0
     restart: unless-stopped
     environment:
-      POSTGRES_USER: lebenshilfe
-      POSTGRES_PASSWORD: lebenshilfe
-      POSTGRES_DB: lebenshilfe_dev
+      MYSQL_ROOT_PASSWORD: lebenshilfe
+      MYSQL_DATABASE: lebenshilfe_dev
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - mysql:/var/lib/mysql
 
 volumes:
-  pgdata:
+  mysql:

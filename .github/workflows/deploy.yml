@@ -1,0 +1,77 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+
+      # 2. Build Docker image
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t registry.infra.codingforchange.com/lebenshilfe:${{ github.sha }} \
+            -t registry.infra.codingforchange.com/lebenshilfe:latest \
+            .
+
+      # 3. Push to private registry
+      - name: Login to registry
+        run: |
+          docker login registry.infra.codingforchange.com \
+            -u ${{ secrets.REGISTRY_USERNAME }} \
+            -p ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Push Docker image
+        run: |
+          docker push registry.infra.codingforchange.com/lebenshilfe:${{ github.sha }}
+          docker push registry.infra.codingforchange.com/lebenshilfe:latest
+
+      # 4. Deploy to VPS via SSH
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_DEPLOY_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H codingforchange.com >> ~/.ssh/known_hosts
+
+      - name: Copy files to VPS
+        run: |
+          SSH="ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key"
+          SCP="scp -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key"
+          SSH_TARGET="deploy-lebenshilfe@codingforchange.com"
+
+          # Ensure target directory exists
+          $SSH $SSH_TARGET "mkdir -p /var/www/lebenshilfe"
+
+          # Copy docker-compose (prod → docker-compose.yml on VPS)
+          $SCP docker-compose.prod.yml ${SSH_TARGET}:/var/www/lebenshilfe/docker-compose.yml
+
+          # Copy Caddyfile
+          $SCP Caddyfile ${SSH_TARGET}:/var/www/lebenshilfe/Caddyfile
+
+          # Write .env from GitHub secrets and copy to VPS
+          printf '%s\n' \
+            "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
+            "BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}" \
+            "BETTER_AUTH_URL=https://lebenshilfe.codingforchange.com" \
+            > /tmp/.env
+          $SCP /tmp/.env ${SSH_TARGET}:/var/www/lebenshilfe/.env
+          rm -f /tmp/.env
+
+      - name: Deploy on VPS
+        run: |
+          SSH="ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key deploy-lebenshilfe@codingforchange.com"
+
+          $SSH "cd /var/www/lebenshilfe && \
+            docker compose pull && \
+            docker compose up -d"

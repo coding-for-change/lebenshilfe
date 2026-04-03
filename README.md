@@ -1,36 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lebenshilfe
 
-## Getting Started
+A Next.js application for Lebenshilfe, built with Prisma and Better Auth.
 
-First, run the development server:
+## Local Development Setup
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (v20+)
+- [Docker](https://www.docker.com/) (for the local PostgreSQL database)
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Start the database
+
+Spin up the local PostgreSQL instance:
+
+```bash
+docker compose up -d
+```
+
+This starts a PostgreSQL 17 container on port `5432` with default dev credentials (see `docker-compose.yml`).
+
+### 3. Configure environment variables
+
+```bash
+cp .env.example .env
+```
+
+Then generate a secret for Better Auth:
+
+```bash
+# macOS / Linux
+openssl rand -base64 32
+```
+
+Paste the output into `BETTER_AUTH_SECRET` in your `.env` file.
+
+### 4. Set up the database
+
+Push the Prisma schema to your local PostgreSQL:
+
+```bash
+npx prisma db push
+```
+
+Generate the Prisma client:
+
+```bash
+npx prisma generate
+```
+
+### 5. Start the dev server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tech Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Layer          | Technology                                        |
+| -------------- | ------------------------------------------------- |
+| Framework      | [Next.js](https://nextjs.org/) (App Router)       |
+| Database       | PostgreSQL (via Docker Compose)                    |
+| ORM            | [Prisma](https://www.prisma.io/)                  |
+| Authentication | [Better Auth](https://www.better-auth.com/)       |
+| Styling        | [Tailwind CSS](https://tailwindcss.com/)           |
 
-## Learn More
+## Authentication
 
-To learn more about Next.js, take a look at the following resources:
+Authentication is handled by Better Auth with email/password sign-up/sign-in. The admin plugin provides two roles:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **admin** — full control over user management
+- **user** — default role for regular users
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+API routes for auth are served at `/api/auth/*`.
 
-## Deploy on Vercel
+## Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The application is automatically deployed to the c4c VPS via a GitHub Actions workflow (`.github/workflows/deploy.yml`) on every push to the `main` branch. 
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+To enable deployments, the following **Repository Secrets** must be configured in GitHub:
+
+| Secret | Description |
+|--------|-------------|
+| `REGISTRY_USERNAME` | Username for the private Docker registry |
+| `REGISTRY_PASSWORD` | Password for the private Docker registry |
+| `VPS_DEPLOY_KEY` | SSH private key for the `deploy-lebenshilfe` user on the VPS |
+| `DATABASE_URL` | Production PostgreSQL connection string |
+| `BETTER_AUTH_SECRET` | Production secret for Better Auth sessions |

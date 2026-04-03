@@ -1,0 +1,3 @@
+lebenshilfe.codingforchange.com {
+    reverse_proxy localhost:3000
+}

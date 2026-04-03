@@ -50,12 +50,23 @@ export default function Home() {
         <div style={styles.card}>
           <h1 style={styles.title}>✅ Authenticated!</h1>
           <div style={styles.info}>
-            <p><strong>Name:</strong> {session.user.name}</p>
-            <p><strong>Email:</strong> {session.user.email}</p>
-            <p><strong>Role:</strong> {session.user.role ?? "user"}</p>
-            <p><strong>User ID:</strong> <code>{session.user.id}</code></p>
+            <p>
+              <strong>Name:</strong> {session.user.name}
+            </p>
+            <p>
+              <strong>Email:</strong> {session.user.email}
+            </p>
+            <p>
+              <strong>Role:</strong> {session.user.role ?? "user"}
+            </p>
+            <p>
+              <strong>User ID:</strong> <code>{session.user.id}</code>
+            </p>
           </div>
-          <button onClick={handleSignOut} style={styles.buttonSecondary}>
+          <button
+            onClick={handleSignOut}
+            style={styles.buttonSecondary}
+          >
             Sign Out
           </button>
         </div>
@@ -68,7 +79,10 @@ export default function Home() {
       <div style={styles.card}>
         <h1 style={styles.title}>{isLogin ? "Sign In" : "Sign Up"}</h1>
 
-        <form onSubmit={handleSubmit} style={styles.form}>
+        <form
+          onSubmit={handleSubmit}
+          style={styles.form}
+        >
           {!isLogin && (
             <input
               type="text"
@@ -99,7 +113,11 @@ export default function Home() {
 
           {error && <p style={styles.error}>{error}</p>}
 
-          <button type="submit" disabled={loading} style={styles.button}>
+          <button
+            type="submit"
+            disabled={loading}
+            style={styles.button}
+          >
             {loading ? "..." : isLogin ? "Sign In" : "Sign Up"}
           </button>
         </form>

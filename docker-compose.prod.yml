@@ -2,6 +2,8 @@ services:
   app:
     image: localhost:5000/lebenshilfe:latest
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "3000:3000"
     env_file:

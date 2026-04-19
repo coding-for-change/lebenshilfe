@@ -1,218 +1,66 @@
-"use client";
+import { AuthFacade } from "@/features/auth/facade";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Role } from "@/generated/prisma";
+import { LogoutButton } from "@/components/logout-button";
 
-import { useState } from "react";
-import { authClient } from "@/lib/auth-client";
+export default async function LandingPage() {
+  const session = await AuthFacade.getSession();
 
-export default function Home() {
-  const { data: session, isPending } = authClient.useSession();
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    try {
-      if (isLogin) {
-        const res = await authClient.signIn.email({ email, password });
-        if (res.error) setError(res.error.message ?? "Login failed");
-      } else {
-        const res = await authClient.signUp.email({ email, password, name });
-        if (res.error) setError(res.error.message ?? "Sign up failed");
-      }
-    } catch {
-      setError("Something went wrong");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSignOut = async () => {
-    await authClient.signOut();
-  };
-
-  if (isPending) {
+  if (!session) {
     return (
-      <div style={styles.container}>
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
-  if (session) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <h1 style={styles.title}>✅ Authenticated!</h1>
-          <div style={styles.info}>
-            <p>
-              <strong>Name:</strong> {session.user.name}
-            </p>
-            <p>
-              <strong>Email:</strong> {session.user.email}
-            </p>
-            <p>
-              <strong>Role:</strong> {session.user.role ?? "user"}
-            </p>
-            <p>
-              <strong>User ID:</strong> <code>{session.user.id}</code>
-            </p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-zinc-950 p-4">
+        <div className="max-w-md w-full bg-white dark:bg-zinc-900 border border-border shadow-xl rounded-2xl p-8 text-center space-y-6">
+          <h1 className="text-3xl font-bold text-primary">
+            Willkommen bei Lebenshilfe
+          </h1>
+          <p className="text-muted-foreground">
+            Dieses Portal ist ausschließlich für geladene Mitglieder zugänglich.
+          </p>
+          <div className="pt-4">
+            <Link href="/login">
+              <Button className="w-full h-12 text-lg">Zum Login</Button>
+            </Link>
           </div>
-          <button
-            onClick={handleSignOut}
-            style={styles.buttonSecondary}
-          >
-            Sign Out
-          </button>
         </div>
       </div>
     );
   }
 
+  const { user } = session;
+
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h1 style={styles.title}>{isLogin ? "Sign In" : "Sign Up"}</h1>
+    <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 p-8">
+      <div className="max-w-5xl mx-auto space-y-8">
+        <header className="flex items-center justify-between bg-white dark:bg-zinc-900 border border-border p-6 rounded-2xl shadow-sm">
+          <div>
+            <h1 className="text-2xl font-bold text-primary">
+              Hallo, {user.name || "Mitglied"}!
+            </h1>
+            <p className="text-muted-foreground">Eingeloggt als {user.email}</p>
+          </div>
+          <div className="flex items-center gap-4">
+            {user.role === Role.ADMIN && (
+              <Link href="/admin">
+                <Button
+                  variant="outline"
+                  className="border-primary text-primary hover:bg-primary/10"
+                >
+                  Admin-Bereich öffnen
+                </Button>
+              </Link>
+            )}
+            <LogoutButton />
+          </div>
+        </header>
 
-        <form
-          onSubmit={handleSubmit}
-          style={styles.form}
-        >
-          {!isLogin && (
-            <input
-              type="text"
-              placeholder="Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              style={styles.input}
-            />
-          )}
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={styles.input}
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={8}
-            style={styles.input}
-          />
-
-          {error && <p style={styles.error}>{error}</p>}
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={styles.button}
-          >
-            {loading ? "..." : isLogin ? "Sign In" : "Sign Up"}
-          </button>
-        </form>
-
-        <button
-          onClick={() => {
-            setIsLogin(!isLogin);
-            setError("");
-          }}
-          style={styles.toggle}
-        >
-          {isLogin
-            ? "Don't have an account? Sign Up"
-            : "Already have an account? Sign In"}
-        </button>
+        <section className="bg-white dark:bg-zinc-900 border border-border p-8 rounded-2xl shadow-sm min-h-[400px]">
+          <h2 className="text-xl font-semibold mb-4">Übersicht</h2>
+          <p className="text-muted-foreground">
+            Hier entsteht in Kürze dein persönliches Dashboard.
+          </p>
+        </section>
       </div>
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: "100vh",
-    fontFamily: "system-ui, sans-serif",
-    background: "#f5f5f5",
-  },
-  card: {
-    background: "#fff",
-    borderRadius: 12,
-    padding: "2.5rem",
-    width: "100%",
-    maxWidth: 400,
-    boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-  },
-  title: {
-    margin: "0 0 1.5rem",
-    fontSize: "1.5rem",
-    textAlign: "center" as const,
-  },
-  form: {
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: "0.75rem",
-  },
-  input: {
-    padding: "0.75rem 1rem",
-    borderRadius: 8,
-    border: "1px solid #ddd",
-    fontSize: "1rem",
-    outline: "none",
-  },
-  button: {
-    padding: "0.75rem",
-    borderRadius: 8,
-    border: "none",
-    background: "#111",
-    color: "#fff",
-    fontSize: "1rem",
-    cursor: "pointer",
-    marginTop: "0.5rem",
-  },
-  buttonSecondary: {
-    padding: "0.75rem",
-    borderRadius: 8,
-    border: "1px solid #ddd",
-    background: "#fff",
-    fontSize: "1rem",
-    cursor: "pointer",
-    width: "100%",
-  },
-  toggle: {
-    background: "none",
-    border: "none",
-    color: "#666",
-    cursor: "pointer",
-    fontSize: "0.875rem",
-    marginTop: "1rem",
-    textAlign: "center" as const,
-    display: "block",
-    width: "100%",
-  },
-  error: {
-    color: "#e00",
-    fontSize: "0.875rem",
-    margin: 0,
-  },
-  info: {
-    background: "#f9f9f9",
-    borderRadius: 8,
-    padding: "1rem",
-    marginBottom: "1rem",
-    fontSize: "0.9rem",
-    lineHeight: 1.8,
-  },
-};

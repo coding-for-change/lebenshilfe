@@ -83,14 +83,37 @@ API routes for auth are served at `/api/auth/*`.
 
 ## Deployment
 
-The application is automatically deployed to the c4c VPS via a GitHub Actions workflow (`.github/workflows/deploy.yml`) on every push to the `main` branch. 
+The application is automatically deployed to the c4c VPS via a GitHub Actions workflow (`.github/workflows/deploy.yml`) on every push to the `main` branch.
 
-To enable deployments, the following **Repository Secrets** must be configured in GitHub:
+### GitHub Repository Secrets
+
+These **must** be set in GitHub → Settings → Secrets and Variables → Actions:
 
 | Secret | Description |
 |--------|-------------|
 | `REGISTRY_USERNAME` | Username for the private Docker registry |
 | `REGISTRY_PASSWORD` | Password for the private Docker registry |
 | `VPS_DEPLOY_KEY` | SSH private key for the `deploy-lebenshilfe` user on the VPS |
-| `DATABASE_URL` | Production PostgreSQL connection string |
-| `BETTER_AUTH_SECRET` | Production secret for Better Auth sessions |
+| `DATABASE_URL` | Production MySQL connection string |
+| `BETTER_AUTH_SECRET` | Production secret for Better Auth sessions (generate with `openssl rand -base64 32`) |
+
+### Non-Secret Environment Variables
+
+These are **hardcoded** in the workflow and automatically written to `.env` on the VPS:
+
+| Variable | Value | Description |
+|----------|-------|-------------|
+| `BETTER_AUTH_URL` | `https://lebenshilfe.codingforchange.com` | Canonical URL used by Better Auth |
+| `NEXT_PUBLIC_APP_URL` | `https://lebenshilfe.codingforchange.com` | Base URL used in email links (invitations, password reset) |
+| `EMAIL_FROM` | `info@codingforchange.de` | "From" address for all outgoing emails |
+
+### SMTP (TODO)
+
+A production mail provider has not yet been configured. Once set up, add these to the workflow:
+
+| Variable | Description |
+|----------|-------------|
+| `SMTP_HOST` | Hostname of the production SMTP server |
+| `SMTP_PORT` | Port of the production SMTP server (typically `587` or `465`) |
+
+> **Note:** For local development, [Mailpit](https://mailpit.axllent.org/) runs on port `1025` — no extra SMTP config needed locally.

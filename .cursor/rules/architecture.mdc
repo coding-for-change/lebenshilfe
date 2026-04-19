@@ -1,8 +1,8 @@
-<!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
-
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
-<!-- END:nextjs-agent-rules -->
+---
+description: Architecture rules and conventions for this Next.js project. Always follow the clean architecture methodology described here.
+globs: src/**/*
+alwaysApply: true
+---
 
 # THE SYSTEM PROMPT: CLEAN NEXT.JS HIERARCHICAL ARCHITECTURE
 
@@ -49,7 +49,33 @@ src/
 ```
 
 ## 4. LINTER ENFORCEMENT (NON-NEGOTIABLE)
-Install `eslint-plugin-boundaries`. Configure `.eslintrc.json` (or equivalent) with strict boundaries zones.
+Install `eslint-plugin-boundaries`. Configure `.eslintrc.json` (or equivalent) with these strict zones:
+
+```json
+{
+  "plugins": ["boundaries"],
+  "settings": {
+    "boundaries/elements": [
+      { "type": "app", "pattern": "src/app/**/*" },
+      { "type": "use-cases", "pattern": "src/use-cases/**/*" },
+      { "type": "feature-facade", "pattern": "src/features/*/facade.ts" },
+      { "type": "feature-internal", "pattern": "src/features/*/services/**/*" },
+      { "type": "shared", "pattern": "src/components/ui/**/*" }
+    ]
+  },
+  "rules": {
+    "boundaries/element-types": [2, {
+      "default": "disallow",
+      "rules": [
+        { "from": "app", "allow": ["use-cases", "feature-facade", "shared"] },
+        { "from": "use-cases", "allow": ["feature-facade"] },
+        { "from": "feature-facade", "allow": ["feature-internal"] },
+        { "from": "feature-internal", "allow": ["shared"] }
+      ]
+    }]
+  }
+}
+```
 Constraint: If an import statement violates this map, you MUST refactor the logic rather than disabling the rule.
 
 ## 5. DOCUMENTATION REQUIREMENTS

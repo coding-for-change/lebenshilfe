@@ -63,7 +63,10 @@ jobs:
             "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
             "BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}" \
             "BETTER_AUTH_URL=https://lebenshilfe.codingforchange.com" \
+            "NEXT_PUBLIC_APP_URL=https://lebenshilfe.codingforchange.com" \
+            "EMAIL_FROM=info@codingforchange.de" \
             > /tmp/.env
+          # TODO: Add SMTP_HOST and SMTP_PORT once production mail provider is configured
           $SCP /tmp/.env ${SSH_TARGET}:/var/www/lebenshilfe/.env
           rm -f /tmp/.env
 

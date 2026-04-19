@@ -2,13 +2,24 @@
 
 import { useState, use, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { CheckIcon } from "lucide-react";
+
 import {
   fetchEmailFromToken,
   consumeUsedToken,
 } from "@/use-cases/onboard-invited-user";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 
 export default function OnboardPage({
   searchParams,
@@ -69,107 +80,129 @@ export default function OnboardPage({
     }
   }
 
-  if (status === "verifying") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-zinc-950 p-4">
-        <p className="text-muted-foreground font-medium">Lade Einladung...</p>
-      </div>
-    );
-  }
-
-  if (
-    (status === "error" && errorMessage.includes("abgelaufen")) ||
-    errorMessage.includes("Kein")
-  ) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-zinc-950 p-4">
-        <p className="text-destructive font-bold text-xl">{errorMessage}</p>
-      </div>
-    );
-  }
+  const linkInvalid =
+    status === "error" &&
+    (errorMessage.includes("abgelaufen") || errorMessage.includes("Kein"));
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-zinc-950">
-      <div className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-border p-8 space-y-6">
-        {status === "success" ? (
-          <div className="text-center space-y-4">
-            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
-              ✓
-            </div>
-            <h1 className="text-2xl font-bold text-foreground">
-              Profil erstellt!
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              Du wirst ins Dashboard weitergeleitet...
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="text-center space-y-2">
-              <h1 className="text-2xl font-bold text-primary tracking-tight">
-                Willkommen!
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Schließe deine Registrierung ab.
-              </p>
-            </div>
-            <form
-              onSubmit={handleSubmit}
-              className="space-y-6"
-            >
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  E-Mail (verifiziert)
-                </label>
-                <Input
-                  disabled
-                  value={email}
-                  className="h-12 bg-muted opacity-60"
-                />
+    <div className="relative flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 bg-cover bg-center"
+        style={{ backgroundImage: "url('/login.webp')" }}
+      />
+      <div aria-hidden className="absolute inset-0 -z-10 bg-black/30" />
+
+      <div className="flex w-full max-w-md flex-col gap-8">
+        <div className="flex justify-center">
+          <Image
+            src="/lebenshilfe-muenchen-logo_2026.svg"
+            alt="Lebenshilfe München"
+            width={220}
+            height={64}
+            priority
+            className="h-14 w-auto drop-shadow-lg"
+          />
+        </div>
+
+        {status === "verifying" ? (
+          <Card className="border-border/60 shadow-xl">
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              Lade Einladung…
+            </CardContent>
+          </Card>
+        ) : linkInvalid ? (
+          <Card className="border-border/60 shadow-xl">
+            <CardHeader className="gap-2 text-center">
+              <CardTitle className="text-xl font-semibold text-destructive">
+                Einladung ungültig
+              </CardTitle>
+              <CardDescription>{errorMessage}</CardDescription>
+            </CardHeader>
+          </Card>
+        ) : status === "success" ? (
+          <Card className="border-border/60 shadow-xl">
+            <CardContent className="flex flex-col items-center gap-4 py-10 text-center">
+              <div className="flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <CheckIcon className="size-6" />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Vollständiger Name
-                </label>
-                <Input
-                  type="text"
-                  placeholder="Max Mustermann"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="h-12"
-                  disabled={status === "loading"}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Passwort
-                </label>
-                <Input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="h-12"
-                  disabled={status === "loading"}
-                />
-              </div>
-              {status === "error" && (
-                <p className="text-sm text-destructive font-medium text-center">
-                  {errorMessage}
+              <div className="space-y-1">
+                <h1 className="text-xl font-semibold">Profil erstellt</h1>
+                <p className="text-sm text-muted-foreground">
+                  Du wirst ins Dashboard weitergeleitet…
                 </p>
-              )}
-              <Button
-                type="submit"
-                className="w-full h-12 text-base font-medium transition-all"
-                disabled={status === "loading"}
-              >
-                {status === "loading"
-                  ? "Wird verarbeitet..."
-                  : "Profil aktivieren"}
-              </Button>
-            </form>
-          </>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-border/60 shadow-xl">
+            <CardHeader className="gap-2 text-center">
+              <CardTitle className="text-2xl font-semibold tracking-tight">
+                Willkommen
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Schließe deine Registrierung ab.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit}>
+                <FieldGroup className="gap-6">
+                  <Field>
+                    <FieldLabel htmlFor="email">E-Mail (verifiziert)</FieldLabel>
+                    <Input
+                      id="email"
+                      disabled
+                      value={email}
+                      className="h-11 bg-muted/60"
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="name">Vollständiger Name</FieldLabel>
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="Max Mustermann"
+                      required
+                      autoComplete="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      disabled={status === "loading"}
+                      className="h-11"
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="password">Passwort</FieldLabel>
+                    <Input
+                      id="password"
+                      type="password"
+                      required
+                      autoComplete="new-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      disabled={status === "loading"}
+                      className="h-11"
+                    />
+                  </Field>
+                  {status === "error" && !linkInvalid && (
+                    <p className="-mt-2 text-center text-sm text-destructive">
+                      {errorMessage}
+                    </p>
+                  )}
+                  <Field>
+                    <Button
+                      type="submit"
+                      className="h-11 w-full text-base font-medium"
+                      disabled={status === "loading"}
+                    >
+                      {status === "loading"
+                        ? "Wird verarbeitet…"
+                        : "Profil aktivieren"}
+                    </Button>
+                  </Field>
+                </FieldGroup>
+              </form>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

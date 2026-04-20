@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Role } from "@/generated/prisma";
 import { LogoutButton } from "@/components/logout-button";
+import { TimesheetFacade, SchulbegleiterApp } from "@/features/timesheet";
 
 export default async function LandingPage() {
   const session = await AuthFacade.getSession();
@@ -28,6 +29,41 @@ export default async function LandingPage() {
   }
 
   const { user } = session;
+
+  if (user.role === Role.SCHOOL_ASSISTANT) {
+    const today = new Date();
+    const rangeStart = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 6, 1),
+    );
+    const rangeEnd = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 2, 1),
+    );
+
+    const assignedChildren = await TimesheetFacade.listAssignedChildren(
+      user.id,
+    );
+    const childIds = assignedChildren.map((c) => c.id);
+
+    const [events, schedules, lockedMonthKeys] = await Promise.all([
+      TimesheetFacade.getEventsInRange(user.id, rangeStart, rangeEnd),
+      TimesheetFacade.getSchedulesForChildren(childIds),
+      TimesheetFacade.listLockedMonthKeys(user.id),
+    ]);
+
+    return (
+      <SchulbegleiterApp
+        currentUser={{ id: user.id, name: user.name, email: user.email }}
+        assignedChildren={assignedChildren.map((c) => ({
+          id: c.id,
+          firstName: c.firstName,
+          lastName: c.lastName,
+        }))}
+        events={events}
+        schedules={schedules}
+        lockedMonthKeys={lockedMonthKeys}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 p-8">

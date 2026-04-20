@@ -171,33 +171,32 @@ export function SchulbegleiterApp({
   })();
 
   return (
-    <SidebarProvider defaultOpen>
+    <>
+      <div
+        aria-hidden
+        className="fixed inset-0 -z-20 hidden bg-cover bg-center sm:block"
+        style={{ backgroundImage: "url('/login.webp')" }}
+      />
+      <div
+        aria-hidden
+        className="fixed inset-0 -z-10 hidden bg-white/40 backdrop-blur-[2px] sm:block"
+      />
+      <SidebarProvider
+        defaultOpen
+        className="sm:bg-transparent! sm:[&_[data-slot=sidebar-inner]]:rounded-xl sm:[&_[data-slot=sidebar-inner]]:bg-sidebar/60 sm:[&_[data-slot=sidebar-inner]]:shadow-sm"
+      >
       <Sidebar variant="inset" collapsible="icon">
         <SidebarHeader>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                size="lg"
-                className="group-data-[collapsible=icon]:p-0!"
-              >
-                <div className="grid aspect-square size-8 shrink-0 place-items-center rounded-lg border border-sidebar-border bg-background">
-                  <Image
-                    src="/lebenshilfe-muenchen-logo_2026.svg"
-                    alt="Lebenshilfe München"
-                    width={22}
-                    height={22}
-                    className="object-contain"
-                  />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">Lebenshilfe</span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    Zeiterfassung
-                  </span>
-                </div>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+          <div className="flex items-center justify-center px-2 py-3 group-data-[collapsible=icon]:p-0">
+            <Image
+              src="/lebenshilfe-muenchen-logo_2026.svg"
+              alt="Lebenshilfe München"
+              width={160}
+              height={160}
+              priority
+              className="h-20 w-auto object-contain transition-all group-data-[collapsible=icon]:h-8"
+            />
+          </div>
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>
@@ -296,7 +295,7 @@ export function SchulbegleiterApp({
       </Sidebar>
 
       <SidebarInset>
-        <header className="hidden h-14 shrink-0 items-center gap-2 border-b border-border bg-background/60 px-4 backdrop-blur sm:flex">
+        <header className="hidden h-14 shrink-0 items-center gap-2 rounded-t-xl border-b border-border bg-background/60 px-4 backdrop-blur sm:flex">
           <SidebarTrigger className="-ml-1" />
           <SidebarSeparator orientation="vertical" className="mr-2 h-4" />
           <nav
@@ -352,6 +351,7 @@ export function SchulbegleiterApp({
       />
 
       <Toaster position="top-center" richColors />
-    </SidebarProvider>
+      </SidebarProvider>
+    </>
   );
 }

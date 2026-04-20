@@ -101,11 +101,14 @@ export function WeekStrip({
               </span>
               <span
                 className={cn(
-                  "text-base font-semibold tabular-nums",
-                  isToday && !selected && "text-primary",
+                  "relative text-base font-semibold tabular-nums",
+                  isToday && !selected && "text-amber-600",
                 )}
               >
                 {d.getUTCDate()}
+                {isToday && !selected && (
+                  <span className="absolute -bottom-0.5 left-1/2 size-1 -translate-x-1/2 rounded-full bg-amber-500" />
+                )}
               </span>
               <span className="flex h-1.5 items-center gap-0.5">
                 {status?.work && (

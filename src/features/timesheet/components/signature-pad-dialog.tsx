@@ -48,23 +48,42 @@ export function SignaturePadDialog({
     if (!open) return;
     const c = canvasRef.current;
     if (!c) return;
-    const dpr = window.devicePixelRatio || 1;
-    const rect = c.getBoundingClientRect();
-    c.width = Math.floor(rect.width * dpr);
-    c.height = Math.floor(rect.height * dpr);
-    const ctx = c.getContext("2d");
-    if (!ctx) return;
-    ctx.scale(dpr, dpr);
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = "#09090b";
-    ctx.lineWidth = 2.4;
+
+    const resize = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = c.clientWidth;
+      const cssH = c.clientHeight;
+      if (cssW === 0 || cssH === 0) return;
+      const nextW = Math.floor(cssW * dpr);
+      const nextH = Math.floor(cssH * dpr);
+      if (c.width === nextW && c.height === nextH) return;
+      c.width = nextW;
+      c.height = nextH;
+      const ctx = c.getContext("2d");
+      if (!ctx) return;
+      ctx.scale(dpr, dpr);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "#09090b";
+      ctx.lineWidth = 2.4;
+      setHasInk(false);
+    };
+
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(c);
+    return () => ro.disconnect();
   }, [open]);
 
   const toLocal = (ev: React.PointerEvent<HTMLCanvasElement>) => {
     const c = canvasRef.current!;
     const rect = c.getBoundingClientRect();
-    return { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
+    const scaleX = rect.width ? c.clientWidth / rect.width : 1;
+    const scaleY = rect.height ? c.clientHeight / rect.height : 1;
+    return {
+      x: (ev.clientX - rect.left) * scaleX,
+      y: (ev.clientY - rect.top) * scaleY,
+    };
   };
 
   const onPointerDown = (ev: React.PointerEvent<HTMLCanvasElement>) => {

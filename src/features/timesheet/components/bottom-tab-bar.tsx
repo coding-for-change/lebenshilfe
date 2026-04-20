@@ -1,6 +1,11 @@
 "use client";
 
-import { CalendarDays, CalendarRange, Clock, Menu } from "lucide-react";
+import {
+  CalendarDays,
+  CalendarRange,
+  Clock,
+  Settings,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type TabId = "tag" | "woche" | "monat" | "mehr";
@@ -8,8 +13,8 @@ export type TabId = "tag" | "woche" | "monat" | "mehr";
 const TABS: Array<{ id: TabId; label: string; Icon: typeof Clock }> = [
   { id: "tag", label: "Tag", Icon: Clock },
   { id: "woche", label: "Woche", Icon: CalendarDays },
-  { id: "monat", label: "Monat", Icon: CalendarRange },
-  { id: "mehr", label: "Mehr", Icon: Menu },
+  { id: "monat", label: "Lehrer", Icon: CalendarRange },
+  { id: "mehr", label: "Einstellungen", Icon: Settings },
 ];
 
 type Props = {

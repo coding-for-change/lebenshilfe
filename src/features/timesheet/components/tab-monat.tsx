@@ -49,9 +49,14 @@ export function TabMonat({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">
-          {MONTHS_LONG[month - 1]} {year}
-        </h1>
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Lehrer Ansicht
+          </p>
+          <h1 className="text-xl font-semibold">
+            {MONTHS_LONG[month - 1]} {year}
+          </h1>
+        </div>
         <div className="flex items-center gap-1">
           <Button
             size="icon"

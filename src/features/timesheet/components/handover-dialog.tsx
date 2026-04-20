@@ -159,39 +159,58 @@ export function HandoverDialog({
                       const date = new Date(Date.UTC(year, month - 1, day));
                       const wd = WEEKDAYS_SHORT[weekdayIndex(date)];
                       const sick = dayEvents.find((e) => e.type === "SICK");
-                      const workMins = dayEvents
-                        .filter((e) => e.type === "WORK")
-                        .reduce(
-                          (sum, e) =>
-                            sum +
-                            (e.startTime && e.endTime
-                              ? timeToMinutes(e.endTime) -
-                                timeToMinutes(e.startTime)
-                              : 0),
-                          0,
-                        );
+                      const workEvents = dayEvents.filter(
+                        (e) => e.type === "WORK" && e.startTime && e.endTime,
+                      );
+                      const workMins = workEvents.reduce(
+                        (sum, e) =>
+                          sum +
+                          timeToMinutes(e.endTime!) -
+                          timeToMinutes(e.startTime!),
+                        0,
+                      );
+                      const earliestStart = workEvents.reduce<string | null>(
+                        (acc, e) =>
+                          !acc || timeToMinutes(e.startTime!) < timeToMinutes(acc)
+                            ? e.startTime!
+                            : acc,
+                        null,
+                      );
+                      const latestEnd = workEvents.reduce<string | null>(
+                        (acc, e) =>
+                          !acc || timeToMinutes(e.endTime!) > timeToMinutes(acc)
+                            ? e.endTime!
+                            : acc,
+                        null,
+                      );
+                      const hoursLabel =
+                        workMins > 0
+                          ? formatDuration(
+                              "00:00",
+                              `${String(Math.floor(workMins / 60)).padStart(
+                                2,
+                                "0",
+                              )}:${String(workMins % 60).padStart(2, "0")}`,
+                            )
+                          : null;
                       return (
                         <li
                           key={day}
-                          className="flex items-center justify-between px-3 py-2 text-sm"
+                          className="flex items-center justify-between gap-2 px-3 py-2 text-sm"
                         >
                           <span className="font-mono tabular-nums text-muted-foreground">
                             {wd} {String(day).padStart(2, "0")}.
                           </span>
                           {sick ? (
                             <Badge className="bg-rose-500/15 text-rose-700 border-rose-200">
-                              Krank — ganztägig
+                              Krank
                             </Badge>
-                          ) : workMins > 0 ? (
-                            <span className="font-mono tabular-nums">
-                              {formatDuration(
-                                "00:00",
-                                `${String(
-                                  Math.floor(workMins / 60),
-                                ).padStart(2, "0")}:${String(
-                                  workMins % 60,
-                                ).padStart(2, "0")}`,
-                              )}
+                          ) : hoursLabel ? (
+                            <span className="flex items-baseline gap-2 font-mono tabular-nums">
+                              <span className="text-muted-foreground">
+                                {earliestStart}–{latestEnd}
+                              </span>
+                              <span>{hoursLabel}</span>
                             </span>
                           ) : (
                             <span className="text-muted-foreground">—</span>

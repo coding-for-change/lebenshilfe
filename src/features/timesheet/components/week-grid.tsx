@@ -153,8 +153,6 @@ export function WeekGrid({
               {daySick ? (
                 <div className="absolute inset-1 rounded-md border border-rose-300 bg-rose-500/15 p-2 text-center text-[11px] font-semibold uppercase tracking-wider text-rose-900">
                   Krank
-                  <br />
-                  ganztägig
                 </div>
               ) : (
                 <>

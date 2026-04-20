@@ -159,16 +159,11 @@ export function TabTag({
               <Card key={ev.id} className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <p className="font-medium truncate">
-                        {child
-                          ? `${child.firstName} ${child.lastName}`
-                          : "Arbeit"}
-                      </p>
-                      <span className="font-mono text-sm tabular-nums text-muted-foreground">
-                        {ev.startTime}–{ev.endTime}
-                      </span>
-                    </div>
+                    <p className="font-medium truncate">
+                      {child
+                        ? `${child.firstName} ${child.lastName}`
+                        : "Arbeit"}
+                    </p>
                     <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                       <Badge variant="secondary" className="font-mono">
                         {dur}
@@ -194,6 +189,9 @@ export function TabTag({
                       </p>
                     )}
                   </div>
+                  <span className="font-mono text-sm tabular-nums text-muted-foreground">
+                    {ev.startTime}–{ev.endTime}
+                  </span>
                   {canDelete(ev) && (
                     <Button
                       size="sm"

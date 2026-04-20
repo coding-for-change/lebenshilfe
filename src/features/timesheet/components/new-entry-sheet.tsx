@@ -15,12 +15,30 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { EventType } from "@/generated/prisma";
+import { EventType, type Schedule } from "@/generated/prisma";
 import { SignaturePadDialog } from "./signature-pad-dialog";
 import { createEventAction } from "../actions";
-import { formatDateIso, formatDuration, timeToMinutes } from "./date-utils";
+import {
+  formatDateIso,
+  formatDuration,
+  parseIsoDate,
+  timeToMinutes,
+  weekdayIndex,
+} from "./date-utils";
 import type { ChildOption } from "./children-filter";
 import { cn } from "@/lib/utils";
+
+type LastEntry = {
+  startTime: string | null;
+  endTime: string | null;
+};
+
+type QuickSlot = {
+  key: string;
+  label: string;
+  start: string;
+  end: string;
+};
 
 type Props = {
   open: boolean;
@@ -28,14 +46,16 @@ type Props = {
   defaultDate: Date;
   assignedChildren: ChildOption[];
   currentUserName: string;
+  schedules: Schedule[];
+  lastEntry: LastEntry | null;
 };
 
-const QUICK_CHIPS: Array<[string, string]> = [
-  ["08:00", "17:00"],
-  ["07:00", "15:30"],
-  ["09:00", "18:00"],
-  ["13:00", "21:00"],
-];
+function addMinutes(time: string, minutes: number): string {
+  const total = Math.max(0, Math.min(24 * 60 - 1, timeToMinutes(time) + minutes));
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
 
 export function NewEntrySheet({
   open,
@@ -43,6 +63,8 @@ export function NewEntrySheet({
   defaultDate,
   assignedChildren,
   currentUserName,
+  schedules,
+  lastEntry,
 }: Props) {
   const [type, setType] = useState<EventType>(EventType.WORK);
   const [date, setDate] = useState(formatDateIso(defaultDate));
@@ -84,6 +106,55 @@ export function NewEntrySheet({
       cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id],
     );
   };
+
+  const quickSlots = useMemo<QuickSlot[]>(() => {
+    const out: QuickSlot[] = [];
+    const seen = new Set<string>();
+    const push = (slot: QuickSlot) => {
+      const fp = `${slot.start}-${slot.end}`;
+      if (seen.has(fp)) return;
+      seen.add(fp);
+      out.push(slot);
+    };
+
+    const wd = weekdayIndex(parseIsoDate(date));
+    const relevantChildIds =
+      childIds.length > 0 ? childIds : assignedChildren.map((c) => c.id);
+    const daySchedules = schedules.filter(
+      (s) => s.weekday === wd && relevantChildIds.includes(s.childId),
+    );
+    if (daySchedules.length > 0) {
+      const start = daySchedules.reduce((acc, s) =>
+        timeToMinutes(s.startTime) < timeToMinutes(acc.startTime) ? s : acc,
+      ).startTime;
+      const end = daySchedules.reduce((acc, s) =>
+        timeToMinutes(s.endTime) > timeToMinutes(acc.endTime) ? s : acc,
+      ).endTime;
+      push({
+        key: "schedule",
+        label: "Stundenplan",
+        start,
+        end,
+      });
+    }
+
+    if (lastEntry?.startTime && lastEntry?.endTime) {
+      push({
+        key: "last",
+        label: "Letzter Eintrag",
+        start: lastEntry.startTime,
+        end: lastEntry.endTime,
+      });
+      push({
+        key: "last-plus-15",
+        label: "Letzter +15m",
+        start: lastEntry.startTime,
+        end: addMinutes(lastEntry.endTime, 15),
+      });
+    }
+
+    return out;
+  }, [date, schedules, assignedChildren, childIds, lastEntry]);
 
   const submitWithSignature = async (pngBase64: string) => {
     setSubmitting(true);
@@ -187,17 +258,20 @@ export function NewEntrySheet({
                     <Label>Kinder</Label>
                     <div className="space-y-1 rounded-lg border border-border p-2">
                       {assignedChildren.map((c) => (
-                        <button
+                        <label
                           key={c.id}
-                          type="button"
-                          onClick={() => toggleChild(c.id)}
-                          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+                          htmlFor={`child-${c.id}`}
+                          className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
                         >
-                          <Checkbox checked={childIds.includes(c.id)} />
+                          <Checkbox
+                            id={`child-${c.id}`}
+                            checked={childIds.includes(c.id)}
+                            onCheckedChange={() => toggleChild(c.id)}
+                          />
                           <span>
                             {c.firstName} {c.lastName}
                           </span>
-                        </button>
+                        </label>
                       ))}
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -237,21 +311,31 @@ export function NewEntrySheet({
                     : "Ende muss nach Start liegen"}
                 </p>
 
-                <div className="grid grid-cols-4 gap-1.5">
-                  {QUICK_CHIPS.map(([s, e]) => (
-                    <button
-                      key={`${s}-${e}`}
-                      type="button"
-                      onClick={() => {
-                        setStartTime(s);
-                        setEndTime(e);
-                      }}
-                      className="rounded-md border border-border bg-muted/40 px-2 py-1.5 text-xs font-mono hover:bg-accent"
-                    >
-                      {s.slice(0, 5)}–{e.slice(0, 5)}
-                    </button>
-                  ))}
-                </div>
+                {quickSlots.length > 0 && (
+                  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+                    {quickSlots.map((slot) => (
+                      <button
+                        key={slot.key}
+                        type="button"
+                        onClick={() => {
+                          setStartTime(slot.start);
+                          setEndTime(slot.end);
+                        }}
+                        className={cn(
+                          "flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors",
+                          startTime === slot.start && endTime === slot.end
+                            ? "border-amber-400 bg-amber-400/10 text-foreground"
+                            : "border-border bg-muted/40 hover:bg-accent",
+                        )}
+                      >
+                        <span className="font-medium">{slot.label}</span>
+                        <span className="font-mono tabular-nums text-muted-foreground">
+                          {slot.start}–{slot.end}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </>
             )}
 

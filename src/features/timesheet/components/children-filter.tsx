@@ -68,14 +68,17 @@ export function ChildrenFilter({
         </div>
         <Separator />
         <div className="p-2">
-          <button
-            type="button"
-            onClick={() => onChange(allSelected ? [] : allIds)}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+          <label
+            htmlFor="children-filter-all"
+            className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
           >
-            <Checkbox checked={allSelected} />
+            <Checkbox
+              id="children-filter-all"
+              checked={allSelected}
+              onCheckedChange={() => onChange(allSelected ? [] : allIds)}
+            />
             <span>Alle auswählen</span>
-          </button>
+          </label>
           <Separator className="my-1" />
           {options.length === 0 ? (
             <p className="px-2 py-3 text-xs text-muted-foreground">
@@ -83,17 +86,20 @@ export function ChildrenFilter({
             </p>
           ) : (
             options.map((c) => (
-              <button
+              <label
                 key={c.id}
-                type="button"
-                onClick={() => toggle(c.id)}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+                htmlFor={`children-filter-${c.id}`}
+                className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
               >
-                <Checkbox checked={selected.includes(c.id)} />
+                <Checkbox
+                  id={`children-filter-${c.id}`}
+                  checked={selected.includes(c.id)}
+                  onCheckedChange={() => toggle(c.id)}
+                />
                 <span>
                   {c.firstName} {c.lastName}
                 </span>
-              </button>
+              </label>
             ))
           )}
         </div>

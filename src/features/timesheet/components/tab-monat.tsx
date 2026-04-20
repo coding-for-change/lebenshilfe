@@ -62,9 +62,7 @@ export function TabMonat({
             size="icon"
             variant="ghost"
             onClick={() =>
-              onViewDateChange(
-                new Date(Date.UTC(year, month - 2, 1)),
-              )
+              onViewDateChange(new Date(Date.UTC(year, month - 2, 1)))
             }
             aria-label="Vorheriger Monat"
           >
@@ -76,11 +74,7 @@ export function TabMonat({
             onClick={() =>
               onViewDateChange(
                 new Date(
-                  Date.UTC(
-                    today.getUTCFullYear(),
-                    today.getUTCMonth(),
-                    1,
-                  ),
+                  Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1),
                 ),
               )
             }

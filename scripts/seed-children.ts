@@ -33,7 +33,9 @@ async function run() {
 
   for (const c of children) {
     const child = await prisma.child.upsert({
-      where: { id: `seed-${c.firstName.toLowerCase()}-${c.lastName.toLowerCase()}` },
+      where: {
+        id: `seed-${c.firstName.toLowerCase()}-${c.lastName.toLowerCase()}`,
+      },
       update: {},
       create: {
         id: `seed-${c.firstName.toLowerCase()}-${c.lastName.toLowerCase()}`,

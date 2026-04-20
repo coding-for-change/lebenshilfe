@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  CalendarDays,
-  CalendarRange,
-  Clock,
-  Settings,
-} from "lucide-react";
+import { CalendarDays, CalendarRange, Clock, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type TabId = "tag" | "woche" | "monat" | "mehr";

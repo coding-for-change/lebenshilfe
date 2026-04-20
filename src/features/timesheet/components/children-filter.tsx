@@ -32,8 +32,7 @@ export function ChildrenFilter({
   minSelectable = 0,
 }: Props) {
   const allIds = options.map((c) => c.id);
-  const allSelected =
-    selected.length === allIds.length && allIds.length > 0;
+  const allSelected = selected.length === allIds.length && allIds.length > 0;
 
   const summary =
     selected.length === 0
@@ -56,13 +55,19 @@ export function ChildrenFilter({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="h-10 justify-between gap-2">
+        <Button
+          variant="outline"
+          className="h-10 justify-between gap-2"
+        >
           <Users className="size-4" />
           <span className="truncate max-w-[180px] text-left">{summary}</span>
           <ChevronDown className="size-4 opacity-60" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-0" align="start">
+      <PopoverContent
+        className="w-64 p-0"
+        align="start"
+      >
         <div className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
           {label}
         </div>

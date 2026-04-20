@@ -102,9 +102,7 @@ export function HandoverDialog({
       setStage("done");
       toast.success("Monat freigegeben.");
     } catch (e: unknown) {
-      toast.error(
-        e instanceof Error ? e.message : "Freigabe fehlgeschlagen.",
-      );
+      toast.error(e instanceof Error ? e.message : "Freigabe fehlgeschlagen.");
     } finally {
       setSubmitting(false);
     }
@@ -112,7 +110,10 @@ export function HandoverDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={handleOpenChange}>
+      <Dialog
+        open={open}
+        onOpenChange={handleOpenChange}
+      >
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -133,9 +134,18 @@ export function HandoverDialog({
               </div>
 
               <div className="grid grid-cols-3 gap-2 text-center">
-                <Stat label="Stunden" value={totals.hours} />
-                <Stat label="Krank" value={String(totals.sickDays)} />
-                <Stat label="Einträge" value={String(totals.count)} />
+                <Stat
+                  label="Stunden"
+                  value={totals.hours}
+                />
+                <Stat
+                  label="Krank"
+                  value={String(totals.sickDays)}
+                />
+                <Stat
+                  label="Einträge"
+                  value={String(totals.count)}
+                />
               </div>
 
               <div className="space-y-1.5">
@@ -171,7 +181,8 @@ export function HandoverDialog({
                       );
                       const earliestStart = workEvents.reduce<string | null>(
                         (acc, e) =>
-                          !acc || timeToMinutes(e.startTime!) < timeToMinutes(acc)
+                          !acc ||
+                          timeToMinutes(e.startTime!) < timeToMinutes(acc)
                             ? e.startTime!
                             : acc,
                         null,

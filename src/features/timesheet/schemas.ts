@@ -45,11 +45,7 @@ export const CreateEventSchema = z
           path: ["endTime"],
           message: "Endzeit fehlt.",
         });
-      if (
-        val.startTime &&
-        val.endTime &&
-        !(val.endTime > val.startTime)
-      )
+      if (val.startTime && val.endTime && !(val.endTime > val.startTime))
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["endTime"],
@@ -80,11 +76,10 @@ export const UpdateEventSchema = z
     endTime: timeStringSchema.optional(),
     note: z.string().max(2000).nullable().optional(),
   })
-  .refine(
-    (v) =>
-      !v.startTime || !v.endTime || v.endTime > v.startTime,
-    { message: "Ende muss nach Start liegen.", path: ["endTime"] },
-  );
+  .refine((v) => !v.startTime || !v.endTime || v.endTime > v.startTime, {
+    message: "Ende muss nach Start liegen.",
+    path: ["endTime"],
+  });
 
 export type UpdateEventInput = z.infer<typeof UpdateEventSchema>;
 

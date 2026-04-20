@@ -80,9 +80,7 @@ export function TabTag({
       await deleteEventAction(id);
       toast.success("Eintrag gelöscht.");
     } catch (e: unknown) {
-      toast.error(
-        e instanceof Error ? e.message : "Löschen fehlgeschlagen.",
-      );
+      toast.error(e instanceof Error ? e.message : "Löschen fehlgeschlagen.");
     } finally {
       setBusyId(null);
     }
@@ -114,7 +112,10 @@ export function TabTag({
         </div>
         <div className="flex items-center gap-2 text-right">
           {totalDuration && (
-            <Badge variant="secondary" className="font-mono tabular-nums">
+            <Badge
+              variant="secondary"
+              className="font-mono tabular-nums"
+            >
               {totalDuration}
             </Badge>
           )}
@@ -156,7 +157,10 @@ export function TabTag({
                 ? formatDuration(ev.startTime, ev.endTime)
                 : "";
             return (
-              <Card key={ev.id} className="p-4">
+              <Card
+                key={ev.id}
+                className="p-4"
+              >
                 <div className="flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">
@@ -165,7 +169,10 @@ export function TabTag({
                         : "Arbeit"}
                     </p>
                     <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                      <Badge variant="secondary" className="font-mono">
+                      <Badge
+                        variant="secondary"
+                        className="font-mono"
+                      >
                         {dur}
                       </Badge>
                       <Badge

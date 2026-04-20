@@ -2,12 +2,7 @@
 
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  addDays,
-  isoWeek,
-  MONTHS_SHORT,
-  startOfWeekUtc,
-} from "./date-utils";
+import { addDays, isoWeek, MONTHS_SHORT, startOfWeekUtc } from "./date-utils";
 import { WeekGrid } from "./week-grid";
 import { ChildrenFilter, type ChildOption } from "./children-filter";
 import type { Event, Schedule } from "@/generated/prisma";
@@ -88,7 +83,10 @@ export function TabWoche({
           selected={selectedChildIds}
           onChange={onSelectedChildIdsChange}
         />
-        <Button size="sm" onClick={onRequestNewEntry}>
+        <Button
+          size="sm"
+          onClick={onRequestNewEntry}
+        >
           <Plus className="size-4" /> Neu
         </Button>
       </div>

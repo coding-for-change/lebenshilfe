@@ -128,7 +128,10 @@ export function SignaturePadDialog({
   ).padStart(2, "0")}.${today.getFullYear()}`;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>

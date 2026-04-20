@@ -1,2334 +1,3767 @@
 <!doctype html>
 <html lang="de">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#ffffff" />
-<title>Zeiterfassung</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js" crossorigin="anonymous"></script>
-<style>
-  :root {
-    --bg: #f4f4f5;
-    --phone-bg: #fafafa;
-    --card: #ffffff;
-    --border: #e4e4e7;
-    --border-strong: #d4d4d8;
-    --muted: #f4f4f5;
-    --muted-fg: #71717a;
-    --fg: #09090b;
-    --fg-soft: #27272a;
-    --accent: #7c3aed;
-    --accent-soft: #f5f3ff;
-    --accent-border: #ddd6fe;
-    --accent-ink: #5b21b6;
-    --sick: #e11d48;
-    --sick-soft: #fff1f2;
-    --sick-border: #fecdd3;
-    --ok: #16a34a;
-    --ok-soft: #f0fdf4;
-    --warn: #f59e0b;
-    --warn-soft: #fffbeb;
-    --ring: color-mix(in oklab, var(--accent) 40%, white);
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
-    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
-    --shadow-lg: 0 10px 30px -10px rgb(0 0 0 / 0.25), 0 4px 8px -4px rgb(0 0 0 / 0.08);
-    --safe-top: env(safe-area-inset-top, 0px);
-    --safe-bot: env(safe-area-inset-bottom, 0px);
-  }
-
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { height: 100%; }
-  body {
-    margin: 0;
-    font-family: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
-    background: var(--bg);
-    color: var(--fg);
-    font-size: 15px;
-    -webkit-font-smoothing: antialiased;
-    overscroll-behavior: none;
-  }
-  .mono { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, monospace; font-variant-numeric: tabular-nums; }
-
-  /* ======= PHONE FRAME ======= */
-  #root { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 0; }
-  .phone {
-    width: 100%;
-    max-width: 400px;
-    min-height: min(844px, calc(100vh - 48px));
-    background: var(--phone-bg);
-    border-radius: 44px;
-    border: 10px solid #18181b;
-    box-shadow: 0 20px 60px -20px rgb(0 0 0 / 0.35), 0 8px 16px -8px rgb(0 0 0 / 0.15);
-    overflow: hidden;
-    position: relative;
-    isolation: isolate;
-  }
-  .phone-inner {
-    position: relative;
-    width: 100%;
-    height: min(844px, calc(100vh - 48px));
-    display: flex; flex-direction: column;
-    overflow: hidden;
-  }
-  /* On small/narrow screens: real phone, no frame */
-  @media (max-width: 480px) {
-    #root { padding: 0; align-items: stretch; }
-    .phone {
-      max-width: none; border: none; border-radius: 0;
-      min-height: 100vh; box-shadow: none;
-    }
-    .phone-inner {
-      height: 100vh;
-      padding-top: var(--safe-top);
-      padding-bottom: var(--safe-bot);
-    }
-    .status-bar { display: none !important; }
-  }
-
-  /* ======= STATUS BAR ======= */
-  .status-bar {
-    height: 36px;
-    padding: 0 24px;
-    display: flex; align-items: center; justify-content: space-between;
-    font-size: 13px; font-weight: 600;
-    background: var(--phone-bg);
-    color: var(--fg);
-    position: relative;
-    z-index: 2;
-  }
-  .status-bar::before {
-    content: '';
-    position: absolute;
-    top: 6px; left: 50%; transform: translateX(-50%);
-    width: 100px; height: 26px;
-    background: #18181b;
-    border-radius: 20px;
-    z-index: 1;
-  }
-  .status-bar > * { position: relative; z-index: 2; }
-
-  /* ======= SCROLL CONTENT ======= */
-  .content {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 100px;
-  }
-
-  /* ======= PAGE HEADER ======= */
-  .page-header {
-    padding: 20px 20px 12px;
-    background: var(--phone-bg);
-    position: sticky; top: 0;
-    z-index: 10;
-    backdrop-filter: blur(8px);
-  }
-  .eyebrow {
-    font-size: 11px; font-weight: 500;
-    color: var(--muted-fg);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-bottom: 2px;
-  }
-  .page-title {
-    font-size: 26px;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
-  }
-
-  /* ======= WEEK STRIP ======= */
-  .week-strip {
-    display: flex; align-items: stretch; gap: 4px;
-    margin-top: 16px;
-  }
-  .week-days {
-    flex: 1;
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 3px;
-  }
-  .week-day {
-    appearance: none;
-    display: flex; flex-direction: column; align-items: center; gap: 2px;
-    padding: 8px 2px 6px;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: background .15s, border-color .15s;
-    font: inherit;
-    color: var(--fg);
-  }
-  .week-day:active { background: var(--muted); }
-  .week-day .wd-dow {
-    font-size: 10px; font-weight: 500;
-    color: var(--muted-fg);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  .week-day .wd-num {
-    font-size: 15px; font-weight: 600;
-    letter-spacing: -0.02em;
-  }
-  .week-day .wd-dots {
-    display: flex; gap: 2px; height: 5px; margin-top: 1px;
-  }
-  .week-day .wd-dots .dot {
-    width: 4px; height: 4px; border-radius: 999px;
-  }
-  .week-day.today .wd-num { color: var(--accent); }
-  .week-day.selected {
-    background: var(--fg);
-    border-color: var(--fg);
-  }
-  .week-day.selected .wd-dow,
-  .week-day.selected .wd-num { color: #fff; }
-  .week-day.selected.today .wd-num { color: #fff; }
-
-  /* ======= DAY HEADING ======= */
-  .day-heading {
-    padding: 14px 20px 8px;
-  }
-  .day-heading-title {
-    font-size: 17px;
-    font-weight: 600;
-    letter-spacing: -0.015em;
-  }
-  .day-heading-sub {
-    font-size: 12px;
-    color: var(--muted-fg);
-    margin-top: 2px;
-  }
-  .pills {
-    display: flex; flex-wrap: wrap; gap: 6px;
-    margin-top: 14px;
-  }
-  .pill {
-    display: inline-flex; align-items: center; gap: 5px;
-    font-size: 12px; font-weight: 500;
-    padding: 4px 10px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    background: var(--card);
-  }
-  .pill.accent { background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent-ink); }
-  .pill.sick { background: var(--sick-soft); border-color: var(--sick-border); color: #9f1239; }
-  .pill.ok { background: var(--ok-soft); border-color: #bbf7d0; color: #15803d; }
-  .pill.muted { background: var(--muted); color: var(--muted-fg); border-color: transparent; }
-
-  /* ======= ENTRIES LIST ======= */
-  .entries-list {
-    padding: 8px 16px 0;
-    display: flex; flex-direction: column; gap: 10px;
-  }
-  .entry-card {
-    appearance: none;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 0;
-    overflow: hidden;
-    display: flex; align-items: stretch;
-    cursor: pointer;
-    transition: transform .1s ease, box-shadow .15s ease;
-    font: inherit;
-    text-align: left;
-    color: var(--fg);
-    width: 100%;
-  }
-  .entry-card:active { transform: scale(0.98); }
-  .entry-card-accent {
-    width: 4px;
-    background: var(--accent);
-  }
-  .entry-card.sick .entry-card-accent { background: var(--sick); }
-  .entry-card.signed { box-shadow: inset 0 0 0 1px rgba(22,163,74,.15); }
-  .entry-card-body {
-    flex: 1;
-    padding: 12px 14px;
-  }
-  .entry-card-row {
-    display: flex; justify-content: space-between; align-items: center;
-    gap: 8px;
-  }
-  .entry-card-type {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 12px; font-weight: 500;
-    color: var(--muted-fg);
-  }
-  .entry-card.work .entry-card-type { color: var(--accent-ink); }
-  .entry-card.sick .entry-card-type { color: #9f1239; }
-  .entry-card-time {
-    font-size: 18px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    margin-top: 6px;
-  }
-  .entry-card-meta {
-    font-size: 12px;
-    color: var(--muted-fg);
-    margin-top: 2px;
-  }
-
-  /* ======= TAG ======= */
-  .tag {
-    display: inline-flex; align-items: center; gap: 3px;
-    font-size: 10.5px; font-weight: 500;
-    padding: 2px 7px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    background: var(--muted);
-    color: var(--muted-fg);
-    line-height: 1.4;
-  }
-  .tag.ok { background: var(--ok-soft); border-color: #bbf7d0; color: #15803d; }
-  .tag.ok-solid { background: var(--ok); border-color: var(--ok); color: #fff; }
-  .tag.warn { background: var(--warn-soft); border-color: #fde68a; color: #b45309; }
-
-  /* ======= BUTTONS ======= */
-  .btn {
-    appearance: none;
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    height: 40px; padding: 0 14px;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    background: var(--card);
-    color: var(--fg);
-    font: inherit; font-size: 14px; font-weight: 500;
-    cursor: pointer;
-    transition: background .12s, transform .06s, box-shadow .15s;
-    box-shadow: var(--shadow-sm);
-    white-space: nowrap;
-  }
-  .btn:active { transform: scale(0.97); }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .btn.primary { background: var(--fg); color: #fff; border-color: var(--fg); }
-  .btn.accent { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .btn.destructive { background: var(--sick); color: #fff; border-color: var(--sick); }
-  .btn.ghost { background: transparent; border-color: transparent; box-shadow: none; }
-  .btn.ghost-destructive {
-    background: transparent; border-color: transparent; box-shadow: none;
-    color: var(--sick);
-    width: 40px; padding: 0;
-  }
-  .btn.lg { height: 48px; font-size: 15px; border-radius: 12px; }
-  .btn.sm { height: 32px; padding: 0 10px; font-size: 13px; border-radius: 8px; }
-
-  /* Icon buttons */
-  .icon-btn {
-    appearance: none;
-    width: 36px; height: 36px;
-    display: inline-flex; align-items: center; justify-content: center;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    cursor: pointer;
-    color: var(--fg);
-    transition: background .12s, transform .06s;
-  }
-  .icon-btn:active { transform: scale(0.94); }
-  .icon-btn.sm { width: 32px; height: 32px; border-radius: 8px; }
-  .icon-btn.ghost { background: transparent; border-color: transparent; }
-
-  /* ======= FAB ======= */
-  .fab {
-    position: absolute;
-    right: 16px; bottom: 82px;
-    width: 56px; height: 56px;
-    border-radius: 18px;
-    background: var(--accent);
-    color: #fff;
-    border: none;
-    box-shadow: 0 12px 24px -8px color-mix(in oklab, var(--accent) 60%, transparent), 0 2px 6px rgb(0 0 0 / 0.1);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    transition: transform .1s ease, box-shadow .15s ease;
-    z-index: 15;
-  }
-  .fab:active { transform: scale(0.92); }
-
-  /* ======= TAB BAR ======= */
-  .tab-bar {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 74px;
-    background: rgba(255,255,255,0.92);
-    backdrop-filter: blur(14px);
-    border-top: 1px solid var(--border);
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    z-index: 10;
-    padding-bottom: var(--safe-bot);
-  }
-  .tab-btn {
-    appearance: none;
-    background: transparent;
-    border: none;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 3px;
-    font: inherit; font-size: 10.5px; font-weight: 500;
-    color: var(--muted-fg);
-    cursor: pointer;
-    padding-top: 10px;
-    transition: color .12s;
-  }
-  .tab-btn.active { color: var(--accent); }
-  .tab-btn:active { opacity: 0.7; }
-
-  /* ======= EMPTY STATE ======= */
-  .empty {
-    padding: 40px 24px;
-    display: flex; flex-direction: column; align-items: center;
-    text-align: center;
-    gap: 10px;
-  }
-  .empty-icon {
-    width: 64px; height: 64px;
-    border-radius: 20px;
-    background: var(--muted);
-    display: flex; align-items: center; justify-content: center;
-    margin-bottom: 8px;
-  }
-  .empty-title {
-    font-size: 16px; font-weight: 600;
-    letter-spacing: -0.01em;
-  }
-  .empty-sub {
-    color: var(--muted-fg);
-    font-size: 13px;
-    line-height: 1.5;
-    margin-bottom: 10px;
-  }
-
-  .swipe-area {
-    touch-action: pan-y;
-    will-change: transform;
-  }
-  .swipe-hint {
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-    padding: 20px 20px 8px;
-    color: var(--muted-fg);
-    font-size: 11px;
-    opacity: 0.7;
-  }
-
-  /* ======= MONTH GRID ======= */
-  .month-grid-wrap {
-    margin: 0 16px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    overflow: hidden;
-  }
-  .month-dow {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    padding: 10px 8px 6px;
-    border-bottom: 1px solid var(--border);
-    background: var(--muted);
-  }
-  .month-dow > div {
-    text-align: center;
-    font-size: 10px; font-weight: 500;
-    color: var(--muted-fg);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  .month-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    padding: 6px;
-    gap: 2px;
-  }
-  .month-cell {
-    appearance: none;
-    aspect-ratio: 1;
-    min-height: 40px;
-    border: 1px solid transparent;
-    background: transparent;
-    border-radius: 8px;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 3px;
-    font: inherit;
-    color: var(--fg);
-    cursor: pointer;
-    transition: background .12s;
-    padding: 2px;
-  }
-  .month-cell:active { background: var(--muted); }
-  .month-cell.dim { color: #d4d4d8; }
-  .month-cell.today {
-    background: var(--accent-soft);
-    border-color: var(--accent-border);
-  }
-  .month-cell .mc-num {
-    font-size: 13px; font-weight: 500;
-    letter-spacing: -0.01em;
-  }
-  .month-cell.today .mc-num { color: var(--accent); font-weight: 600; }
-  .month-cell .mc-bar {
-    display: flex; gap: 2px; height: 4px;
-  }
-  .month-cell .mc-bar .bar {
-    width: 4px; height: 4px; border-radius: 1px;
-  }
-
-  /* ======= STAT CARD ======= */
-  .stat-card {
-    margin: 14px 16px 0;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 14px;
-  }
-  .stat-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-    padding: 6px 0;
-  }
-  .stat-row + .stat-row {
-    border-top: 1px solid var(--border);
-    margin-top: 6px;
-    padding-top: 12px;
-  }
-  .stat { display: flex; flex-direction: column; gap: 2px; }
-  .stat-label {
-    font-size: 11px; font-weight: 500;
-    color: var(--muted-fg);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  .stat-value {
-    font-size: 20px; font-weight: 600;
-    letter-spacing: -0.02em;
-  }
-  .stat-sub {
-    font-size: 11px;
-    color: var(--muted-fg);
-  }
-
-  .progress-group {
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px solid var(--border);
-  }
-  .progress-label {
-    display: flex; justify-content: space-between;
-    font-size: 12px; font-weight: 500;
-    margin-bottom: 8px;
-  }
-  .progress {
-    position: relative;
-    height: 6px;
-    background: var(--muted);
-    border-radius: 999px;
-    overflow: hidden;
-  }
-  .progress-user {
-    position: absolute; top: 0; left: 0; bottom: 0;
-    background: var(--accent);
-    transition: width .3s ease;
-  }
-  .progress-mgr {
-    position: absolute; top: 0; left: 0; bottom: 0;
-    background: var(--ok);
-    transition: width .3s ease;
-  }
-  .progress-legend {
-    display: flex; gap: 14px;
-    margin-top: 8px;
-    font-size: 11px;
-    color: var(--muted-fg);
-  }
-  .legend-swatch {
-    display: inline-block;
-    width: 8px; height: 8px; border-radius: 2px;
-    margin-right: 4px;
-    vertical-align: middle;
-  }
-
-  /* ======= CTA CARD ======= */
-  .cta-card {
-    margin: 14px 16px 20px;
-    background: var(--accent-soft);
-    border: 1px solid var(--accent-border);
-    border-radius: 14px;
-    padding: 14px;
-  }
-  .cta-icon {
-    width: 36px; height: 36px;
-    border-radius: 10px;
-    background: var(--card);
-    border: 1px solid var(--accent-border);
-    color: var(--accent);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .cta-title {
-    font-weight: 600; font-size: 14px;
-    letter-spacing: -0.01em;
-    color: var(--accent-ink);
-  }
-  .cta-sub {
-    font-size: 12px; color: var(--accent-ink);
-    opacity: 0.75;
-    line-height: 1.45;
-    margin-top: 2px;
-  }
-
-  /* ======= SHEET ======= */
-  .sheet-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgb(0 0 0 / 0.4);
-    z-index: 50;
-    display: flex;
-    align-items: flex-end;
-    animation: fadeIn .15s ease-out;
-  }
-  .sheet-overlay.top { align-items: flex-start; padding-top: 10px; }
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-  .sheet {
-    background: var(--card);
-    width: 100%;
-    max-height: 92%;
-    border-radius: 20px 20px 0 0;
-    display: flex; flex-direction: column;
-    animation: slideUp .25s cubic-bezier(.22,1,.36,1);
-    box-shadow: 0 -10px 30px -10px rgb(0 0 0 / 0.2);
-    overflow: hidden;
-  }
-  .sheet.sig-sheet { max-height: 96%; }
-  @keyframes slideUp {
-    from { transform: translateY(100%); }
-    to { transform: translateY(0); }
-  }
-  .sheet-handle-wrap {
-    padding: 8px 0 4px;
-    display: flex; justify-content: center;
-    cursor: pointer;
-  }
-  .sheet-handle {
-    width: 36px; height: 4px; border-radius: 2px;
-    background: var(--border-strong);
-  }
-  .sheet-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 6px 12px 10px;
-    border-bottom: 1px solid var(--border);
-  }
-  .sheet-title {
-    font-weight: 600; font-size: 15px;
-    letter-spacing: -0.01em;
-  }
-  .sheet-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 18px 20px 24px;
-    -webkit-overflow-scrolling: touch;
-  }
-  .sheet-date {
-    display: flex; align-items: center; gap: 12px;
-    margin-bottom: 18px;
-  }
-  .locked-banner {
-    display: flex; align-items: center; gap: 8px;
-    padding: 10px 12px;
-    background: var(--ok-soft);
-    border: 1px solid #bbf7d0;
-    color: #15803d;
-    border-radius: 10px;
-    font-size: 12.5px;
-    font-weight: 500;
-    margin-bottom: 16px;
-  }
-  .warn-banner {
-    padding: 14px;
-    background: var(--warn-soft);
-    border: 1px solid #fde68a;
-    border-radius: 12px;
-    color: #92400e;
-    font-size: 13.5px;
-    line-height: 1.45;
-    margin-bottom: 16px;
-  }
-
-  /* Form fields */
-  .field { margin-bottom: 16px; }
-  .field-label {
-    font-size: 11px; font-weight: 500;
-    color: var(--muted-fg);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-bottom: 8px;
-  }
-  .input {
-    appearance: none;
-    width: 100%;
-    height: 44px;
-    padding: 0 14px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: var(--card);
-    font: inherit; font-size: 15px;
-    color: var(--fg);
-  }
-  .input:focus { outline: 2px solid var(--ring); outline-offset: 1px; border-color: var(--accent-border); }
-  .input:disabled { background: var(--muted); color: var(--muted-fg); }
-
-  .type-seg {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-  .type-btn {
-    appearance: none;
-    display: flex; flex-direction: column; align-items: center; gap: 8px;
-    padding: 14px 12px;
-    border-radius: 12px;
-    border: 1.5px solid var(--border);
-    background: var(--card);
-    cursor: pointer;
-    font: inherit;
-    color: var(--fg);
-    transition: all .15s;
-  }
-  .type-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .type-btn-icon {
-    width: 36px; height: 36px;
-    border-radius: 10px;
-    background: var(--tb-soft);
-    color: var(--tb-color);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .type-btn-label {
-    font-size: 13.5px; font-weight: 500;
-  }
-  .type-btn.active {
-    border-color: var(--tb-color);
-    background: var(--tb-soft);
-  }
-  .type-btn.active .type-btn-label {
-    color: var(--tb-color);
-    font-weight: 600;
-  }
-
-  .time-row {
-    display: flex; align-items: flex-end; gap: 8px;
-  }
-  .time-picker {
-    flex: 1;
-    display: flex; flex-direction: column; gap: 4px;
-  }
-  .time-picker-label {
-    font-size: 11px;
-    color: var(--muted-fg);
-    font-weight: 500;
-  }
-  .time-input {
-    appearance: none; -webkit-appearance: none;
-    width: 100%;
-    height: 56px;
-    padding: 0 12px;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: var(--card);
-    font: inherit;
-    font-size: 22px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    text-align: center;
-    color: var(--fg);
-  }
-  .time-input:focus { outline: 2px solid var(--ring); outline-offset: 1px; }
-  .time-input:disabled { background: var(--muted); color: var(--muted-fg); }
-  .time-arrow {
-    padding-bottom: 16px;
-    font-size: 18px;
-    color: var(--muted-fg);
-  }
-
-  .duration-bar {
-    display: flex; align-items: center; gap: 8px;
-    padding: 10px 12px;
-    background: var(--muted);
-    border-radius: 10px;
-    margin-top: 10px;
-    font-size: 13px;
-    color: var(--muted-fg);
-  }
-
-  .quick-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
-  }
-  .quick-chip {
-    appearance: none;
-    padding: 8px 4px;
-    font: inherit;
-    font-size: 11.5px;
-    font-weight: 500;
-    font-family: 'Geist Mono', monospace;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--fg-soft);
-    cursor: pointer;
-    transition: background .12s;
-  }
-  .quick-chip:active { background: var(--muted); }
-  .quick-chip:disabled { opacity: 0.4; }
-
-  /* Signature state in entry sheet */
-  .sig-state {
-    display: flex; align-items: center; gap: 12px;
-    padding: 12px;
-    background: var(--ok-soft);
-    border: 1px solid #bbf7d0;
-    border-radius: 12px;
-    margin-bottom: 16px;
-  }
-  .sig-state-icon {
-    width: 36px; height: 36px;
-    border-radius: 10px;
-    background: #fff;
-    border: 1px solid #bbf7d0;
-    color: var(--ok);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .sig-state-title {
-    font-size: 13px; font-weight: 500;
-    color: #15803d;
-  }
-  .sig-state-sub {
-    font-size: 11.5px; color: #16a34a;
-    margin-top: 2px;
-  }
-  .sig-state-mgr {
-    font-size: 11px; color: #15803d;
-    margin-top: 4px;
-    display: flex; align-items: center; gap: 4px;
-  }
-
-  .sheet-actions {
-    display: flex; gap: 8px;
-    padding-top: 18px;
-    margin-top: 8px;
-    border-top: 1px solid var(--border);
-  }
-
-  /* Signature pad */
-  .sig-title {
-    font-size: 17px; font-weight: 600;
-    letter-spacing: -0.015em;
-  }
-  .sig-sub {
-    font-size: 13px;
-    color: var(--muted-fg);
-    margin-top: 4px;
-  }
-  .sig-signer {
-    display: inline-flex; align-items: center; gap: 5px;
-    margin-top: 12px;
-    font-size: 11px;
-    color: var(--muted-fg);
-    padding: 4px 10px;
-    border-radius: 999px;
-    background: var(--muted);
-  }
-  .sig-canvas-wrap {
-    position: relative;
-    margin-top: 16px;
-    background: #fafafa;
-    border: 1px dashed var(--border-strong);
-    border-radius: 14px;
-    height: 200px;
-    overflow: hidden;
-  }
-  .sig-pad {
-    touch-action: none;
-    display: block;
-    width: 100%; height: 100%;
-    cursor: crosshair;
-  }
-  .sig-placeholder {
-    position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-    pointer-events: none;
-    color: #a1a1aa;
-    font-size: 13px;
-  }
-  .sig-line {
-    position: absolute; left: 16px; right: 16px; bottom: 20px;
-    border-bottom: 1px dotted #c4c4c6;
-  }
-  .sig-date-stamp {
-    position: absolute; left: 16px; bottom: 24px;
-    font-size: 10.5px; color: #a1a1aa;
-  }
-  .sig-actions {
-    display: flex; gap: 8px;
-    margin-top: 18px;
-  }
-
-  /* Manager flow */
-  .mgr-hero {
-    text-align: center;
-    padding: 12px 0 20px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 18px;
-  }
-  .mgr-hero-icon {
-    width: 52px; height: 52px;
-    border-radius: 16px;
-    background: var(--accent-soft);
-    border: 1px solid var(--accent-border);
-    color: var(--accent);
-    display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 12px;
-  }
-  .mgr-hero-title {
-    font-size: 17px; font-weight: 600;
-    letter-spacing: -0.015em;
-  }
-  .mgr-hero-sub {
-    font-size: 13.5px;
-    color: var(--muted-fg);
-    line-height: 1.5;
-    margin-top: 6px;
-  }
-  .summary-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    background: var(--muted);
-    border-radius: 12px;
-    padding: 14px;
-  }
-  .summary-label {
-    font-size: 11px; font-weight: 500;
-    color: var(--muted-fg);
-    text-transform: uppercase; letter-spacing: 0.04em;
-  }
-  .summary-value {
-    font-size: 18px; font-weight: 600;
-    letter-spacing: -0.01em;
-    margin-top: 2px;
-  }
-  .mgr-list {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    max-height: 180px;
-    overflow-y: auto;
-  }
-  .mgr-list-row {
-    display: flex; align-items: center; gap: 8px;
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--border);
-  }
-  .mgr-list-row:last-child { border-bottom: none; }
-
-  .success {
-    text-align: center;
-    padding: 24px 12px;
-  }
-  .success-icon {
-    width: 72px; height: 72px;
-    border-radius: 999px;
-    background: var(--ok-soft);
-    border: 2px solid #bbf7d0;
-    color: var(--ok);
-    display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 16px;
-  }
-  .success-title {
-    font-size: 20px; font-weight: 600;
-    letter-spacing: -0.02em;
-  }
-  .success-sub {
-    color: var(--muted-fg);
-    font-size: 13.5px;
-    line-height: 1.5;
-    margin-top: 8px;
-  }
-
-  /* ======= SETTINGS ======= */
-  .profile-card {
-    margin: 8px 16px 20px;
-    padding: 14px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    display: flex; align-items: center; gap: 12px;
-  }
-  .avatar {
-    width: 44px; height: 44px;
-    border-radius: 999px;
-    background: var(--accent);
-    color: #fff;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 600; font-size: 14px;
-    letter-spacing: 0.02em;
-  }
-  .settings-group {
-    margin: 0 16px 18px;
-  }
-  .settings-group-title {
-    font-size: 11px; font-weight: 500;
-    color: var(--muted-fg);
-    text-transform: uppercase; letter-spacing: 0.04em;
-    padding: 0 4px 6px;
-  }
-  .settings-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    overflow: hidden;
-  }
-  .settings-row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 14px;
-    gap: 12px;
-    min-height: 52px;
-  }
-  .settings-action {
-    background: transparent; border: none;
-    width: 100%;
-    font: inherit;
-    cursor: pointer;
-    text-align: left;
-    color: var(--fg);
-  }
-  .settings-action:active { background: var(--muted); }
-  .settings-label {
-    font-size: 14px; font-weight: 500;
-  }
-  .settings-hint {
-    font-size: 11.5px;
-    color: var(--muted-fg);
-    margin-top: 2px;
-  }
-  .settings-sep {
-    height: 1px;
-    background: var(--border);
-    margin-left: 14px;
-  }
-  .color-swatches {
-    display: flex; gap: 6px;
-  }
-  .swatch {
-    appearance: none;
-    width: 28px; height: 28px;
-    border-radius: 8px;
-    border: 2px solid transparent;
-    cursor: pointer;
-    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
-  }
-  .swatch.active { border-color: var(--fg); }
-
-  /* ======= TOAST ======= */
-  .toast {
-    position: absolute;
-    top: calc(var(--safe-top) + 50px);
-    left: 50%; transform: translateX(-50%);
-    background: var(--fg); color: #fff;
-    padding: 9px 14px;
-    border-radius: 999px;
-    font-size: 13px; font-weight: 500;
-    box-shadow: var(--shadow-lg);
-    z-index: 100;
-    display: flex; align-items: center; gap: 6px;
-    animation: toastIn .2s ease-out;
-  }
-  @keyframes toastIn {
-    from { opacity: 0; transform: translate(-50%, -6px); }
-    to { opacity: 1; transform: translate(-50%, 0); }
-  }
-
-  ::-webkit-scrollbar { width: 0; height: 0; }
-</style>
-</head>
-<body>
-<div id="root"></div>
-
-<script>
-  window.TWEAKS = /*EDITMODE-BEGIN*/{
-    "layout": "week",
-    "accent": "violet",
-    "defaultStart": "08:00",
-    "defaultEnd": "17:00",
-    "showWeekend": true,
-    "manager": "S. Weber"
-  }/*EDITMODE-END*/;
-</script>
-
-<script type="text/babel" data-presets="react" id="__jsx_source">
-/* Timesheet — mobile-first */
-const { useState, useEffect, useRef, useMemo, useCallback } = React;
-
-/* ============================= ICONS ============================= */
-const Icon = ({ children, size = 20, stroke = 2, style, fill = "none", color }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24"
-       fill={fill} stroke={color || "currentColor"} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round"
-       style={{ flexShrink: 0, ...style }}>{children}</svg>
-);
-const IChevronL = (p) => <Icon {...p}><polyline points="15 18 9 12 15 6"/></Icon>;
-const IChevronR = (p) => <Icon {...p}><polyline points="9 18 15 12 9 6"/></Icon>;
-const IPlus = (p) => <Icon {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></Icon>;
-const IX = (p) => <Icon {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Icon>;
-const ICheck = (p) => <Icon {...p}><polyline points="20 6 9 17 4 12"/></Icon>;
-const ITrash = (p) => <Icon {...p}><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></Icon>;
-const IStethoscope = (p) => <Icon {...p}><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .2.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></Icon>;
-const IBriefcase = (p) => <Icon {...p}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></Icon>;
-const IPen = (p) => <Icon {...p}><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></Icon>;
-const ILock = (p) => <Icon {...p}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></Icon>;
-const IShield = (p) => <Icon {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></Icon>;
-const ISettings = (p) => <Icon {...p}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></Icon>;
-const ICal = (p) => <Icon {...p}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Icon>;
-const IUser = (p) => <Icon {...p}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></Icon>;
-const IUndo = (p) => <Icon {...p}><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></Icon>;
-const IList = (p) => <Icon {...p}><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></Icon>;
-const IHome = (p) => <Icon {...p}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></Icon>;
-const IClock = (p) => <Icon {...p}><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></Icon>;
-const IDown = (p) => <Icon {...p}><polyline points="6 9 12 15 18 9"/></Icon>;
-const IChevronDn = IDown;
-
-/* ============================= DATE HELPERS ============================= */
-const DAYS_DE_FULL = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
-const DAYS_SHORT = ["Mo","Di","Mi","Do","Fr","Sa","So"];
-const MONTHS = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
-const MONTHS_SHORT = ["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
-
-const pad = (n) => String(n).padStart(2,"0");
-const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-const startOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
-const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
-const startOfWeekMon = (d) => {
-  const x = startOfDay(d);
-  const dow = (x.getDay() + 6) % 7;
-  return addDays(x, -dow);
-};
-const sameDay = (a, b) => ymd(a) === ymd(b);
-const fmtTime = (mins) => `${pad(Math.floor(mins/60))}:${pad(mins%60)}`;
-const parseTime = (s) => { const [h,m] = (s || "0:0").split(":").map(Number); return (h*60)+(m||0); };
-const durFmt = (mins) => { const h = Math.floor(mins/60), m = mins%60; return m === 0 ? `${h}h` : `${h}h ${pad(m)}m`; };
-const monthKey = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
-const fmtDayLong = (d) => `${DAYS_DE_FULL[(d.getDay()+6)%7]}, ${d.getDate()}. ${MONTHS[d.getMonth()]}`;
-const fmtDayMed = (d) => `${DAYS_SHORT[(d.getDay()+6)%7]}, ${d.getDate()}. ${MONTHS_SHORT[d.getMonth()]}`;
-const weekNum = (d) => {
-  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const dayNum = t.getUTCDay() || 7;
-  t.setUTCDate(t.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(t.getUTCFullYear(),0,1));
-  return Math.ceil((((t - yearStart) / 86400000) + 1) / 7);
-};
-
-/* ============================= STORAGE ============================= */
-const LS_ENTRIES = "ts.entries.v2";
-const LS_TAB = "ts.tab.v1";
-
-const loadLS = (k, fb) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch { return fb; } };
-const saveLS = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
-
-function seed() {
-  const existing = loadLS(LS_ENTRIES, null);
-  if (existing) return existing;
-  const today = startOfDay(new Date());
-  const wk = startOfWeekMon(today);
-  const entries = [];
-  const mk = (dayOffset, start, end, type="work", signed=false) => entries.push({
-    id: crypto.randomUUID(),
-    date: ymd(addDays(wk, dayOffset)),
-    type, start, end,
-    note: "",
-    userSig: signed ? { at: Date.now() - 86400000, name: "A. Müller" } : null,
-    mgrSig: null,
-  });
-  const lastWk = addDays(wk, -7);
-  for (let i=0;i<5;i++){
-    entries.push({
-      id: crypto.randomUUID(),
-      date: ymd(addDays(lastWk, i)),
-      type: "work", start: 480, end: 1020,
-      note: "",
-      userSig: { at: Date.now() - 7*86400000, name: "A. Müller" },
-      mgrSig: null,
-    });
-  }
-  mk(0, 8*60, 17*60, "work", true);
-  mk(1, 8*60+15, 16*60+45, "work", true);
-  mk(2, 0, 24*60, "sick", false);
-  mk(3, 9*60, 17*60+30, "work", false);
-  return entries;
-}
-
-/* ============================= APP ============================= */
-function App() {
-  const [tweaks, setTweaks] = useState(() => ({ ...window.TWEAKS }));
-  const [tweaksOpen, setTweaksOpen] = useState(false);
-  const [editMode, setEditMode] = useState(false);
-
-  const [entries, setEntries] = useState(() => seed());
-  const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()));
-  const [tab, setTab] = useState(() => loadLS(LS_TAB, "day"));
-  const [sheet, setSheet] = useState(null);
-  const [toast, setToast] = useState(null);
-  const [mgrFlow, setMgrFlow] = useState(null);
-
-  useEffect(() => saveLS(LS_ENTRIES, entries), [entries]);
-  useEffect(() => saveLS(LS_TAB, tab), [tab]);
-
-  useEffect(() => {
-    const accent = tweaks.accent || "indigo";
-    const palette = {
-      indigo:  ["#6366f1","#eef2ff","#c7d2fe","#3730a3"],
-      violet:  ["#7c3aed","#f5f3ff","#ddd6fe","#5b21b6"],
-      blue:    ["#2563eb","#eff6ff","#bfdbfe","#1e40af"],
-      emerald: ["#059669","#ecfdf5","#a7f3d0","#065f46"],
-      amber:   ["#d97706","#fffbeb","#fde68a","#92400e"],
-    };
-    const [v,s,b,fg] = palette[accent] || palette.indigo;
-    const r = document.documentElement.style;
-    r.setProperty("--accent", v); r.setProperty("--accent-soft", s);
-    r.setProperty("--accent-border", b); r.setProperty("--accent-ink", fg);
-  }, [tweaks.accent]);
-
-  useEffect(() => {
-    const onMsg = (e) => {
-      const m = e.data;
-      if (!m || typeof m !== "object") return;
-      if (m.type === "__activate_edit_mode") { setEditMode(true); setTweaksOpen(true); }
-      if (m.type === "__deactivate_edit_mode") { setEditMode(false); setTweaksOpen(false); }
-    };
-    window.addEventListener("message", onMsg);
-    window.parent.postMessage({ type: "__edit_mode_available" }, "*");
-    return () => window.removeEventListener("message", onMsg);
-  }, []);
-
-  const updateTweak = (patch) => {
-    setTweaks((prev) => {
-      const next = { ...prev, ...patch };
-      window.parent.postMessage({ type: "__edit_mode_set_keys", edits: patch }, "*");
-      return next;
-    });
-  };
-
-  const showToast = (msg) => {
-    setToast({ msg, id: Date.now() });
-    setTimeout(() => setToast((t) => (t && t.msg === msg ? null : t)), 2200);
-  };
-
-  const upsertEntry = (entry) => {
-    setEntries((xs) => {
-      const i = xs.findIndex(e => e.id === entry.id);
-      if (i === -1) return [...xs, entry];
-      const n = xs.slice(); n[i] = entry; return n;
-    });
-  };
-  const deleteEntry = (id) => setEntries((xs) => xs.filter(e => e.id !== id));
-
-  const openCreate = (date) => {
-    setSheet({
-      type: "entry",
-      mode: "create",
-      entry: {
-        id: crypto.randomUUID(),
-        date: ymd(date || selectedDate),
-        type: "work",
-        start: parseTime(tweaks.defaultStart || "08:00"),
-        end: parseTime(tweaks.defaultEnd || "17:00"),
-        note: "",
-        userSig: null,
-        mgrSig: null,
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta
+      name="theme-color"
+      content="#ffffff"
+    />
+    <title>Zeiterfassung</title>
+    <link
+      rel="preconnect"
+      href="https://fonts.googleapis.com"
+    />
+    <link
+      rel="preconnect"
+      href="https://fonts.gstatic.com"
+      crossorigin
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <script
+      src="https://unpkg.com/react@18.3.1/umd/react.development.js"
+      integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"
+      integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"
+      crossorigin="anonymous"
+    ></script>
+    <style>
+      :root {
+        --bg: #f4f4f5;
+        --phone-bg: #fafafa;
+        --card: #ffffff;
+        --border: #e4e4e7;
+        --border-strong: #d4d4d8;
+        --muted: #f4f4f5;
+        --muted-fg: #71717a;
+        --fg: #09090b;
+        --fg-soft: #27272a;
+        --accent: #7c3aed;
+        --accent-soft: #f5f3ff;
+        --accent-border: #ddd6fe;
+        --accent-ink: #5b21b6;
+        --sick: #e11d48;
+        --sick-soft: #fff1f2;
+        --sick-border: #fecdd3;
+        --ok: #16a34a;
+        --ok-soft: #f0fdf4;
+        --warn: #f59e0b;
+        --warn-soft: #fffbeb;
+        --ring: color-mix(in oklab, var(--accent) 40%, white);
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+        --shadow:
+          0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+        --shadow-lg:
+          0 10px 30px -10px rgb(0 0 0 / 0.25), 0 4px 8px -4px rgb(0 0 0 / 0.08);
+        --safe-top: env(safe-area-inset-top, 0px);
+        --safe-bot: env(safe-area-inset-bottom, 0px);
       }
-    });
-  };
-  const openEdit = (entry) => setSheet({ type: "entry", mode: "edit", entry: { ...entry } });
 
-  const signEntry = (id, dataUrl) => {
-    setEntries((xs) => xs.map(e => e.id === id ? { ...e, userSig: { at: Date.now(), name: "A. Müller", dataUrl } } : e));
-    showToast("Eintrag signiert");
-  };
-  const unsignEntry = (id) => {
-    setEntries((xs) => xs.map(e => e.id === id ? { ...e, userSig: null, mgrSig: null } : e));
-  };
-
-  const entriesByDate = useMemo(() => {
-    const m = {};
-    for (const e of entries) (m[e.date] ||= []).push(e);
-    for (const k of Object.keys(m)) m[k].sort((a,b)=>a.start-b.start);
-    return m;
-  }, [entries]);
-
-  const selectedMonth = selectedDate;
-  const monthEntries = useMemo(() => {
-    const mk = monthKey(selectedMonth);
-    return entries.filter(e => e.date.startsWith(mk));
-  }, [entries, selectedMonth]);
-
-  const openMgrFlow = () => {
-    const unsigned = monthEntries.filter(e => !e.mgrSig);
-    if (unsigned.length === 0) { showToast("Bereits komplett freigegeben"); return; }
-    const allUserSigned = monthEntries.every(e => e.userSig);
-    setMgrFlow({ stage: allUserSigned ? "intro" : "not-ready" });
-  };
-
-  const commitMgrSig = (sig) => {
-    const mk = monthKey(selectedMonth);
-    const count = entries.filter(e => e.date.startsWith(mk) && e.userSig && !e.mgrSig).length;
-    setEntries((xs) => xs.map(e => e.date.startsWith(mk) && e.userSig && !e.mgrSig
-      ? { ...e, mgrSig: { at: Date.now(), name: tweaks.manager || "Manager", dataUrl: sig } }
-      : e));
-    setMgrFlow({ stage: "done", count });
-  };
-
-  return (
-    <div className="phone">
-      <div className="phone-inner">
-        <StatusBar/>
-        <div className="content">
-          {tab === "day" && (
-            <DayView
-              selectedDate={selectedDate}
-              setSelectedDate={setSelectedDate}
-              entriesByDate={entriesByDate}
-              openCreate={openCreate}
-              openEdit={openEdit}
-            />
-          )}
-          {tab === "month" && (
-            <MonthView
-              selectedDate={selectedDate}
-              setSelectedDate={(d) => { setSelectedDate(d); setTab("day"); }}
-              entriesByDate={entriesByDate}
-              monthEntries={monthEntries}
-              onMgr={openMgrFlow}
-              tweaks={tweaks}
-            />
-          )}
-          {tab === "settings" && (
-            <SettingsView tweaks={tweaks} updateTweak={updateTweak}/>
-          )}
-        </div>
-
-        {tab !== "settings" && (
-          <button className="fab" onClick={() => openCreate(selectedDate)} aria-label="Neuer Eintrag">
-            <IPlus size={24} stroke={2.2}/>
-          </button>
-        )}
-
-        <TabBar tab={tab} setTab={setTab}/>
-      </div>
-
-      {sheet && sheet.type === "entry" && (
-        <EntrySheet
-          sheet={sheet}
-          onClose={() => setSheet(null)}
-          onSave={(e) => { upsertEntry(e); setSheet(null); showToast(sheet.mode === "create" ? "Erstellt" : "Gespeichert"); }}
-          onDelete={(id) => { deleteEntry(id); setSheet(null); showToast("Gelöscht"); }}
-          onSign={signEntry}
-          onUnsign={(id) => { unsignEntry(id); showToast("Signatur entfernt"); }}
-        />
-      )}
-
-      {mgrFlow && (
-        <ManagerFlow
-          state={mgrFlow}
-          setState={setMgrFlow}
-          monthDate={selectedMonth}
-          monthEntries={monthEntries}
-          managerName={tweaks.manager || "S. Weber"}
-          onCommit={commitMgrSig}
-        />
-      )}
-
-      {toast && (
-        <div className="toast">
-          <ICheck size={14} stroke={2.5}/>
-          {toast.msg}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ============================= STATUS BAR ============================= */
-function StatusBar() {
-  const [time, setTime] = useState(() => {
-    const d = new Date();
-    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  });
-  useEffect(() => {
-    const t = setInterval(() => {
-      const d = new Date();
-      setTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
-    }, 30000);
-    return () => clearInterval(t);
-  }, []);
-  return (
-    <div className="status-bar">
-      <span style={{ fontWeight: 600 }}>{time}</span>
-      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-        <span style={{ fontSize: 12 }}>●●●●</span>
-        <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 0a8 8 0 0 1 5.66 2.34l-1.41 1.41A6 6 0 0 0 8 2a6 6 0 0 0-4.24 1.76L2.34 2.34A8 8 0 0 1 8 0Zm0 4a4 4 0 0 1 2.83 1.17l-1.42 1.42A2 2 0 0 0 8 6a2 2 0 0 0-1.41.59L5.17 5.17A4 4 0 0 1 8 4Zm0 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z"/></svg>
-        <svg width="22" height="11" viewBox="0 0 22 11" fill="none"><rect x="0.5" y="0.5" width="18" height="10" rx="2" stroke="currentColor"/><rect x="2" y="2" width="14" height="7" rx="1" fill="currentColor"/><rect x="19" y="4" width="2" height="3" rx="0.5" fill="currentColor"/></svg>
-      </div>
-    </div>
-  );
-}
-
-/* ============================= TAB BAR ============================= */
-function TabBar({ tab, setTab }) {
-  const items = [
-    { id: "day",     label: "Tag",     icon: <IClock size={20}/> },
-    { id: "month",   label: "Monat",   icon: <ICal size={20}/> },
-    { id: "settings",label: "Mehr",    icon: <ISettings size={20}/> },
-  ];
-  return (
-    <nav className="tab-bar">
-      {items.map(i => (
-        <button key={i.id} className={"tab-btn " + (tab === i.id ? "active" : "")} onClick={() => setTab(i.id)}>
-          {i.icon}
-          <span>{i.label}</span>
-        </button>
-      ))}
-    </nav>
-  );
-}
-
-/* ============================= DAY VIEW ============================= */
-function DayView({ selectedDate, setSelectedDate, entriesByDate, openCreate, openEdit }) {
-  const swipeRef = useRef(null);
-  const [drag, setDrag] = useState(null);
-
-  const week = useMemo(() => {
-    const start = startOfWeekMon(selectedDate);
-    return Array.from({length:7}, (_,i) => addDays(start, i));
-  }, [selectedDate]);
-
-  const prevDay = () => setSelectedDate(d => addDays(d, -1));
-  const nextDay = () => setSelectedDate(d => addDays(d, 1));
-
-  /* Swipe */
-  useEffect(() => {
-    const el = swipeRef.current;
-    if (!el) return;
-    let startX = 0, startY = 0, tracking = false, locked = null;
-    const onStart = (e) => {
-      const t = e.touches ? e.touches[0] : e;
-      startX = t.clientX; startY = t.clientY;
-      tracking = true; locked = null;
-    };
-    const onMove = (e) => {
-      if (!tracking) return;
-      const t = e.touches ? e.touches[0] : e;
-      const dx = t.clientX - startX, dy = t.clientY - startY;
-      if (!locked && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
-        locked = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
       }
-      if (locked === "x") {
-        setDrag(dx);
-        e.preventDefault();
+      html,
+      body {
+        height: 100%;
       }
-    };
-    const onEnd = () => {
-      if (!tracking) return;
-      tracking = false;
-      if (locked === "x") {
-        if (drag > 60) prevDay();
-        else if (drag < -60) nextDay();
+      body {
+        margin: 0;
+        font-family:
+          "Geist",
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        font-size: 15px;
+        -webkit-font-smoothing: antialiased;
+        overscroll-behavior: none;
       }
-      setDrag(0);
-      locked = null;
-    };
-    el.addEventListener("touchstart", onStart, { passive: true });
-    el.addEventListener("touchmove", onMove, { passive: false });
-    el.addEventListener("touchend", onEnd);
-    return () => {
-      el.removeEventListener("touchstart", onStart);
-      el.removeEventListener("touchmove", onMove);
-      el.removeEventListener("touchend", onEnd);
-    };
-  }, [drag, selectedDate]);
+      .mono {
+        font-family: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+        font-variant-numeric: tabular-nums;
+      }
 
-  const dayKey = ymd(selectedDate);
-  const entries = entriesByDate[dayKey] || [];
-  const workMins = entries.filter(e => e.type === "work").reduce((s,e)=>s+(e.end-e.start),0);
-  const sick = entries.some(e => e.type === "sick");
-  const allSigned = entries.length > 0 && entries.every(e => e.userSig);
+      /* ======= PHONE FRAME ======= */
+      #root {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px 0;
+      }
+      .phone {
+        width: 100%;
+        max-width: 400px;
+        min-height: min(844px, calc(100vh - 48px));
+        background: var(--phone-bg);
+        border-radius: 44px;
+        border: 10px solid #18181b;
+        box-shadow:
+          0 20px 60px -20px rgb(0 0 0 / 0.35),
+          0 8px 16px -8px rgb(0 0 0 / 0.15);
+        overflow: hidden;
+        position: relative;
+        isolation: isolate;
+      }
+      .phone-inner {
+        position: relative;
+        width: 100%;
+        height: min(844px, calc(100vh - 48px));
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      /* On small/narrow screens: real phone, no frame */
+      @media (max-width: 480px) {
+        #root {
+          padding: 0;
+          align-items: stretch;
+        }
+        .phone {
+          max-width: none;
+          border: none;
+          border-radius: 0;
+          min-height: 100vh;
+          box-shadow: none;
+        }
+        .phone-inner {
+          height: 100vh;
+          padding-top: var(--safe-top);
+          padding-bottom: var(--safe-bot);
+        }
+        .status-bar {
+          display: none !important;
+        }
+      }
 
-  return (
-    <>
-      {/* Header */}
-      <header className="page-header">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <div className="eyebrow">KW {weekNum(selectedDate)} · {MONTHS[selectedDate.getMonth()]}</div>
-            <div className="page-title">Arbeitszeit</div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button className="icon-btn" onClick={() => setSelectedDate(startOfDay(new Date()))} aria-label="Heute">
-              <IHome size={18}/>
-            </button>
-          </div>
-        </div>
+      /* ======= STATUS BAR ======= */
+      .status-bar {
+        height: 36px;
+        padding: 0 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 13px;
+        font-weight: 600;
+        background: var(--phone-bg);
+        color: var(--fg);
+        position: relative;
+        z-index: 2;
+      }
+      .status-bar::before {
+        content: "";
+        position: absolute;
+        top: 6px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100px;
+        height: 26px;
+        background: #18181b;
+        border-radius: 20px;
+        z-index: 1;
+      }
+      .status-bar > * {
+        position: relative;
+        z-index: 2;
+      }
 
-        {/* Week strip */}
-        <div className="week-strip">
-          <button className="icon-btn sm" onClick={() => setSelectedDate(d => addDays(d, -7))} aria-label="Vorherige Woche">
-            <IChevronL size={16}/>
-          </button>
-          <div className="week-days">
-            {week.map(d => {
-              const isSel = sameDay(d, selectedDate);
-              const isToday = sameDay(d, new Date());
-              const dayEntries = entriesByDate[ymd(d)] || [];
-              const hasSick = dayEntries.some(e => e.type === "sick");
-              const hasWork = dayEntries.some(e => e.type === "work");
-              const anyUnsigned = dayEntries.some(e => !e.userSig);
-              return (
-                <button key={ymd(d)} className={"week-day " + (isSel ? "selected " : "") + (isToday ? "today " : "")}
-                  onClick={() => setSelectedDate(d)}>
-                  <span className="wd-dow">{DAYS_SHORT[(d.getDay()+6)%7]}</span>
-                  <span className="wd-num">{d.getDate()}</span>
-                  <span className="wd-dots">
-                    {hasWork && <span className="dot" style={{ background: "var(--accent)" }}/>}
-                    {hasSick && <span className="dot" style={{ background: "var(--sick)" }}/>}
-                    {dayEntries.length > 0 && anyUnsigned && <span className="dot" style={{ background: "#f59e0b" }}/>}
-                    {dayEntries.length > 0 && !anyUnsigned && <span className="dot" style={{ background: "var(--ok)" }}/>}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <button className="icon-btn sm" onClick={() => setSelectedDate(d => addDays(d, 7))} aria-label="Nächste Woche">
-            <IChevronR size={16}/>
-          </button>
-        </div>
-      </header>
+      /* ======= SCROLL CONTENT ======= */
+      .content {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 100px;
+      }
 
-      {/* Day summary + entries */}
-      <div ref={swipeRef}
-        className="swipe-area"
-        style={{ transform: `translateX(${drag || 0}px)`, transition: drag ? "none" : "transform .2s ease" }}>
-        {/* Day heading */}
-        <div className="day-heading">
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button className="icon-btn sm ghost" onClick={prevDay}><IChevronL size={18}/></button>
-            <div style={{ flex: 1, textAlign: "center" }}>
-              <div className="day-heading-title">{fmtDayLong(selectedDate)}</div>
-              {sameDay(selectedDate, new Date()) && <div className="day-heading-sub">Heute</div>}
-              {!sameDay(selectedDate, new Date()) && (
-                <div className="day-heading-sub">
-                  {Math.round((selectedDate - startOfDay(new Date())) / 86400000)} Tage
-                  {selectedDate < new Date() ? " zurück" : " voraus"}
-                </div>
-              )}
-            </div>
-            <button className="icon-btn sm ghost" onClick={nextDay}><IChevronR size={18}/></button>
-          </div>
+      /* ======= PAGE HEADER ======= */
+      .page-header {
+        padding: 20px 20px 12px;
+        background: var(--phone-bg);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        backdrop-filter: blur(8px);
+      }
+      .eyebrow {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--muted-fg);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 2px;
+      }
+      .page-title {
+        font-size: 26px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        line-height: 1.1;
+      }
 
-          {/* Summary pills */}
-          {entries.length > 0 && (
-            <div className="pills">
-              {sick ? (
-                <span className="pill sick"><IStethoscope size={13}/> Krank · ganztägig</span>
-              ) : (
-                <>
-                  <span className="pill accent"><IClock size={13}/> {durFmt(workMins)}</span>
-                  <span className="pill muted">{entries.length} {entries.length === 1 ? "Eintrag" : "Einträge"}</span>
-                  {allSigned && <span className="pill ok"><ICheck size={13} stroke={2.5}/> Signiert</span>}
-                </>
-              )}
-            </div>
-          )}
-        </div>
+      /* ======= WEEK STRIP ======= */
+      .week-strip {
+        display: flex;
+        align-items: stretch;
+        gap: 4px;
+        margin-top: 16px;
+      }
+      .week-days {
+        flex: 1;
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 3px;
+      }
+      .week-day {
+        appearance: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: 8px 2px 6px;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          border-color 0.15s;
+        font: inherit;
+        color: var(--fg);
+      }
+      .week-day:active {
+        background: var(--muted);
+      }
+      .week-day .wd-dow {
+        font-size: 10px;
+        font-weight: 500;
+        color: var(--muted-fg);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .week-day .wd-num {
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .week-day .wd-dots {
+        display: flex;
+        gap: 2px;
+        height: 5px;
+        margin-top: 1px;
+      }
+      .week-day .wd-dots .dot {
+        width: 4px;
+        height: 4px;
+        border-radius: 999px;
+      }
+      .week-day.today .wd-num {
+        color: var(--accent);
+      }
+      .week-day.selected {
+        background: var(--fg);
+        border-color: var(--fg);
+      }
+      .week-day.selected .wd-dow,
+      .week-day.selected .wd-num {
+        color: #fff;
+      }
+      .week-day.selected.today .wd-num {
+        color: #fff;
+      }
 
-        {/* Entries list */}
-        {entries.length === 0 ? (
-          <EmptyState onAdd={() => openCreate(selectedDate)}/>
-        ) : (
-          <div className="entries-list">
-            {entries.map(e => <EntryCard key={e.id} entry={e} onClick={() => openEdit(e)}/>)}
-          </div>
-        )}
+      /* ======= DAY HEADING ======= */
+      .day-heading {
+        padding: 14px 20px 8px;
+      }
+      .day-heading-title {
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: -0.015em;
+      }
+      .day-heading-sub {
+        font-size: 12px;
+        color: var(--muted-fg);
+        margin-top: 2px;
+      }
+      .pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 14px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 12px;
+        font-weight: 500;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--card);
+      }
+      .pill.accent {
+        background: var(--accent-soft);
+        border-color: var(--accent-border);
+        color: var(--accent-ink);
+      }
+      .pill.sick {
+        background: var(--sick-soft);
+        border-color: var(--sick-border);
+        color: #9f1239;
+      }
+      .pill.ok {
+        background: var(--ok-soft);
+        border-color: #bbf7d0;
+        color: #15803d;
+      }
+      .pill.muted {
+        background: var(--muted);
+        color: var(--muted-fg);
+        border-color: transparent;
+      }
 
-        {/* Swipe hint */}
-        <div className="swipe-hint">
-          <IChevronL size={12}/> Wischen für Tage <IChevronR size={12}/>
-        </div>
-      </div>
-    </>
-  );
-}
+      /* ======= ENTRIES LIST ======= */
+      .entries-list {
+        padding: 8px 16px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .entry-card {
+        appearance: none;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 0;
+        overflow: hidden;
+        display: flex;
+        align-items: stretch;
+        cursor: pointer;
+        transition:
+          transform 0.1s ease,
+          box-shadow 0.15s ease;
+        font: inherit;
+        text-align: left;
+        color: var(--fg);
+        width: 100%;
+      }
+      .entry-card:active {
+        transform: scale(0.98);
+      }
+      .entry-card-accent {
+        width: 4px;
+        background: var(--accent);
+      }
+      .entry-card.sick .entry-card-accent {
+        background: var(--sick);
+      }
+      .entry-card.signed {
+        box-shadow: inset 0 0 0 1px rgba(22, 163, 74, 0.15);
+      }
+      .entry-card-body {
+        flex: 1;
+        padding: 12px 14px;
+      }
+      .entry-card-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+      .entry-card-type {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--muted-fg);
+      }
+      .entry-card.work .entry-card-type {
+        color: var(--accent-ink);
+      }
+      .entry-card.sick .entry-card-type {
+        color: #9f1239;
+      }
+      .entry-card-time {
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        margin-top: 6px;
+      }
+      .entry-card-meta {
+        font-size: 12px;
+        color: var(--muted-fg);
+        margin-top: 2px;
+      }
 
-function EmptyState({ onAdd }) {
-  return (
-    <div className="empty">
-      <div className="empty-icon">
-        <ICal size={28} color="var(--muted-fg)"/>
-      </div>
-      <div className="empty-title">Keine Einträge</div>
-      <div className="empty-sub">Tippe auf <strong>+</strong> um eine Arbeitszeit<br/>oder einen Krankheitstag zu erfassen.</div>
-      <button className="btn accent" onClick={onAdd}>
-        <IPlus size={16}/> Eintrag hinzufügen
-      </button>
-    </div>
-  );
-}
+      /* ======= TAG ======= */
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        font-size: 10.5px;
+        font-weight: 500;
+        padding: 2px 7px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--muted);
+        color: var(--muted-fg);
+        line-height: 1.4;
+      }
+      .tag.ok {
+        background: var(--ok-soft);
+        border-color: #bbf7d0;
+        color: #15803d;
+      }
+      .tag.ok-solid {
+        background: var(--ok);
+        border-color: var(--ok);
+        color: #fff;
+      }
+      .tag.warn {
+        background: var(--warn-soft);
+        border-color: #fde68a;
+        color: #b45309;
+      }
 
-function EntryCard({ entry, onClick }) {
-  const signed = !!entry.userSig;
-  const mgr = !!entry.mgrSig;
-  const dur = entry.end - entry.start;
+      /* ======= BUTTONS ======= */
+      .btn {
+        appearance: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        height: 40px;
+        padding: 0 14px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--fg);
+        font: inherit;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition:
+          background 0.12s,
+          transform 0.06s,
+          box-shadow 0.15s;
+        box-shadow: var(--shadow-sm);
+        white-space: nowrap;
+      }
+      .btn:active {
+        transform: scale(0.97);
+      }
+      .btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .btn.primary {
+        background: var(--fg);
+        color: #fff;
+        border-color: var(--fg);
+      }
+      .btn.accent {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .btn.destructive {
+        background: var(--sick);
+        color: #fff;
+        border-color: var(--sick);
+      }
+      .btn.ghost {
+        background: transparent;
+        border-color: transparent;
+        box-shadow: none;
+      }
+      .btn.ghost-destructive {
+        background: transparent;
+        border-color: transparent;
+        box-shadow: none;
+        color: var(--sick);
+        width: 40px;
+        padding: 0;
+      }
+      .btn.lg {
+        height: 48px;
+        font-size: 15px;
+        border-radius: 12px;
+      }
+      .btn.sm {
+        height: 32px;
+        padding: 0 10px;
+        font-size: 13px;
+        border-radius: 8px;
+      }
 
-  return (
-    <button className={"entry-card " + entry.type + (signed ? " signed" : "")} onClick={onClick}>
-      <div className="entry-card-accent"/>
-      <div className="entry-card-body">
-        <div className="entry-card-row">
-          <div className="entry-card-type">
-            {entry.type === "work" ? <IBriefcase size={14}/> : <IStethoscope size={14}/>}
-            <span>{entry.type === "work" ? "Arbeit" : "Krankheit"}</span>
-          </div>
-          {signed ? (
-            mgr ? (
-              <span className="tag ok-solid"><IShield size={11}/> freigegeben</span>
-            ) : (
-              <span className="tag ok"><ICheck size={11} stroke={3}/> signiert</span>
-            )
-          ) : (
-            <span className="tag warn">nicht signiert</span>
-          )}
-        </div>
-        <div className="entry-card-time mono">
-          {entry.type === "sick" ? "Ganztägig" : `${fmtTime(entry.start)} – ${fmtTime(entry.end)}`}
-        </div>
-        <div className="entry-card-meta">
-          {entry.type === "work" && durFmt(dur)}
-          {entry.note && <> · {entry.note}</>}
-          {signed && <> · signiert am {new Date(entry.userSig.at).toLocaleDateString("de-DE")}</>}
-        </div>
-      </div>
-    </button>
-  );
-}
+      /* Icon buttons */
+      .icon-btn {
+        appearance: none;
+        width: 36px;
+        height: 36px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        cursor: pointer;
+        color: var(--fg);
+        transition:
+          background 0.12s,
+          transform 0.06s;
+      }
+      .icon-btn:active {
+        transform: scale(0.94);
+      }
+      .icon-btn.sm {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+      }
+      .icon-btn.ghost {
+        background: transparent;
+        border-color: transparent;
+      }
 
-/* ============================= MONTH VIEW ============================= */
-function MonthView({ selectedDate, setSelectedDate, entriesByDate, monthEntries, onMgr, tweaks }) {
-  const [cursor, setCursor] = useState(() => new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
+      /* ======= FAB ======= */
+      .fab {
+        position: absolute;
+        right: 16px;
+        bottom: 82px;
+        width: 56px;
+        height: 56px;
+        border-radius: 18px;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        box-shadow:
+          0 12px 24px -8px color-mix(in oklab, var(--accent) 60%, transparent),
+          0 2px 6px rgb(0 0 0 / 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition:
+          transform 0.1s ease,
+          box-shadow 0.15s ease;
+        z-index: 15;
+      }
+      .fab:active {
+        transform: scale(0.92);
+      }
 
-  const firstOfMonth = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
-  const gridStart = startOfWeekMon(firstOfMonth);
-  const days = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
+      /* ======= TAB BAR ======= */
+      .tab-bar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 74px;
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(14px);
+        border-top: 1px solid var(--border);
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        z-index: 10;
+        padding-bottom: var(--safe-bot);
+      }
+      .tab-btn {
+        appearance: none;
+        background: transparent;
+        border: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        font: inherit;
+        font-size: 10.5px;
+        font-weight: 500;
+        color: var(--muted-fg);
+        cursor: pointer;
+        padding-top: 10px;
+        transition: color 0.12s;
+      }
+      .tab-btn.active {
+        color: var(--accent);
+      }
+      .tab-btn:active {
+        opacity: 0.7;
+      }
 
-  const workMins = monthEntries.filter(e=>e.type==="work").reduce((s,e)=>s+(e.end-e.start),0);
-  const sickDays = monthEntries.filter(e=>e.type==="sick").length;
-  const userSigned = monthEntries.filter(e=>e.userSig).length;
-  const mgrSigned = monthEntries.filter(e=>e.mgrSig).length;
-  const total = monthEntries.length;
-  const userPct = total ? Math.round(userSigned/total*100) : 0;
-  const mgrDone = total > 0 && mgrSigned === total;
+      /* ======= EMPTY STATE ======= */
+      .empty {
+        padding: 40px 24px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 10px;
+      }
+      .empty-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 20px;
+        background: var(--muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 8px;
+      }
+      .empty-title {
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .empty-sub {
+        color: var(--muted-fg);
+        font-size: 13px;
+        line-height: 1.5;
+        margin-bottom: 10px;
+      }
 
-  return (
-    <>
-      <header className="page-header">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <div className="eyebrow">Übersicht</div>
-            <div className="page-title">{MONTHS[cursor.getMonth()]} {cursor.getFullYear()}</div>
-          </div>
-          <div style={{ display: "flex", gap: 4 }}>
-            <button className="icon-btn" onClick={() => setCursor(c => new Date(c.getFullYear(), c.getMonth()-1, 1))}>
-              <IChevronL size={18}/>
-            </button>
-            <button className="icon-btn" onClick={() => setCursor(c => new Date(c.getFullYear(), c.getMonth()+1, 1))}>
-              <IChevronR size={18}/>
-            </button>
-          </div>
-        </div>
-      </header>
+      .swipe-area {
+        touch-action: pan-y;
+        will-change: transform;
+      }
+      .swipe-hint {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 20px 20px 8px;
+        color: var(--muted-fg);
+        font-size: 11px;
+        opacity: 0.7;
+      }
 
-      {/* Calendar grid */}
-      <div className="month-grid-wrap">
-        <div className="month-dow">
-          {DAYS_SHORT.map(d => <div key={d}>{d}</div>)}
-        </div>
-        <div className="month-grid">
-          {days.map(d => {
-            const inMonth = d.getMonth() === cursor.getMonth();
-            const isToday = sameDay(d, new Date());
-            const dayEntries = entriesByDate[ymd(d)] || [];
-            const hasSick = dayEntries.some(e => e.type === "sick");
-            const hasWork = dayEntries.some(e => e.type === "work");
-            const allSigned = dayEntries.length > 0 && dayEntries.every(e => e.userSig);
-            const fullyApproved = dayEntries.length > 0 && dayEntries.every(e => e.mgrSig);
-            return (
-              <button
-                key={ymd(d)}
-                className={"month-cell " + (inMonth ? "" : "dim ") + (isToday ? "today " : "")}
-                onClick={() => setSelectedDate(d)}>
-                <span className="mc-num">{d.getDate()}</span>
-                <span className="mc-bar">
-                  {hasWork && <span className="bar" style={{ background: fullyApproved ? "var(--ok)" : allSigned ? "var(--accent)" : "var(--accent-border)" }}/>}
-                  {hasSick && <span className="bar" style={{ background: "var(--sick)" }}/>}
-                </span>
-              </button>
+      /* ======= MONTH GRID ======= */
+      .month-grid-wrap {
+        margin: 0 16px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        overflow: hidden;
+      }
+      .month-dow {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        padding: 10px 8px 6px;
+        border-bottom: 1px solid var(--border);
+        background: var(--muted);
+      }
+      .month-dow > div {
+        text-align: center;
+        font-size: 10px;
+        font-weight: 500;
+        color: var(--muted-fg);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .month-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        padding: 6px;
+        gap: 2px;
+      }
+      .month-cell {
+        appearance: none;
+        aspect-ratio: 1;
+        min-height: 40px;
+        border: 1px solid transparent;
+        background: transparent;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        font: inherit;
+        color: var(--fg);
+        cursor: pointer;
+        transition: background 0.12s;
+        padding: 2px;
+      }
+      .month-cell:active {
+        background: var(--muted);
+      }
+      .month-cell.dim {
+        color: #d4d4d8;
+      }
+      .month-cell.today {
+        background: var(--accent-soft);
+        border-color: var(--accent-border);
+      }
+      .month-cell .mc-num {
+        font-size: 13px;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+      }
+      .month-cell.today .mc-num {
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .month-cell .mc-bar {
+        display: flex;
+        gap: 2px;
+        height: 4px;
+      }
+      .month-cell .mc-bar .bar {
+        width: 4px;
+        height: 4px;
+        border-radius: 1px;
+      }
+
+      /* ======= STAT CARD ======= */
+      .stat-card {
+        margin: 14px 16px 0;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 14px;
+      }
+      .stat-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        padding: 6px 0;
+      }
+      .stat-row + .stat-row {
+        border-top: 1px solid var(--border);
+        margin-top: 6px;
+        padding-top: 12px;
+      }
+      .stat {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .stat-label {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--muted-fg);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .stat-value {
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .stat-sub {
+        font-size: 11px;
+        color: var(--muted-fg);
+      }
+
+      .progress-group {
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px solid var(--border);
+      }
+      .progress-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        font-weight: 500;
+        margin-bottom: 8px;
+      }
+      .progress {
+        position: relative;
+        height: 6px;
+        background: var(--muted);
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      .progress-user {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        background: var(--accent);
+        transition: width 0.3s ease;
+      }
+      .progress-mgr {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        background: var(--ok);
+        transition: width 0.3s ease;
+      }
+      .progress-legend {
+        display: flex;
+        gap: 14px;
+        margin-top: 8px;
+        font-size: 11px;
+        color: var(--muted-fg);
+      }
+      .legend-swatch {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 2px;
+        margin-right: 4px;
+        vertical-align: middle;
+      }
+
+      /* ======= CTA CARD ======= */
+      .cta-card {
+        margin: 14px 16px 20px;
+        background: var(--accent-soft);
+        border: 1px solid var(--accent-border);
+        border-radius: 14px;
+        padding: 14px;
+      }
+      .cta-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: var(--card);
+        border: 1px solid var(--accent-border);
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .cta-title {
+        font-weight: 600;
+        font-size: 14px;
+        letter-spacing: -0.01em;
+        color: var(--accent-ink);
+      }
+      .cta-sub {
+        font-size: 12px;
+        color: var(--accent-ink);
+        opacity: 0.75;
+        line-height: 1.45;
+        margin-top: 2px;
+      }
+
+      /* ======= SHEET ======= */
+      .sheet-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgb(0 0 0 / 0.4);
+        z-index: 50;
+        display: flex;
+        align-items: flex-end;
+        animation: fadeIn 0.15s ease-out;
+      }
+      .sheet-overlay.top {
+        align-items: flex-start;
+        padding-top: 10px;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      .sheet {
+        background: var(--card);
+        width: 100%;
+        max-height: 92%;
+        border-radius: 20px 20px 0 0;
+        display: flex;
+        flex-direction: column;
+        animation: slideUp 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+        box-shadow: 0 -10px 30px -10px rgb(0 0 0 / 0.2);
+        overflow: hidden;
+      }
+      .sheet.sig-sheet {
+        max-height: 96%;
+      }
+      @keyframes slideUp {
+        from {
+          transform: translateY(100%);
+        }
+        to {
+          transform: translateY(0);
+        }
+      }
+      .sheet-handle-wrap {
+        padding: 8px 0 4px;
+        display: flex;
+        justify-content: center;
+        cursor: pointer;
+      }
+      .sheet-handle {
+        width: 36px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--border-strong);
+      }
+      .sheet-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 12px 10px;
+        border-bottom: 1px solid var(--border);
+      }
+      .sheet-title {
+        font-weight: 600;
+        font-size: 15px;
+        letter-spacing: -0.01em;
+      }
+      .sheet-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 18px 20px 24px;
+        -webkit-overflow-scrolling: touch;
+      }
+      .sheet-date {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+      .locked-banner {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        background: var(--ok-soft);
+        border: 1px solid #bbf7d0;
+        color: #15803d;
+        border-radius: 10px;
+        font-size: 12.5px;
+        font-weight: 500;
+        margin-bottom: 16px;
+      }
+      .warn-banner {
+        padding: 14px;
+        background: var(--warn-soft);
+        border: 1px solid #fde68a;
+        border-radius: 12px;
+        color: #92400e;
+        font-size: 13.5px;
+        line-height: 1.45;
+        margin-bottom: 16px;
+      }
+
+      /* Form fields */
+      .field {
+        margin-bottom: 16px;
+      }
+      .field-label {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--muted-fg);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 8px;
+      }
+      .input {
+        appearance: none;
+        width: 100%;
+        height: 44px;
+        padding: 0 14px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--card);
+        font: inherit;
+        font-size: 15px;
+        color: var(--fg);
+      }
+      .input:focus {
+        outline: 2px solid var(--ring);
+        outline-offset: 1px;
+        border-color: var(--accent-border);
+      }
+      .input:disabled {
+        background: var(--muted);
+        color: var(--muted-fg);
+      }
+
+      .type-seg {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .type-btn {
+        appearance: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 14px 12px;
+        border-radius: 12px;
+        border: 1.5px solid var(--border);
+        background: var(--card);
+        cursor: pointer;
+        font: inherit;
+        color: var(--fg);
+        transition: all 0.15s;
+      }
+      .type-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .type-btn-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: var(--tb-soft);
+        color: var(--tb-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .type-btn-label {
+        font-size: 13.5px;
+        font-weight: 500;
+      }
+      .type-btn.active {
+        border-color: var(--tb-color);
+        background: var(--tb-soft);
+      }
+      .type-btn.active .type-btn-label {
+        color: var(--tb-color);
+        font-weight: 600;
+      }
+
+      .time-row {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+      }
+      .time-picker {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .time-picker-label {
+        font-size: 11px;
+        color: var(--muted-fg);
+        font-weight: 500;
+      }
+      .time-input {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 100%;
+        height: 56px;
+        padding: 0 12px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--card);
+        font: inherit;
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        text-align: center;
+        color: var(--fg);
+      }
+      .time-input:focus {
+        outline: 2px solid var(--ring);
+        outline-offset: 1px;
+      }
+      .time-input:disabled {
+        background: var(--muted);
+        color: var(--muted-fg);
+      }
+      .time-arrow {
+        padding-bottom: 16px;
+        font-size: 18px;
+        color: var(--muted-fg);
+      }
+
+      .duration-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        background: var(--muted);
+        border-radius: 10px;
+        margin-top: 10px;
+        font-size: 13px;
+        color: var(--muted-fg);
+      }
+
+      .quick-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+      }
+      .quick-chip {
+        appearance: none;
+        padding: 8px 4px;
+        font: inherit;
+        font-size: 11.5px;
+        font-weight: 500;
+        font-family: "Geist Mono", monospace;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--fg-soft);
+        cursor: pointer;
+        transition: background 0.12s;
+      }
+      .quick-chip:active {
+        background: var(--muted);
+      }
+      .quick-chip:disabled {
+        opacity: 0.4;
+      }
+
+      /* Signature state in entry sheet */
+      .sig-state {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: var(--ok-soft);
+        border: 1px solid #bbf7d0;
+        border-radius: 12px;
+        margin-bottom: 16px;
+      }
+      .sig-state-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: #fff;
+        border: 1px solid #bbf7d0;
+        color: var(--ok);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .sig-state-title {
+        font-size: 13px;
+        font-weight: 500;
+        color: #15803d;
+      }
+      .sig-state-sub {
+        font-size: 11.5px;
+        color: #16a34a;
+        margin-top: 2px;
+      }
+      .sig-state-mgr {
+        font-size: 11px;
+        color: #15803d;
+        margin-top: 4px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .sheet-actions {
+        display: flex;
+        gap: 8px;
+        padding-top: 18px;
+        margin-top: 8px;
+        border-top: 1px solid var(--border);
+      }
+
+      /* Signature pad */
+      .sig-title {
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: -0.015em;
+      }
+      .sig-sub {
+        font-size: 13px;
+        color: var(--muted-fg);
+        margin-top: 4px;
+      }
+      .sig-signer {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        margin-top: 12px;
+        font-size: 11px;
+        color: var(--muted-fg);
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: var(--muted);
+      }
+      .sig-canvas-wrap {
+        position: relative;
+        margin-top: 16px;
+        background: #fafafa;
+        border: 1px dashed var(--border-strong);
+        border-radius: 14px;
+        height: 200px;
+        overflow: hidden;
+      }
+      .sig-pad {
+        touch-action: none;
+        display: block;
+        width: 100%;
+        height: 100%;
+        cursor: crosshair;
+      }
+      .sig-placeholder {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        color: #a1a1aa;
+        font-size: 13px;
+      }
+      .sig-line {
+        position: absolute;
+        left: 16px;
+        right: 16px;
+        bottom: 20px;
+        border-bottom: 1px dotted #c4c4c6;
+      }
+      .sig-date-stamp {
+        position: absolute;
+        left: 16px;
+        bottom: 24px;
+        font-size: 10.5px;
+        color: #a1a1aa;
+      }
+      .sig-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 18px;
+      }
+
+      /* Manager flow */
+      .mgr-hero {
+        text-align: center;
+        padding: 12px 0 20px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 18px;
+      }
+      .mgr-hero-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 16px;
+        background: var(--accent-soft);
+        border: 1px solid var(--accent-border);
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 12px;
+      }
+      .mgr-hero-title {
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: -0.015em;
+      }
+      .mgr-hero-sub {
+        font-size: 13.5px;
+        color: var(--muted-fg);
+        line-height: 1.5;
+        margin-top: 6px;
+      }
+      .summary-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        background: var(--muted);
+        border-radius: 12px;
+        padding: 14px;
+      }
+      .summary-label {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--muted-fg);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .summary-value {
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        margin-top: 2px;
+      }
+      .mgr-list {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        max-height: 180px;
+        overflow-y: auto;
+      }
+      .mgr-list-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+      }
+      .mgr-list-row:last-child {
+        border-bottom: none;
+      }
+
+      .success {
+        text-align: center;
+        padding: 24px 12px;
+      }
+      .success-icon {
+        width: 72px;
+        height: 72px;
+        border-radius: 999px;
+        background: var(--ok-soft);
+        border: 2px solid #bbf7d0;
+        color: var(--ok);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px;
+      }
+      .success-title {
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .success-sub {
+        color: var(--muted-fg);
+        font-size: 13.5px;
+        line-height: 1.5;
+        margin-top: 8px;
+      }
+
+      /* ======= SETTINGS ======= */
+      .profile-card {
+        margin: 8px 16px 20px;
+        padding: 14px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        background: var(--accent);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 14px;
+        letter-spacing: 0.02em;
+      }
+      .settings-group {
+        margin: 0 16px 18px;
+      }
+      .settings-group-title {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--muted-fg);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 0 4px 6px;
+      }
+      .settings-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        overflow: hidden;
+      }
+      .settings-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 14px;
+        gap: 12px;
+        min-height: 52px;
+      }
+      .settings-action {
+        background: transparent;
+        border: none;
+        width: 100%;
+        font: inherit;
+        cursor: pointer;
+        text-align: left;
+        color: var(--fg);
+      }
+      .settings-action:active {
+        background: var(--muted);
+      }
+      .settings-label {
+        font-size: 14px;
+        font-weight: 500;
+      }
+      .settings-hint {
+        font-size: 11.5px;
+        color: var(--muted-fg);
+        margin-top: 2px;
+      }
+      .settings-sep {
+        height: 1px;
+        background: var(--border);
+        margin-left: 14px;
+      }
+      .color-swatches {
+        display: flex;
+        gap: 6px;
+      }
+      .swatch {
+        appearance: none;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        border: 2px solid transparent;
+        cursor: pointer;
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+      }
+      .swatch.active {
+        border-color: var(--fg);
+      }
+
+      /* ======= TOAST ======= */
+      .toast {
+        position: absolute;
+        top: calc(var(--safe-top) + 50px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--fg);
+        color: #fff;
+        padding: 9px 14px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 500;
+        box-shadow: var(--shadow-lg);
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        animation: toastIn 0.2s ease-out;
+      }
+      @keyframes toastIn {
+        from {
+          opacity: 0;
+          transform: translate(-50%, -6px);
+        }
+        to {
+          opacity: 1;
+          transform: translate(-50%, 0);
+        }
+      }
+
+      ::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script>
+      window.TWEAKS = /*EDITMODE-BEGIN*/ {
+        layout: "week",
+        accent: "violet",
+        defaultStart: "08:00",
+        defaultEnd: "17:00",
+        showWeekend: true,
+        manager: "S. Weber",
+      } /*EDITMODE-END*/;
+    </script>
+
+    <script
+      type="text/babel"
+      data-presets="react"
+      id="__jsx_source"
+    >
+      /* Timesheet — mobile-first */
+      const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+      /* ============================= ICONS ============================= */
+      const Icon = ({
+        children,
+        size = 20,
+        stroke = 2,
+        style,
+        fill = "none",
+        color,
+      }) => (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width={size}
+          height={size}
+          viewBox="0 0 24 24"
+          fill={fill}
+          stroke={color || "currentColor"}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ flexShrink: 0, ...style }}
+        >
+          {children}
+        </svg>
+      );
+      const IChevronL = (p) => (
+        <Icon {...p}>
+          <polyline points="15 18 9 12 15 6" />
+        </Icon>
+      );
+      const IChevronR = (p) => (
+        <Icon {...p}>
+          <polyline points="9 18 15 12 9 6" />
+        </Icon>
+      );
+      const IPlus = (p) => (
+        <Icon {...p}>
+          <line
+            x1="12"
+            y1="5"
+            x2="12"
+            y2="19"
+          />
+          <line
+            x1="5"
+            y1="12"
+            x2="19"
+            y2="12"
+          />
+        </Icon>
+      );
+      const IX = (p) => (
+        <Icon {...p}>
+          <line
+            x1="18"
+            y1="6"
+            x2="6"
+            y2="18"
+          />
+          <line
+            x1="6"
+            y1="6"
+            x2="18"
+            y2="18"
+          />
+        </Icon>
+      );
+      const ICheck = (p) => (
+        <Icon {...p}>
+          <polyline points="20 6 9 17 4 12" />
+        </Icon>
+      );
+      const ITrash = (p) => (
+        <Icon {...p}>
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+        </Icon>
+      );
+      const IStethoscope = (p) => (
+        <Icon {...p}>
+          <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .2.3" />
+          <path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4" />
+          <circle
+            cx="20"
+            cy="10"
+            r="2"
+          />
+        </Icon>
+      );
+      const IBriefcase = (p) => (
+        <Icon {...p}>
+          <rect
+            x="2"
+            y="7"
+            width="20"
+            height="14"
+            rx="2"
+          />
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+        </Icon>
+      );
+      const IPen = (p) => (
+        <Icon {...p}>
+          <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+        </Icon>
+      );
+      const ILock = (p) => (
+        <Icon {...p}>
+          <rect
+            x="3"
+            y="11"
+            width="18"
+            height="11"
+            rx="2"
+          />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </Icon>
+      );
+      const IShield = (p) => (
+        <Icon {...p}>
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </Icon>
+      );
+      const ISettings = (p) => (
+        <Icon {...p}>
+          <circle
+            cx="12"
+            cy="12"
+            r="3"
+          />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </Icon>
+      );
+      const ICal = (p) => (
+        <Icon {...p}>
+          <rect
+            x="3"
+            y="4"
+            width="18"
+            height="18"
+            rx="2"
+          />
+          <line
+            x1="16"
+            y1="2"
+            x2="16"
+            y2="6"
+          />
+          <line
+            x1="8"
+            y1="2"
+            x2="8"
+            y2="6"
+          />
+          <line
+            x1="3"
+            y1="10"
+            x2="21"
+            y2="10"
+          />
+        </Icon>
+      );
+      const IUser = (p) => (
+        <Icon {...p}>
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle
+            cx="12"
+            cy="7"
+            r="4"
+          />
+        </Icon>
+      );
+      const IUndo = (p) => (
+        <Icon {...p}>
+          <polyline points="1 4 1 10 7 10" />
+          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+        </Icon>
+      );
+      const IList = (p) => (
+        <Icon {...p}>
+          <line
+            x1="8"
+            y1="6"
+            x2="21"
+            y2="6"
+          />
+          <line
+            x1="8"
+            y1="12"
+            x2="21"
+            y2="12"
+          />
+          <line
+            x1="8"
+            y1="18"
+            x2="21"
+            y2="18"
+          />
+          <line
+            x1="3"
+            y1="6"
+            x2="3.01"
+            y2="6"
+          />
+          <line
+            x1="3"
+            y1="12"
+            x2="3.01"
+            y2="12"
+          />
+          <line
+            x1="3"
+            y1="18"
+            x2="3.01"
+            y2="18"
+          />
+        </Icon>
+      );
+      const IHome = (p) => (
+        <Icon {...p}>
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <polyline points="9 22 9 12 15 12 15 22" />
+        </Icon>
+      );
+      const IClock = (p) => (
+        <Icon {...p}>
+          <circle
+            cx="12"
+            cy="12"
+            r="9"
+          />
+          <polyline points="12 7 12 12 16 14" />
+        </Icon>
+      );
+      const IDown = (p) => (
+        <Icon {...p}>
+          <polyline points="6 9 12 15 18 9" />
+        </Icon>
+      );
+      const IChevronDn = IDown;
+
+      /* ============================= DATE HELPERS ============================= */
+      const DAYS_DE_FULL = [
+        "Montag",
+        "Dienstag",
+        "Mittwoch",
+        "Donnerstag",
+        "Freitag",
+        "Samstag",
+        "Sonntag",
+      ];
+      const DAYS_SHORT = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+      const MONTHS = [
+        "Januar",
+        "Februar",
+        "März",
+        "April",
+        "Mai",
+        "Juni",
+        "Juli",
+        "August",
+        "September",
+        "Oktober",
+        "November",
+        "Dezember",
+      ];
+      const MONTHS_SHORT = [
+        "Jan",
+        "Feb",
+        "Mär",
+        "Apr",
+        "Mai",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Okt",
+        "Nov",
+        "Dez",
+      ];
+
+      const pad = (n) => String(n).padStart(2, "0");
+      const ymd = (d) =>
+        `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const startOfDay = (d) => {
+        const x = new Date(d);
+        x.setHours(0, 0, 0, 0);
+        return x;
+      };
+      const addDays = (d, n) => {
+        const x = new Date(d);
+        x.setDate(x.getDate() + n);
+        return x;
+      };
+      const startOfWeekMon = (d) => {
+        const x = startOfDay(d);
+        const dow = (x.getDay() + 6) % 7;
+        return addDays(x, -dow);
+      };
+      const sameDay = (a, b) => ymd(a) === ymd(b);
+      const fmtTime = (mins) =>
+        `${pad(Math.floor(mins / 60))}:${pad(mins % 60)}`;
+      const parseTime = (s) => {
+        const [h, m] = (s || "0:0").split(":").map(Number);
+        return h * 60 + (m || 0);
+      };
+      const durFmt = (mins) => {
+        const h = Math.floor(mins / 60),
+          m = mins % 60;
+        return m === 0 ? `${h}h` : `${h}h ${pad(m)}m`;
+      };
+      const monthKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+      const fmtDayLong = (d) =>
+        `${DAYS_DE_FULL[(d.getDay() + 6) % 7]}, ${d.getDate()}. ${MONTHS[d.getMonth()]}`;
+      const fmtDayMed = (d) =>
+        `${DAYS_SHORT[(d.getDay() + 6) % 7]}, ${d.getDate()}. ${MONTHS_SHORT[d.getMonth()]}`;
+      const weekNum = (d) => {
+        const t = new Date(
+          Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()),
+        );
+        const dayNum = t.getUTCDay() || 7;
+        t.setUTCDate(t.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+        return Math.ceil(((t - yearStart) / 86400000 + 1) / 7);
+      };
+
+      /* ============================= STORAGE ============================= */
+      const LS_ENTRIES = "ts.entries.v2";
+      const LS_TAB = "ts.tab.v1";
+
+      const loadLS = (k, fb) => {
+        try {
+          const v = localStorage.getItem(k);
+          return v ? JSON.parse(v) : fb;
+        } catch {
+          return fb;
+        }
+      };
+      const saveLS = (k, v) => {
+        try {
+          localStorage.setItem(k, JSON.stringify(v));
+        } catch {}
+      };
+
+      function seed() {
+        const existing = loadLS(LS_ENTRIES, null);
+        if (existing) return existing;
+        const today = startOfDay(new Date());
+        const wk = startOfWeekMon(today);
+        const entries = [];
+        const mk = (dayOffset, start, end, type = "work", signed = false) =>
+          entries.push({
+            id: crypto.randomUUID(),
+            date: ymd(addDays(wk, dayOffset)),
+            type,
+            start,
+            end,
+            note: "",
+            userSig: signed
+              ? { at: Date.now() - 86400000, name: "A. Müller" }
+              : null,
+            mgrSig: null,
+          });
+        const lastWk = addDays(wk, -7);
+        for (let i = 0; i < 5; i++) {
+          entries.push({
+            id: crypto.randomUUID(),
+            date: ymd(addDays(lastWk, i)),
+            type: "work",
+            start: 480,
+            end: 1020,
+            note: "",
+            userSig: { at: Date.now() - 7 * 86400000, name: "A. Müller" },
+            mgrSig: null,
+          });
+        }
+        mk(0, 8 * 60, 17 * 60, "work", true);
+        mk(1, 8 * 60 + 15, 16 * 60 + 45, "work", true);
+        mk(2, 0, 24 * 60, "sick", false);
+        mk(3, 9 * 60, 17 * 60 + 30, "work", false);
+        return entries;
+      }
+
+      /* ============================= APP ============================= */
+      function App() {
+        const [tweaks, setTweaks] = useState(() => ({ ...window.TWEAKS }));
+        const [tweaksOpen, setTweaksOpen] = useState(false);
+        const [editMode, setEditMode] = useState(false);
+
+        const [entries, setEntries] = useState(() => seed());
+        const [selectedDate, setSelectedDate] = useState(() =>
+          startOfDay(new Date()),
+        );
+        const [tab, setTab] = useState(() => loadLS(LS_TAB, "day"));
+        const [sheet, setSheet] = useState(null);
+        const [toast, setToast] = useState(null);
+        const [mgrFlow, setMgrFlow] = useState(null);
+
+        useEffect(() => saveLS(LS_ENTRIES, entries), [entries]);
+        useEffect(() => saveLS(LS_TAB, tab), [tab]);
+
+        useEffect(() => {
+          const accent = tweaks.accent || "indigo";
+          const palette = {
+            indigo: ["#6366f1", "#eef2ff", "#c7d2fe", "#3730a3"],
+            violet: ["#7c3aed", "#f5f3ff", "#ddd6fe", "#5b21b6"],
+            blue: ["#2563eb", "#eff6ff", "#bfdbfe", "#1e40af"],
+            emerald: ["#059669", "#ecfdf5", "#a7f3d0", "#065f46"],
+            amber: ["#d97706", "#fffbeb", "#fde68a", "#92400e"],
+          };
+          const [v, s, b, fg] = palette[accent] || palette.indigo;
+          const r = document.documentElement.style;
+          r.setProperty("--accent", v);
+          r.setProperty("--accent-soft", s);
+          r.setProperty("--accent-border", b);
+          r.setProperty("--accent-ink", fg);
+        }, [tweaks.accent]);
+
+        useEffect(() => {
+          const onMsg = (e) => {
+            const m = e.data;
+            if (!m || typeof m !== "object") return;
+            if (m.type === "__activate_edit_mode") {
+              setEditMode(true);
+              setTweaksOpen(true);
+            }
+            if (m.type === "__deactivate_edit_mode") {
+              setEditMode(false);
+              setTweaksOpen(false);
+            }
+          };
+          window.addEventListener("message", onMsg);
+          window.parent.postMessage({ type: "__edit_mode_available" }, "*");
+          return () => window.removeEventListener("message", onMsg);
+        }, []);
+
+        const updateTweak = (patch) => {
+          setTweaks((prev) => {
+            const next = { ...prev, ...patch };
+            window.parent.postMessage(
+              { type: "__edit_mode_set_keys", edits: patch },
+              "*",
             );
-          })}
-        </div>
-      </div>
+            return next;
+          });
+        };
 
-      {/* Stats card */}
-      <div className="stat-card">
-        <div className="stat-row">
-          <Stat label="Arbeitszeit" value={durFmt(workMins)} />
-          <Stat label="Krank" value={`${sickDays}T`} tone={sickDays > 0 ? "sick" : "default"}/>
-        </div>
-        <div className="stat-row">
-          <Stat label="Eigene Signatur" value={`${userSigned}/${total}`} sub={`${userPct}%`}/>
-          <Stat label="Freigabe" value={mgrDone ? "Komplett" : `${mgrSigned}/${total}`} tone={mgrDone ? "ok" : "default"}/>
-        </div>
+        const showToast = (msg) => {
+          setToast({ msg, id: Date.now() });
+          setTimeout(
+            () => setToast((t) => (t && t.msg === msg ? null : t)),
+            2200,
+          );
+        };
 
-        {/* Progress bar */}
-        <div className="progress-group">
-          <div className="progress-label">
-            <span>Freigabe-Fortschritt</span>
-            <span className="mono">{total ? Math.round(mgrSigned/total*100) : 0}%</span>
-          </div>
-          <div className="progress">
-            <div className="progress-user" style={{ width: `${userPct}%` }}/>
-            <div className="progress-mgr" style={{ width: `${total ? (mgrSigned/total*100) : 0}%` }}/>
-          </div>
-          <div className="progress-legend">
-            <span><span className="legend-swatch" style={{ background: "var(--accent)" }}/> Signiert</span>
-            <span><span className="legend-swatch" style={{ background: "var(--ok)" }}/> Freigegeben</span>
-          </div>
-        </div>
-      </div>
+        const upsertEntry = (entry) => {
+          setEntries((xs) => {
+            const i = xs.findIndex((e) => e.id === entry.id);
+            if (i === -1) return [...xs, entry];
+            const n = xs.slice();
+            n[i] = entry;
+            return n;
+          });
+        };
+        const deleteEntry = (id) =>
+          setEntries((xs) => xs.filter((e) => e.id !== id));
 
-      {/* Monthly sign-off CTA */}
-      <div className="cta-card">
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-          <div className="cta-icon">
-            <IShield size={18}/>
-          </div>
-          <div style={{ flex: 1 }}>
-            <div className="cta-title">Monat freigeben</div>
-            <div className="cta-sub">
-              {mgrDone ? "Dieser Monat ist bereits vollständig vom Vorgesetzten freigegeben." :
-               userSigned < total ? `Zuerst ${total - userSigned} eigene Signatur${total - userSigned === 1 ? "" : "en"} erforderlich.` :
-               `Gerät an ${tweaks.manager || "Vorgesetzte/n"} übergeben, um ${total - mgrSigned} Einträge freizugeben.`}
-            </div>
-          </div>
-        </div>
-        <button className="btn accent lg" onClick={onMgr} disabled={mgrDone} style={{ width: "100%", marginTop: 12 }}>
-          {mgrDone ? <><ICheck size={14} stroke={2.5}/> Freigegeben</> : <><IShield size={14}/> An Vorgesetzten übergeben</>}
-        </button>
-      </div>
-    </>
-  );
-}
+        const openCreate = (date) => {
+          setSheet({
+            type: "entry",
+            mode: "create",
+            entry: {
+              id: crypto.randomUUID(),
+              date: ymd(date || selectedDate),
+              type: "work",
+              start: parseTime(tweaks.defaultStart || "08:00"),
+              end: parseTime(tweaks.defaultEnd || "17:00"),
+              note: "",
+              userSig: null,
+              mgrSig: null,
+            },
+          });
+        };
+        const openEdit = (entry) =>
+          setSheet({ type: "entry", mode: "edit", entry: { ...entry } });
 
-function Stat({ label, value, sub, tone = "default" }) {
-  const color = tone === "ok" ? "var(--ok)" : tone === "sick" ? "var(--sick)" : "var(--fg)";
-  return (
-    <div className="stat">
-      <div className="stat-label">{label}</div>
-      <div className="stat-value" style={{ color }}>{value}</div>
-      {sub && <div className="stat-sub">{sub}</div>}
-    </div>
-  );
-}
+        const signEntry = (id, dataUrl) => {
+          setEntries((xs) =>
+            xs.map((e) =>
+              e.id === id
+                ? {
+                    ...e,
+                    userSig: { at: Date.now(), name: "A. Müller", dataUrl },
+                  }
+                : e,
+            ),
+          );
+          showToast("Eintrag signiert");
+        };
+        const unsignEntry = (id) => {
+          setEntries((xs) =>
+            xs.map((e) =>
+              e.id === id ? { ...e, userSig: null, mgrSig: null } : e,
+            ),
+          );
+        };
 
-/* ============================= ENTRY SHEET ============================= */
-function EntrySheet({ sheet, onClose, onSave, onDelete, onSign, onUnsign }) {
-  const [entry, setEntry] = useState(sheet.entry);
-  const [sigOpen, setSigOpen] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const locked = !!entry.userSig;
-  const dateObj = new Date(entry.date + "T00:00:00");
-  const dur = Math.max(0, entry.end - entry.start);
-  const valid = entry.type === "sick" || (entry.end > entry.start && dur >= 15);
+        const entriesByDate = useMemo(() => {
+          const m = {};
+          for (const e of entries) (m[e.date] ||= []).push(e);
+          for (const k of Object.keys(m))
+            m[k].sort((a, b) => a.start - b.start);
+          return m;
+        }, [entries]);
 
-  const update = (patch) => setEntry((e) => ({ ...e, ...patch }));
+        const selectedMonth = selectedDate;
+        const monthEntries = useMemo(() => {
+          const mk = monthKey(selectedMonth);
+          return entries.filter((e) => e.date.startsWith(mk));
+        }, [entries, selectedMonth]);
 
-  return (
-    <Sheet onClose={onClose} title={sheet.mode === "create" ? "Neuer Eintrag" : "Eintrag"}>
-      {/* Date strip */}
-      <div className="sheet-date">
-        <div style={{
-          width: 44, height: 44, borderRadius: 10,
-          background: "var(--accent-soft)", color: "var(--accent-ink)",
-          border: "1px solid var(--accent-border)",
-          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          fontWeight: 600, lineHeight: 1,
-        }}>
-          <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>
-            {MONTHS_SHORT[dateObj.getMonth()]}
-          </span>
-          <span style={{ fontSize: 17, letterSpacing: "-0.02em" }}>{dateObj.getDate()}</span>
-        </div>
-        <div>
-          <div style={{ fontWeight: 600, fontSize: 15, letterSpacing: "-0.01em" }}>
-            {DAYS_DE_FULL[(dateObj.getDay()+6)%7]}
-          </div>
-          <div style={{ fontSize: 12, color: "var(--muted-fg)" }}>
-            {dateObj.getDate()}. {MONTHS[dateObj.getMonth()]} {dateObj.getFullYear()}
-          </div>
-        </div>
-      </div>
+        const openMgrFlow = () => {
+          const unsigned = monthEntries.filter((e) => !e.mgrSig);
+          if (unsigned.length === 0) {
+            showToast("Bereits komplett freigegeben");
+            return;
+          }
+          const allUserSigned = monthEntries.every((e) => e.userSig);
+          setMgrFlow({ stage: allUserSigned ? "intro" : "not-ready" });
+        };
 
-      {locked && (
-        <div className="locked-banner">
-          <ILock size={14}/>
-          Signiert — Signatur aufheben um zu bearbeiten.
-        </div>
-      )}
+        const commitMgrSig = (sig) => {
+          const mk = monthKey(selectedMonth);
+          const count = entries.filter(
+            (e) => e.date.startsWith(mk) && e.userSig && !e.mgrSig,
+          ).length;
+          setEntries((xs) =>
+            xs.map((e) =>
+              e.date.startsWith(mk) && e.userSig && !e.mgrSig
+                ? {
+                    ...e,
+                    mgrSig: {
+                      at: Date.now(),
+                      name: tweaks.manager || "Manager",
+                      dataUrl: sig,
+                    },
+                  }
+                : e,
+            ),
+          );
+          setMgrFlow({ stage: "done", count });
+        };
 
-      {/* Type segmented */}
-      <div className="field">
-        <div className="field-label">Art</div>
-        <div className="type-seg">
-          <TypeBtn
-            active={entry.type === "work"}
-            disabled={locked}
-            onClick={() => update({ type: "work" })}
-            icon={<IBriefcase size={18}/>}
-            label="Arbeit"
-            color="var(--accent)"
-            softColor="var(--accent-soft)"
-          />
-          <TypeBtn
-            active={entry.type === "sick"}
-            disabled={locked}
-            onClick={() => update({ type: "sick", start: 0, end: 24*60 })}
-            icon={<IStethoscope size={18}/>}
-            label="Krank"
-            color="var(--sick)"
-            softColor="var(--sick-soft)"
-          />
-        </div>
-      </div>
+        return (
+          <div className="phone">
+            <div className="phone-inner">
+              <StatusBar />
+              <div className="content">
+                {tab === "day" && (
+                  <DayView
+                    selectedDate={selectedDate}
+                    setSelectedDate={setSelectedDate}
+                    entriesByDate={entriesByDate}
+                    openCreate={openCreate}
+                    openEdit={openEdit}
+                  />
+                )}
+                {tab === "month" && (
+                  <MonthView
+                    selectedDate={selectedDate}
+                    setSelectedDate={(d) => {
+                      setSelectedDate(d);
+                      setTab("day");
+                    }}
+                    entriesByDate={entriesByDate}
+                    monthEntries={monthEntries}
+                    onMgr={openMgrFlow}
+                    tweaks={tweaks}
+                  />
+                )}
+                {tab === "settings" && (
+                  <SettingsView
+                    tweaks={tweaks}
+                    updateTweak={updateTweak}
+                  />
+                )}
+              </div>
 
-      {/* Times */}
-      {entry.type === "work" && (
-        <>
-          <div className="field">
-            <div className="field-label">Zeiten</div>
-            <div className="time-row">
-              <TimePicker label="Start" value={entry.start} onChange={(v) => update({ start: v })} disabled={locked}/>
-              <div className="time-arrow">→</div>
-              <TimePicker label="Ende" value={entry.end} onChange={(v) => update({ end: v })} disabled={locked}/>
-            </div>
-            <div className="duration-bar">
-              <IClock size={13} color="var(--muted-fg)"/>
-              <span>
-                Dauer: <strong className="mono">{entry.end > entry.start ? durFmt(dur) : "—"}</strong>
-              </span>
-            </div>
-          </div>
-
-          <div className="field">
-            <div className="field-label">Schnellauswahl</div>
-            <div className="quick-row">
-              {[
-                { s: 8*60, e: 17*60, l: "08–17" },
-                { s: 7*60, e: 15*60+30, l: "07–15:30" },
-                { s: 9*60, e: 18*60, l: "09–18" },
-                { s: 13*60, e: 21*60, l: "13–21" },
-              ].map(q => (
-                <button key={q.l} className="quick-chip" disabled={locked}
-                  onClick={() => update({ start: q.s, end: q.e })}>
-                  {q.l}
+              {tab !== "settings" && (
+                <button
+                  className="fab"
+                  onClick={() => openCreate(selectedDate)}
+                  aria-label="Neuer Eintrag"
+                >
+                  <IPlus
+                    size={24}
+                    stroke={2.2}
+                  />
                 </button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
+              )}
 
-      {/* Note */}
-      <div className="field">
-        <div className="field-label">Notiz <span style={{ color: "var(--muted-fg)", fontWeight: 400 }}>(optional)</span></div>
-        <input
-          className="input"
-          placeholder={entry.type === "sick" ? "z.B. Arzttermin" : "z.B. Wohngruppe Nord"}
-          value={entry.note || ""}
-          disabled={locked}
-          onChange={(e) => update({ note: e.target.value })}
-        />
-      </div>
-
-      {/* Signature state */}
-      {entry.userSig && (
-        <div className="sig-state">
-          <div className="sig-state-icon">
-            <ICheck size={16} stroke={3}/>
-          </div>
-          <div style={{ flex: 1 }}>
-            <div className="sig-state-title">Signiert von {entry.userSig.name}</div>
-            <div className="sig-state-sub">
-              {new Date(entry.userSig.at).toLocaleDateString("de-DE", { dateStyle: "medium" })}
-              {" · "}
-              {new Date(entry.userSig.at).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}
+              <TabBar
+                tab={tab}
+                setTab={setTab}
+              />
             </div>
-            {entry.mgrSig && (
-              <div className="sig-state-mgr">
-                <IShield size={11}/> Freigegeben von {entry.mgrSig.name}
+
+            {sheet && sheet.type === "entry" && (
+              <EntrySheet
+                sheet={sheet}
+                onClose={() => setSheet(null)}
+                onSave={(e) => {
+                  upsertEntry(e);
+                  setSheet(null);
+                  showToast(
+                    sheet.mode === "create" ? "Erstellt" : "Gespeichert",
+                  );
+                }}
+                onDelete={(id) => {
+                  deleteEntry(id);
+                  setSheet(null);
+                  showToast("Gelöscht");
+                }}
+                onSign={signEntry}
+                onUnsign={(id) => {
+                  unsignEntry(id);
+                  showToast("Signatur entfernt");
+                }}
+              />
+            )}
+
+            {mgrFlow && (
+              <ManagerFlow
+                state={mgrFlow}
+                setState={setMgrFlow}
+                monthDate={selectedMonth}
+                monthEntries={monthEntries}
+                managerName={tweaks.manager || "S. Weber"}
+                onCommit={commitMgrSig}
+              />
+            )}
+
+            {toast && (
+              <div className="toast">
+                <ICheck
+                  size={14}
+                  stroke={2.5}
+                />
+                {toast.msg}
               </div>
             )}
           </div>
-          {!entry.mgrSig && (
-            <button className="btn sm" onClick={() => onUnsign(entry.id)}>
-              <IUndo size={12}/>
-            </button>
-          )}
-        </div>
-      )}
+        );
+      }
 
-      {/* Bottom actions */}
-      <div className="sheet-actions">
-        {sheet.mode === "edit" && !locked && (
-          confirmDelete ? (
-            <div style={{ display: "flex", gap: 8, width: "100%" }}>
-              <button className="btn" style={{ flex: 1 }} onClick={() => setConfirmDelete(false)}>Abbrechen</button>
-              <button className="btn destructive" style={{ flex: 1 }} onClick={() => onDelete(entry.id)}>
-                <ITrash size={14}/> Wirklich löschen
+      /* ============================= STATUS BAR ============================= */
+      function StatusBar() {
+        const [time, setTime] = useState(() => {
+          const d = new Date();
+          return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        });
+        useEffect(() => {
+          const t = setInterval(() => {
+            const d = new Date();
+            setTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
+          }, 30000);
+          return () => clearInterval(t);
+        }, []);
+        return (
+          <div className="status-bar">
+            <span style={{ fontWeight: 600 }}>{time}</span>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <span style={{ fontSize: 12 }}>●●●●</span>
+              <svg
+                width="16"
+                height="11"
+                viewBox="0 0 16 11"
+                fill="currentColor"
+              >
+                <path d="M8 0a8 8 0 0 1 5.66 2.34l-1.41 1.41A6 6 0 0 0 8 2a6 6 0 0 0-4.24 1.76L2.34 2.34A8 8 0 0 1 8 0Zm0 4a4 4 0 0 1 2.83 1.17l-1.42 1.42A2 2 0 0 0 8 6a2 2 0 0 0-1.41.59L5.17 5.17A4 4 0 0 1 8 4Zm0 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z" />
+              </svg>
+              <svg
+                width="22"
+                height="11"
+                viewBox="0 0 22 11"
+                fill="none"
+              >
+                <rect
+                  x="0.5"
+                  y="0.5"
+                  width="18"
+                  height="10"
+                  rx="2"
+                  stroke="currentColor"
+                />
+                <rect
+                  x="2"
+                  y="2"
+                  width="14"
+                  height="7"
+                  rx="1"
+                  fill="currentColor"
+                />
+                <rect
+                  x="19"
+                  y="4"
+                  width="2"
+                  height="3"
+                  rx="0.5"
+                  fill="currentColor"
+                />
+              </svg>
+            </div>
+          </div>
+        );
+      }
+
+      /* ============================= TAB BAR ============================= */
+      function TabBar({ tab, setTab }) {
+        const items = [
+          { id: "day", label: "Tag", icon: <IClock size={20} /> },
+          { id: "month", label: "Monat", icon: <ICal size={20} /> },
+          { id: "settings", label: "Mehr", icon: <ISettings size={20} /> },
+        ];
+        return (
+          <nav className="tab-bar">
+            {items.map((i) => (
+              <button
+                key={i.id}
+                className={"tab-btn " + (tab === i.id ? "active" : "")}
+                onClick={() => setTab(i.id)}
+              >
+                {i.icon}
+                <span>{i.label}</span>
               </button>
-            </div>
-          ) : (
-            <>
-              <button className="btn ghost-destructive" onClick={() => setConfirmDelete(true)}>
-                <ITrash size={14}/>
-              </button>
-              {!entry.userSig ? (
-                <button className="btn accent lg" style={{ flex: 1 }} disabled={!valid}
-                  onClick={() => { onSave(entry); setTimeout(() => setSigOpen(true), 0); }}>
-                  <IPen size={15}/> Speichern & signieren
-                </button>
-              ) : (
-                <button className="btn primary lg" style={{ flex: 1 }} disabled={!valid}
-                  onClick={() => onSave(entry)}>
-                  Speichern
-                </button>
-              )}
-            </>
-          )
-        )}
-        {sheet.mode === "create" && (
-          <>
-            <button className="btn" onClick={onClose}>Abbrechen</button>
-            <button className="btn accent lg" style={{ flex: 1 }} disabled={!valid}
-              onClick={() => { onSave(entry); setTimeout(() => setSigOpen(true), 0); }}>
-              <IPen size={15}/> Speichern & signieren
-            </button>
-          </>
-        )}
-        {locked && (
-          <button className="btn primary lg" style={{ width: "100%" }} onClick={onClose}>
-            Schließen
-          </button>
-        )}
-      </div>
+            ))}
+          </nav>
+        );
+      }
 
-      {sigOpen && (
-        <SignaturePad
-          title="Arbeitszeit bestätigen"
-          subtitle={entry.type === "work"
-            ? `${fmtDayMed(dateObj)} · ${fmtTime(entry.start)}–${fmtTime(entry.end)} (${durFmt(dur)})`
-            : `${fmtDayMed(dateObj)} · Krank, ganztägig`}
-          signerLabel="A. Müller (Mitarbeiter)"
-          onCancel={() => setSigOpen(false)}
-          onConfirm={(dataUrl) => { onSign(entry.id, dataUrl); setSigOpen(false); onClose(); }}
-        />
-      )}
-    </Sheet>
-  );
-}
+      /* ============================= DAY VIEW ============================= */
+      function DayView({
+        selectedDate,
+        setSelectedDate,
+        entriesByDate,
+        openCreate,
+        openEdit,
+      }) {
+        const swipeRef = useRef(null);
+        const [drag, setDrag] = useState(null);
 
-function TypeBtn({ active, onClick, icon, label, color, softColor, disabled }) {
-  return (
-    <button className={"type-btn " + (active ? "active" : "")} disabled={disabled} onClick={onClick}
-      style={{
-        "--tb-color": color,
-        "--tb-soft": softColor,
-      }}>
-      <span className="type-btn-icon">{icon}</span>
-      <span className="type-btn-label">{label}</span>
-    </button>
-  );
-}
+        const week = useMemo(() => {
+          const start = startOfWeekMon(selectedDate);
+          return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+        }, [selectedDate]);
 
-function TimePicker({ label, value, onChange, disabled }) {
-  return (
-    <div className="time-picker">
-      <div className="time-picker-label">{label}</div>
-      <input
-        type="time" step="900"
-        className="time-input mono"
-        value={fmtTime(value)}
-        disabled={disabled}
-        onChange={(e) => onChange(parseTime(e.target.value))}
-      />
-    </div>
-  );
-}
+        const prevDay = () => setSelectedDate((d) => addDays(d, -1));
+        const nextDay = () => setSelectedDate((d) => addDays(d, 1));
 
-/* ============================= SHEET (full-screen) ============================= */
-function Sheet({ title, onClose, children }) {
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
-  }, []);
-
-  return (
-    <div className="sheet-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="sheet">
-        <div className="sheet-handle-wrap" onClick={onClose}>
-          <div className="sheet-handle"/>
-        </div>
-        <header className="sheet-header">
-          <button className="icon-btn ghost" onClick={onClose} aria-label="Schließen">
-            <IX size={18}/>
-          </button>
-          <div className="sheet-title">{title}</div>
-          <div style={{ width: 34 }}/>
-        </header>
-        <div className="sheet-body">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-/* ============================= SIGNATURE PAD ============================= */
-function SignaturePad({ title, subtitle, signerLabel, onCancel, onConfirm }) {
-  const canvasRef = useRef(null);
-  const [hasInk, setHasInk] = useState(false);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const resize = () => {
-      const ratio = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * ratio;
-      canvas.height = rect.height * ratio;
-      const ctx = canvas.getContext("2d");
-      ctx.scale(ratio, ratio);
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.strokeStyle = "#09090b";
-      ctx.lineWidth = 2.4;
-    };
-    resize();
-    window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
-  }, []);
-
-  let drawing = false;
-  const pos = (e) => {
-    const r = canvasRef.current.getBoundingClientRect();
-    const t = e.touches ? e.touches[0] : e;
-    return { x: t.clientX - r.left, y: t.clientY - r.top };
-  };
-  const start = (e) => {
-    e.preventDefault();
-    drawing = true;
-    const { x, y } = pos(e);
-    const ctx = canvasRef.current.getContext("2d");
-    ctx.beginPath(); ctx.moveTo(x, y);
-  };
-  const move = (e) => {
-    if (!drawing) return;
-    e.preventDefault();
-    const { x, y } = pos(e);
-    const ctx = canvasRef.current.getContext("2d");
-    ctx.lineTo(x, y); ctx.stroke();
-    if (!hasInk) setHasInk(true);
-  };
-  const end = () => { drawing = false; };
-  const clear = () => {
-    const ctx = canvasRef.current.getContext("2d");
-    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-    setHasInk(false);
-  };
-
-  return (
-    <div className="sheet-overlay top">
-      <div className="sheet sig-sheet">
-        <div className="sheet-handle-wrap" onClick={onCancel}>
-          <div className="sheet-handle"/>
-        </div>
-        <header className="sheet-header">
-          <button className="icon-btn ghost" onClick={onCancel}>
-            <IX size={18}/>
-          </button>
-          <div className="sheet-title">Unterschrift</div>
-          <div style={{ width: 34 }}/>
-        </header>
-        <div className="sheet-body">
-          <div className="sig-title">{title}</div>
-          <div className="sig-sub">{subtitle}</div>
-          <div className="sig-signer"><IUser size={12}/> {signerLabel}</div>
-
-          <div className="sig-canvas-wrap">
-            <canvas
-              ref={canvasRef}
-              className="sig-pad"
-              onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}
-              onTouchStart={start} onTouchMove={move} onTouchEnd={end}
-            />
-            {!hasInk && (
-              <div className="sig-placeholder">Hier unterschreiben</div>
-            )}
-            <div className="sig-line"/>
-            <div className="sig-date-stamp mono">× {new Date().toLocaleDateString("de-DE")}</div>
-          </div>
-
-          <div className="sig-actions">
-            <button className="btn" onClick={clear}>Leeren</button>
-            <button className="btn accent lg" style={{ flex: 1 }} disabled={!hasInk}
-              onClick={() => onConfirm(canvasRef.current.toDataURL("image/png"))}>
-              <ICheck size={15} stroke={2.5}/> Bestätigen
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ============================= MANAGER FLOW ============================= */
-function ManagerFlow({ state, setState, monthDate, monthEntries, managerName, onCommit }) {
-  const unsigned = monthEntries.filter(e => !e.userSig);
-  const toApprove = monthEntries.filter(e => e.userSig && !e.mgrSig);
-  const workMins = monthEntries.filter(e=>e.type==="work").reduce((s,e)=>s+(e.end-e.start),0);
-  const sickDays = monthEntries.filter(e=>e.type==="sick").length;
-
-  if (state.stage === "not-ready") {
-    return (
-      <Sheet title="Freigabe" onClose={() => setState(null)}>
-        <div className="warn-banner">
-          <strong>Es fehlen noch {unsigned.length} Signatur{unsigned.length === 1 ? "" : "en"}.</strong>
-          <div style={{ marginTop: 6 }}>
-            Bitte zuerst alle Einträge selbst signieren, bevor der Monat freigegeben werden kann.
-          </div>
-        </div>
-        <button className="btn primary lg" style={{ width: "100%" }} onClick={() => setState(null)}>
-          Verstanden
-        </button>
-      </Sheet>
-    );
-  }
-
-  if (state.stage === "intro") {
-    return (
-      <Sheet title="Freigabe Vorgesetzter" onClose={() => setState(null)}>
-        <div className="mgr-hero">
-          <div className="mgr-hero-icon"><IShield size={24}/></div>
-          <div className="mgr-hero-title">Gerät übergeben</div>
-          <div className="mgr-hero-sub">
-            Bitte geben Sie Ihr Telefon nun an<br/><strong>{managerName}</strong>.
-          </div>
-        </div>
-
-        <div className="summary-grid">
-          <div>
-            <div className="summary-label">Monat</div>
-            <div className="summary-value">{MONTHS[monthDate.getMonth()]}</div>
-          </div>
-          <div>
-            <div className="summary-label">Stunden</div>
-            <div className="summary-value mono">{durFmt(workMins)}</div>
-          </div>
-          <div>
-            <div className="summary-label">Krank</div>
-            <div className="summary-value">{sickDays}T</div>
-          </div>
-          <div>
-            <div className="summary-label">Einträge</div>
-            <div className="summary-value">{toApprove.length}</div>
-          </div>
-        </div>
-
-        <div className="field-label" style={{ marginTop: 20, marginBottom: 8 }}>Zu prüfende Einträge</div>
-        <div className="mgr-list">
-          {monthEntries.map((e, i) => (
-            <div key={e.id} className="mgr-list-row">
-              <span className="mono" style={{ minWidth: 40, color: "var(--muted-fg)", fontSize: 12 }}>
-                {e.date.slice(8, 10)}.{e.date.slice(5, 7)}.
-              </span>
-              <span className="mono" style={{ color: "var(--fg-soft)", fontSize: 12, minWidth: 82 }}>
-                {fmtTime(e.start)}–{fmtTime(e.end)}
-              </span>
-              <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: e.type === "work" ? "var(--accent)" : "var(--sick)", fontWeight: 500, flex: 1 }}>
-                {e.type === "work" ? <IBriefcase size={11}/> : <IStethoscope size={11}/>}
-                {e.type === "work" ? durFmt(e.end-e.start) : "krank"}
-              </span>
-              {e.mgrSig ? (
-                <span className="tag ok-solid"><ICheck size={10} stroke={3}/></span>
-              ) : e.userSig ? (
-                <span className="tag ok"><ICheck size={10} stroke={3}/></span>
-              ) : (
-                <span className="tag warn">!</span>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <div className="sheet-actions">
-          <button className="btn" onClick={() => setState(null)}>Abbrechen</button>
-          <button className="btn accent lg" style={{ flex: 1 }} disabled={toApprove.length === 0}
-            onClick={() => setState({ ...state, stage: "sign" })}>
-            <IPen size={15}/> Weiter zur Unterschrift
-          </button>
-        </div>
-      </Sheet>
-    );
-  }
-
-  if (state.stage === "sign") {
-    return (
-      <SignaturePad
-        title={`${MONTHS[monthDate.getMonth()]} ${monthDate.getFullYear()}`}
-        subtitle={`${toApprove.length} Einträge · ${durFmt(workMins)} · ${sickDays} Krank`}
-        signerLabel={`${managerName} (Vorgesetzte/r)`}
-        onCancel={() => setState({ ...state, stage: "intro" })}
-        onConfirm={(dataUrl) => onCommit(dataUrl)}
-      />
-    );
-  }
-
-  if (state.stage === "done") {
-    return (
-      <Sheet title="" onClose={() => setState(null)}>
-        <div className="success">
-          <div className="success-icon"><ICheck size={36} stroke={2.5}/></div>
-          <div className="success-title">Monat freigegeben</div>
-          <div className="success-sub">
-            {state.count} Einträge für {MONTHS[monthDate.getMonth()]} {monthDate.getFullYear()}<br/>
-            wurden von {managerName} unterschrieben.
-          </div>
-          <button className="btn primary lg" style={{ width: "100%", marginTop: 20 }}
-            onClick={() => setState(null)}>
-            Fertig
-          </button>
-        </div>
-      </Sheet>
-    );
-  }
-  return null;
-}
-
-/* ============================= SETTINGS ============================= */
-function SettingsView({ tweaks, updateTweak }) {
-  return (
-    <>
-      <header className="page-header">
-        <div className="eyebrow">Einstellungen</div>
-        <div className="page-title">Mehr</div>
-      </header>
-
-      <div className="profile-card">
-        <div className="avatar">AM</div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 600, fontSize: 15 }}>A. Müller</div>
-          <div style={{ fontSize: 12, color: "var(--muted-fg)" }}>Betreuer · Wohngruppe Nord</div>
-        </div>
-      </div>
-
-      <div className="settings-group">
-        <div className="settings-group-title">Darstellung</div>
-        <div className="settings-card">
-          <div className="settings-row">
-            <div>
-              <div className="settings-label">Akzentfarbe</div>
-              <div className="settings-hint">Primärfarbe der App</div>
-            </div>
-            <div className="color-swatches">
-              {[
-                { key: "indigo",  v: "#6366f1" },
-                { key: "violet",  v: "#7c3aed" },
-                { key: "blue",    v: "#2563eb" },
-                { key: "emerald", v: "#059669" },
-                { key: "amber",   v: "#d97706" },
-              ].map(c => (
-                <button key={c.key} className={"swatch " + (tweaks.accent === c.key ? "active" : "")}
-                  style={{ background: c.v }}
-                  onClick={() => updateTweak({ accent: c.key })} aria-label={c.key}/>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="settings-group">
-        <div className="settings-group-title">Arbeitszeiten</div>
-        <div className="settings-card">
-          <div className="settings-row">
-            <div className="settings-label">Standardstart</div>
-            <input className="time-input mono" type="time" step="900"
-              value={tweaks.defaultStart || "08:00"}
-              onChange={(e) => updateTweak({ defaultStart: e.target.value })}/>
-          </div>
-          <div className="settings-sep"/>
-          <div className="settings-row">
-            <div className="settings-label">Standardende</div>
-            <input className="time-input mono" type="time" step="900"
-              value={tweaks.defaultEnd || "17:00"}
-              onChange={(e) => updateTweak({ defaultEnd: e.target.value })}/>
-          </div>
-        </div>
-      </div>
-
-      <div className="settings-group">
-        <div className="settings-group-title">Vorgesetzte/r</div>
-        <div className="settings-card">
-          <div className="settings-row">
-            <div className="settings-label">Name</div>
-            <input className="input" style={{ maxWidth: 160, textAlign: "right" }}
-              value={tweaks.manager || ""}
-              onChange={(e) => updateTweak({ manager: e.target.value })}/>
-          </div>
-        </div>
-      </div>
-
-      <div className="settings-group">
-        <div className="settings-group-title">Daten</div>
-        <div className="settings-card">
-          <button className="settings-row settings-action" onClick={() => {
-            if (confirm("Alle lokalen Einträge löschen?")) {
-              localStorage.removeItem(LS_ENTRIES);
-              location.reload();
+        /* Swipe */
+        useEffect(() => {
+          const el = swipeRef.current;
+          if (!el) return;
+          let startX = 0,
+            startY = 0,
+            tracking = false,
+            locked = null;
+          const onStart = (e) => {
+            const t = e.touches ? e.touches[0] : e;
+            startX = t.clientX;
+            startY = t.clientY;
+            tracking = true;
+            locked = null;
+          };
+          const onMove = (e) => {
+            if (!tracking) return;
+            const t = e.touches ? e.touches[0] : e;
+            const dx = t.clientX - startX,
+              dy = t.clientY - startY;
+            if (!locked && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+              locked = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
             }
-          }}>
-            <div>
-              <div className="settings-label" style={{ color: "var(--sick)" }}>Alle Daten zurücksetzen</div>
-              <div className="settings-hint">Lokale Einträge löschen</div>
+            if (locked === "x") {
+              setDrag(dx);
+              e.preventDefault();
+            }
+          };
+          const onEnd = () => {
+            if (!tracking) return;
+            tracking = false;
+            if (locked === "x") {
+              if (drag > 60) prevDay();
+              else if (drag < -60) nextDay();
+            }
+            setDrag(0);
+            locked = null;
+          };
+          el.addEventListener("touchstart", onStart, { passive: true });
+          el.addEventListener("touchmove", onMove, { passive: false });
+          el.addEventListener("touchend", onEnd);
+          return () => {
+            el.removeEventListener("touchstart", onStart);
+            el.removeEventListener("touchmove", onMove);
+            el.removeEventListener("touchend", onEnd);
+          };
+        }, [drag, selectedDate]);
+
+        const dayKey = ymd(selectedDate);
+        const entries = entriesByDate[dayKey] || [];
+        const workMins = entries
+          .filter((e) => e.type === "work")
+          .reduce((s, e) => s + (e.end - e.start), 0);
+        const sick = entries.some((e) => e.type === "sick");
+        const allSigned = entries.length > 0 && entries.every((e) => e.userSig);
+
+        return (
+          <>
+            {/* Header */}
+            <header className="page-header">
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div>
+                  <div className="eyebrow">
+                    KW {weekNum(selectedDate)} ·{" "}
+                    {MONTHS[selectedDate.getMonth()]}
+                  </div>
+                  <div className="page-title">Arbeitszeit</div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <button
+                    className="icon-btn"
+                    onClick={() => setSelectedDate(startOfDay(new Date()))}
+                    aria-label="Heute"
+                  >
+                    <IHome size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Week strip */}
+              <div className="week-strip">
+                <button
+                  className="icon-btn sm"
+                  onClick={() => setSelectedDate((d) => addDays(d, -7))}
+                  aria-label="Vorherige Woche"
+                >
+                  <IChevronL size={16} />
+                </button>
+                <div className="week-days">
+                  {week.map((d) => {
+                    const isSel = sameDay(d, selectedDate);
+                    const isToday = sameDay(d, new Date());
+                    const dayEntries = entriesByDate[ymd(d)] || [];
+                    const hasSick = dayEntries.some((e) => e.type === "sick");
+                    const hasWork = dayEntries.some((e) => e.type === "work");
+                    const anyUnsigned = dayEntries.some((e) => !e.userSig);
+                    return (
+                      <button
+                        key={ymd(d)}
+                        className={
+                          "week-day " +
+                          (isSel ? "selected " : "") +
+                          (isToday ? "today " : "")
+                        }
+                        onClick={() => setSelectedDate(d)}
+                      >
+                        <span className="wd-dow">
+                          {DAYS_SHORT[(d.getDay() + 6) % 7]}
+                        </span>
+                        <span className="wd-num">{d.getDate()}</span>
+                        <span className="wd-dots">
+                          {hasWork && (
+                            <span
+                              className="dot"
+                              style={{ background: "var(--accent)" }}
+                            />
+                          )}
+                          {hasSick && (
+                            <span
+                              className="dot"
+                              style={{ background: "var(--sick)" }}
+                            />
+                          )}
+                          {dayEntries.length > 0 && anyUnsigned && (
+                            <span
+                              className="dot"
+                              style={{ background: "#f59e0b" }}
+                            />
+                          )}
+                          {dayEntries.length > 0 && !anyUnsigned && (
+                            <span
+                              className="dot"
+                              style={{ background: "var(--ok)" }}
+                            />
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  className="icon-btn sm"
+                  onClick={() => setSelectedDate((d) => addDays(d, 7))}
+                  aria-label="Nächste Woche"
+                >
+                  <IChevronR size={16} />
+                </button>
+              </div>
+            </header>
+
+            {/* Day summary + entries */}
+            <div
+              ref={swipeRef}
+              className="swipe-area"
+              style={{
+                transform: `translateX(${drag || 0}px)`,
+                transition: drag ? "none" : "transform .2s ease",
+              }}
+            >
+              {/* Day heading */}
+              <div className="day-heading">
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <button
+                    className="icon-btn sm ghost"
+                    onClick={prevDay}
+                  >
+                    <IChevronL size={18} />
+                  </button>
+                  <div style={{ flex: 1, textAlign: "center" }}>
+                    <div className="day-heading-title">
+                      {fmtDayLong(selectedDate)}
+                    </div>
+                    {sameDay(selectedDate, new Date()) && (
+                      <div className="day-heading-sub">Heute</div>
+                    )}
+                    {!sameDay(selectedDate, new Date()) && (
+                      <div className="day-heading-sub">
+                        {Math.round(
+                          (selectedDate - startOfDay(new Date())) / 86400000,
+                        )}{" "}
+                        Tage
+                        {selectedDate < new Date() ? " zurück" : " voraus"}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    className="icon-btn sm ghost"
+                    onClick={nextDay}
+                  >
+                    <IChevronR size={18} />
+                  </button>
+                </div>
+
+                {/* Summary pills */}
+                {entries.length > 0 && (
+                  <div className="pills">
+                    {sick ? (
+                      <span className="pill sick">
+                        <IStethoscope size={13} /> Krank · ganztägig
+                      </span>
+                    ) : (
+                      <>
+                        <span className="pill accent">
+                          <IClock size={13} /> {durFmt(workMins)}
+                        </span>
+                        <span className="pill muted">
+                          {entries.length}{" "}
+                          {entries.length === 1 ? "Eintrag" : "Einträge"}
+                        </span>
+                        {allSigned && (
+                          <span className="pill ok">
+                            <ICheck
+                              size={13}
+                              stroke={2.5}
+                            />{" "}
+                            Signiert
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Entries list */}
+              {entries.length === 0 ? (
+                <EmptyState onAdd={() => openCreate(selectedDate)} />
+              ) : (
+                <div className="entries-list">
+                  {entries.map((e) => (
+                    <EntryCard
+                      key={e.id}
+                      entry={e}
+                      onClick={() => openEdit(e)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Swipe hint */}
+              <div className="swipe-hint">
+                <IChevronL size={12} /> Wischen für Tage <IChevronR size={12} />
+              </div>
             </div>
-            <IChevronR size={16} color="var(--muted-fg)"/>
+          </>
+        );
+      }
+
+      function EmptyState({ onAdd }) {
+        return (
+          <div className="empty">
+            <div className="empty-icon">
+              <ICal
+                size={28}
+                color="var(--muted-fg)"
+              />
+            </div>
+            <div className="empty-title">Keine Einträge</div>
+            <div className="empty-sub">
+              Tippe auf <strong>+</strong> um eine Arbeitszeit
+              <br />
+              oder einen Krankheitstag zu erfassen.
+            </div>
+            <button
+              className="btn accent"
+              onClick={onAdd}
+            >
+              <IPlus size={16} /> Eintrag hinzufügen
+            </button>
+          </div>
+        );
+      }
+
+      function EntryCard({ entry, onClick }) {
+        const signed = !!entry.userSig;
+        const mgr = !!entry.mgrSig;
+        const dur = entry.end - entry.start;
+
+        return (
+          <button
+            className={"entry-card " + entry.type + (signed ? " signed" : "")}
+            onClick={onClick}
+          >
+            <div className="entry-card-accent" />
+            <div className="entry-card-body">
+              <div className="entry-card-row">
+                <div className="entry-card-type">
+                  {entry.type === "work" ? (
+                    <IBriefcase size={14} />
+                  ) : (
+                    <IStethoscope size={14} />
+                  )}
+                  <span>{entry.type === "work" ? "Arbeit" : "Krankheit"}</span>
+                </div>
+                {signed ? (
+                  mgr ? (
+                    <span className="tag ok-solid">
+                      <IShield size={11} /> freigegeben
+                    </span>
+                  ) : (
+                    <span className="tag ok">
+                      <ICheck
+                        size={11}
+                        stroke={3}
+                      />{" "}
+                      signiert
+                    </span>
+                  )
+                ) : (
+                  <span className="tag warn">nicht signiert</span>
+                )}
+              </div>
+              <div className="entry-card-time mono">
+                {entry.type === "sick"
+                  ? "Ganztägig"
+                  : `${fmtTime(entry.start)} – ${fmtTime(entry.end)}`}
+              </div>
+              <div className="entry-card-meta">
+                {entry.type === "work" && durFmt(dur)}
+                {entry.note && <> · {entry.note}</>}
+                {signed && (
+                  <>
+                    {" "}
+                    · signiert am{" "}
+                    {new Date(entry.userSig.at).toLocaleDateString("de-DE")}
+                  </>
+                )}
+              </div>
+            </div>
           </button>
-        </div>
-      </div>
+        );
+      }
 
-      <div style={{ textAlign: "center", fontSize: 11, color: "var(--muted-fg)", padding: "16px 0 8px" }}>
-        Zeiterfassung · Version 1.0
-      </div>
-    </>
-  );
-}
+      /* ============================= MONTH VIEW ============================= */
+      function MonthView({
+        selectedDate,
+        setSelectedDate,
+        entriesByDate,
+        monthEntries,
+        onMgr,
+        tweaks,
+      }) {
+        const [cursor, setCursor] = useState(
+          () =>
+            new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1),
+        );
 
-/* ============================= MOUNT ============================= */
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-</script>
-</body>
+        const firstOfMonth = new Date(
+          cursor.getFullYear(),
+          cursor.getMonth(),
+          1,
+        );
+        const gridStart = startOfWeekMon(firstOfMonth);
+        const days = Array.from({ length: 42 }, (_, i) =>
+          addDays(gridStart, i),
+        );
+
+        const workMins = monthEntries
+          .filter((e) => e.type === "work")
+          .reduce((s, e) => s + (e.end - e.start), 0);
+        const sickDays = monthEntries.filter((e) => e.type === "sick").length;
+        const userSigned = monthEntries.filter((e) => e.userSig).length;
+        const mgrSigned = monthEntries.filter((e) => e.mgrSig).length;
+        const total = monthEntries.length;
+        const userPct = total ? Math.round((userSigned / total) * 100) : 0;
+        const mgrDone = total > 0 && mgrSigned === total;
+
+        return (
+          <>
+            <header className="page-header">
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div>
+                  <div className="eyebrow">Übersicht</div>
+                  <div className="page-title">
+                    {MONTHS[cursor.getMonth()]} {cursor.getFullYear()}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button
+                    className="icon-btn"
+                    onClick={() =>
+                      setCursor(
+                        (c) => new Date(c.getFullYear(), c.getMonth() - 1, 1),
+                      )
+                    }
+                  >
+                    <IChevronL size={18} />
+                  </button>
+                  <button
+                    className="icon-btn"
+                    onClick={() =>
+                      setCursor(
+                        (c) => new Date(c.getFullYear(), c.getMonth() + 1, 1),
+                      )
+                    }
+                  >
+                    <IChevronR size={18} />
+                  </button>
+                </div>
+              </div>
+            </header>
+
+            {/* Calendar grid */}
+            <div className="month-grid-wrap">
+              <div className="month-dow">
+                {DAYS_SHORT.map((d) => (
+                  <div key={d}>{d}</div>
+                ))}
+              </div>
+              <div className="month-grid">
+                {days.map((d) => {
+                  const inMonth = d.getMonth() === cursor.getMonth();
+                  const isToday = sameDay(d, new Date());
+                  const dayEntries = entriesByDate[ymd(d)] || [];
+                  const hasSick = dayEntries.some((e) => e.type === "sick");
+                  const hasWork = dayEntries.some((e) => e.type === "work");
+                  const allSigned =
+                    dayEntries.length > 0 && dayEntries.every((e) => e.userSig);
+                  const fullyApproved =
+                    dayEntries.length > 0 && dayEntries.every((e) => e.mgrSig);
+                  return (
+                    <button
+                      key={ymd(d)}
+                      className={
+                        "month-cell " +
+                        (inMonth ? "" : "dim ") +
+                        (isToday ? "today " : "")
+                      }
+                      onClick={() => setSelectedDate(d)}
+                    >
+                      <span className="mc-num">{d.getDate()}</span>
+                      <span className="mc-bar">
+                        {hasWork && (
+                          <span
+                            className="bar"
+                            style={{
+                              background: fullyApproved
+                                ? "var(--ok)"
+                                : allSigned
+                                  ? "var(--accent)"
+                                  : "var(--accent-border)",
+                            }}
+                          />
+                        )}
+                        {hasSick && (
+                          <span
+                            className="bar"
+                            style={{ background: "var(--sick)" }}
+                          />
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Stats card */}
+            <div className="stat-card">
+              <div className="stat-row">
+                <Stat
+                  label="Arbeitszeit"
+                  value={durFmt(workMins)}
+                />
+                <Stat
+                  label="Krank"
+                  value={`${sickDays}T`}
+                  tone={sickDays > 0 ? "sick" : "default"}
+                />
+              </div>
+              <div className="stat-row">
+                <Stat
+                  label="Eigene Signatur"
+                  value={`${userSigned}/${total}`}
+                  sub={`${userPct}%`}
+                />
+                <Stat
+                  label="Freigabe"
+                  value={mgrDone ? "Komplett" : `${mgrSigned}/${total}`}
+                  tone={mgrDone ? "ok" : "default"}
+                />
+              </div>
+
+              {/* Progress bar */}
+              <div className="progress-group">
+                <div className="progress-label">
+                  <span>Freigabe-Fortschritt</span>
+                  <span className="mono">
+                    {total ? Math.round((mgrSigned / total) * 100) : 0}%
+                  </span>
+                </div>
+                <div className="progress">
+                  <div
+                    className="progress-user"
+                    style={{ width: `${userPct}%` }}
+                  />
+                  <div
+                    className="progress-mgr"
+                    style={{
+                      width: `${total ? (mgrSigned / total) * 100 : 0}%`,
+                    }}
+                  />
+                </div>
+                <div className="progress-legend">
+                  <span>
+                    <span
+                      className="legend-swatch"
+                      style={{ background: "var(--accent)" }}
+                    />{" "}
+                    Signiert
+                  </span>
+                  <span>
+                    <span
+                      className="legend-swatch"
+                      style={{ background: "var(--ok)" }}
+                    />{" "}
+                    Freigegeben
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Monthly sign-off CTA */}
+            <div className="cta-card">
+              <div
+                style={{ display: "flex", alignItems: "flex-start", gap: 12 }}
+              >
+                <div className="cta-icon">
+                  <IShield size={18} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div className="cta-title">Monat freigeben</div>
+                  <div className="cta-sub">
+                    {mgrDone
+                      ? "Dieser Monat ist bereits vollständig vom Vorgesetzten freigegeben."
+                      : userSigned < total
+                        ? `Zuerst ${total - userSigned} eigene Signatur${total - userSigned === 1 ? "" : "en"} erforderlich.`
+                        : `Gerät an ${tweaks.manager || "Vorgesetzte/n"} übergeben, um ${total - mgrSigned} Einträge freizugeben.`}
+                  </div>
+                </div>
+              </div>
+              <button
+                className="btn accent lg"
+                onClick={onMgr}
+                disabled={mgrDone}
+                style={{ width: "100%", marginTop: 12 }}
+              >
+                {mgrDone ? (
+                  <>
+                    <ICheck
+                      size={14}
+                      stroke={2.5}
+                    />{" "}
+                    Freigegeben
+                  </>
+                ) : (
+                  <>
+                    <IShield size={14} /> An Vorgesetzten übergeben
+                  </>
+                )}
+              </button>
+            </div>
+          </>
+        );
+      }
+
+      function Stat({ label, value, sub, tone = "default" }) {
+        const color =
+          tone === "ok"
+            ? "var(--ok)"
+            : tone === "sick"
+              ? "var(--sick)"
+              : "var(--fg)";
+        return (
+          <div className="stat">
+            <div className="stat-label">{label}</div>
+            <div
+              className="stat-value"
+              style={{ color }}
+            >
+              {value}
+            </div>
+            {sub && <div className="stat-sub">{sub}</div>}
+          </div>
+        );
+      }
+
+      /* ============================= ENTRY SHEET ============================= */
+      function EntrySheet({
+        sheet,
+        onClose,
+        onSave,
+        onDelete,
+        onSign,
+        onUnsign,
+      }) {
+        const [entry, setEntry] = useState(sheet.entry);
+        const [sigOpen, setSigOpen] = useState(false);
+        const [confirmDelete, setConfirmDelete] = useState(false);
+        const locked = !!entry.userSig;
+        const dateObj = new Date(entry.date + "T00:00:00");
+        const dur = Math.max(0, entry.end - entry.start);
+        const valid =
+          entry.type === "sick" || (entry.end > entry.start && dur >= 15);
+
+        const update = (patch) => setEntry((e) => ({ ...e, ...patch }));
+
+        return (
+          <Sheet
+            onClose={onClose}
+            title={sheet.mode === "create" ? "Neuer Eintrag" : "Eintrag"}
+          >
+            {/* Date strip */}
+            <div className="sheet-date">
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 10,
+                  background: "var(--accent-soft)",
+                  color: "var(--accent-ink)",
+                  border: "1px solid var(--accent-border)",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 600,
+                  lineHeight: 1,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 9,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                    marginBottom: 2,
+                  }}
+                >
+                  {MONTHS_SHORT[dateObj.getMonth()]}
+                </span>
+                <span style={{ fontSize: 17, letterSpacing: "-0.02em" }}>
+                  {dateObj.getDate()}
+                </span>
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontWeight: 600,
+                    fontSize: 15,
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  {DAYS_DE_FULL[(dateObj.getDay() + 6) % 7]}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--muted-fg)" }}>
+                  {dateObj.getDate()}. {MONTHS[dateObj.getMonth()]}{" "}
+                  {dateObj.getFullYear()}
+                </div>
+              </div>
+            </div>
+
+            {locked && (
+              <div className="locked-banner">
+                <ILock size={14} />
+                Signiert — Signatur aufheben um zu bearbeiten.
+              </div>
+            )}
+
+            {/* Type segmented */}
+            <div className="field">
+              <div className="field-label">Art</div>
+              <div className="type-seg">
+                <TypeBtn
+                  active={entry.type === "work"}
+                  disabled={locked}
+                  onClick={() => update({ type: "work" })}
+                  icon={<IBriefcase size={18} />}
+                  label="Arbeit"
+                  color="var(--accent)"
+                  softColor="var(--accent-soft)"
+                />
+                <TypeBtn
+                  active={entry.type === "sick"}
+                  disabled={locked}
+                  onClick={() =>
+                    update({ type: "sick", start: 0, end: 24 * 60 })
+                  }
+                  icon={<IStethoscope size={18} />}
+                  label="Krank"
+                  color="var(--sick)"
+                  softColor="var(--sick-soft)"
+                />
+              </div>
+            </div>
+
+            {/* Times */}
+            {entry.type === "work" && (
+              <>
+                <div className="field">
+                  <div className="field-label">Zeiten</div>
+                  <div className="time-row">
+                    <TimePicker
+                      label="Start"
+                      value={entry.start}
+                      onChange={(v) => update({ start: v })}
+                      disabled={locked}
+                    />
+                    <div className="time-arrow">→</div>
+                    <TimePicker
+                      label="Ende"
+                      value={entry.end}
+                      onChange={(v) => update({ end: v })}
+                      disabled={locked}
+                    />
+                  </div>
+                  <div className="duration-bar">
+                    <IClock
+                      size={13}
+                      color="var(--muted-fg)"
+                    />
+                    <span>
+                      Dauer:{" "}
+                      <strong className="mono">
+                        {entry.end > entry.start ? durFmt(dur) : "—"}
+                      </strong>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="field">
+                  <div className="field-label">Schnellauswahl</div>
+                  <div className="quick-row">
+                    {[
+                      { s: 8 * 60, e: 17 * 60, l: "08–17" },
+                      { s: 7 * 60, e: 15 * 60 + 30, l: "07–15:30" },
+                      { s: 9 * 60, e: 18 * 60, l: "09–18" },
+                      { s: 13 * 60, e: 21 * 60, l: "13–21" },
+                    ].map((q) => (
+                      <button
+                        key={q.l}
+                        className="quick-chip"
+                        disabled={locked}
+                        onClick={() => update({ start: q.s, end: q.e })}
+                      >
+                        {q.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Note */}
+            <div className="field">
+              <div className="field-label">
+                Notiz{" "}
+                <span style={{ color: "var(--muted-fg)", fontWeight: 400 }}>
+                  (optional)
+                </span>
+              </div>
+              <input
+                className="input"
+                placeholder={
+                  entry.type === "sick"
+                    ? "z.B. Arzttermin"
+                    : "z.B. Wohngruppe Nord"
+                }
+                value={entry.note || ""}
+                disabled={locked}
+                onChange={(e) => update({ note: e.target.value })}
+              />
+            </div>
+
+            {/* Signature state */}
+            {entry.userSig && (
+              <div className="sig-state">
+                <div className="sig-state-icon">
+                  <ICheck
+                    size={16}
+                    stroke={3}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div className="sig-state-title">
+                    Signiert von {entry.userSig.name}
+                  </div>
+                  <div className="sig-state-sub">
+                    {new Date(entry.userSig.at).toLocaleDateString("de-DE", {
+                      dateStyle: "medium",
+                    })}
+                    {" · "}
+                    {new Date(entry.userSig.at).toLocaleTimeString("de-DE", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                  {entry.mgrSig && (
+                    <div className="sig-state-mgr">
+                      <IShield size={11} /> Freigegeben von {entry.mgrSig.name}
+                    </div>
+                  )}
+                </div>
+                {!entry.mgrSig && (
+                  <button
+                    className="btn sm"
+                    onClick={() => onUnsign(entry.id)}
+                  >
+                    <IUndo size={12} />
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Bottom actions */}
+            <div className="sheet-actions">
+              {sheet.mode === "edit" &&
+                !locked &&
+                (confirmDelete ? (
+                  <div style={{ display: "flex", gap: 8, width: "100%" }}>
+                    <button
+                      className="btn"
+                      style={{ flex: 1 }}
+                      onClick={() => setConfirmDelete(false)}
+                    >
+                      Abbrechen
+                    </button>
+                    <button
+                      className="btn destructive"
+                      style={{ flex: 1 }}
+                      onClick={() => onDelete(entry.id)}
+                    >
+                      <ITrash size={14} /> Wirklich löschen
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      className="btn ghost-destructive"
+                      onClick={() => setConfirmDelete(true)}
+                    >
+                      <ITrash size={14} />
+                    </button>
+                    {!entry.userSig ? (
+                      <button
+                        className="btn accent lg"
+                        style={{ flex: 1 }}
+                        disabled={!valid}
+                        onClick={() => {
+                          onSave(entry);
+                          setTimeout(() => setSigOpen(true), 0);
+                        }}
+                      >
+                        <IPen size={15} /> Speichern & signieren
+                      </button>
+                    ) : (
+                      <button
+                        className="btn primary lg"
+                        style={{ flex: 1 }}
+                        disabled={!valid}
+                        onClick={() => onSave(entry)}
+                      >
+                        Speichern
+                      </button>
+                    )}
+                  </>
+                ))}
+              {sheet.mode === "create" && (
+                <>
+                  <button
+                    className="btn"
+                    onClick={onClose}
+                  >
+                    Abbrechen
+                  </button>
+                  <button
+                    className="btn accent lg"
+                    style={{ flex: 1 }}
+                    disabled={!valid}
+                    onClick={() => {
+                      onSave(entry);
+                      setTimeout(() => setSigOpen(true), 0);
+                    }}
+                  >
+                    <IPen size={15} /> Speichern & signieren
+                  </button>
+                </>
+              )}
+              {locked && (
+                <button
+                  className="btn primary lg"
+                  style={{ width: "100%" }}
+                  onClick={onClose}
+                >
+                  Schließen
+                </button>
+              )}
+            </div>
+
+            {sigOpen && (
+              <SignaturePad
+                title="Arbeitszeit bestätigen"
+                subtitle={
+                  entry.type === "work"
+                    ? `${fmtDayMed(dateObj)} · ${fmtTime(entry.start)}–${fmtTime(entry.end)} (${durFmt(dur)})`
+                    : `${fmtDayMed(dateObj)} · Krank, ganztägig`
+                }
+                signerLabel="A. Müller (Mitarbeiter)"
+                onCancel={() => setSigOpen(false)}
+                onConfirm={(dataUrl) => {
+                  onSign(entry.id, dataUrl);
+                  setSigOpen(false);
+                  onClose();
+                }}
+              />
+            )}
+          </Sheet>
+        );
+      }
+
+      function TypeBtn({
+        active,
+        onClick,
+        icon,
+        label,
+        color,
+        softColor,
+        disabled,
+      }) {
+        return (
+          <button
+            className={"type-btn " + (active ? "active" : "")}
+            disabled={disabled}
+            onClick={onClick}
+            style={{
+              "--tb-color": color,
+              "--tb-soft": softColor,
+            }}
+          >
+            <span className="type-btn-icon">{icon}</span>
+            <span className="type-btn-label">{label}</span>
+          </button>
+        );
+      }
+
+      function TimePicker({ label, value, onChange, disabled }) {
+        return (
+          <div className="time-picker">
+            <div className="time-picker-label">{label}</div>
+            <input
+              type="time"
+              step="900"
+              className="time-input mono"
+              value={fmtTime(value)}
+              disabled={disabled}
+              onChange={(e) => onChange(parseTime(e.target.value))}
+            />
+          </div>
+        );
+      }
+
+      /* ============================= SHEET (full-screen) ============================= */
+      function Sheet({ title, onClose, children }) {
+        useEffect(() => {
+          document.body.style.overflow = "hidden";
+          return () => {
+            document.body.style.overflow = "";
+          };
+        }, []);
+
+        return (
+          <div
+            className="sheet-overlay"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) onClose();
+            }}
+          >
+            <div className="sheet">
+              <div
+                className="sheet-handle-wrap"
+                onClick={onClose}
+              >
+                <div className="sheet-handle" />
+              </div>
+              <header className="sheet-header">
+                <button
+                  className="icon-btn ghost"
+                  onClick={onClose}
+                  aria-label="Schließen"
+                >
+                  <IX size={18} />
+                </button>
+                <div className="sheet-title">{title}</div>
+                <div style={{ width: 34 }} />
+              </header>
+              <div className="sheet-body">{children}</div>
+            </div>
+          </div>
+        );
+      }
+
+      /* ============================= SIGNATURE PAD ============================= */
+      function SignaturePad({
+        title,
+        subtitle,
+        signerLabel,
+        onCancel,
+        onConfirm,
+      }) {
+        const canvasRef = useRef(null);
+        const [hasInk, setHasInk] = useState(false);
+
+        useEffect(() => {
+          const canvas = canvasRef.current;
+          const resize = () => {
+            const ratio = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * ratio;
+            canvas.height = rect.height * ratio;
+            const ctx = canvas.getContext("2d");
+            ctx.scale(ratio, ratio);
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.strokeStyle = "#09090b";
+            ctx.lineWidth = 2.4;
+          };
+          resize();
+          window.addEventListener("resize", resize);
+          return () => window.removeEventListener("resize", resize);
+        }, []);
+
+        let drawing = false;
+        const pos = (e) => {
+          const r = canvasRef.current.getBoundingClientRect();
+          const t = e.touches ? e.touches[0] : e;
+          return { x: t.clientX - r.left, y: t.clientY - r.top };
+        };
+        const start = (e) => {
+          e.preventDefault();
+          drawing = true;
+          const { x, y } = pos(e);
+          const ctx = canvasRef.current.getContext("2d");
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+        };
+        const move = (e) => {
+          if (!drawing) return;
+          e.preventDefault();
+          const { x, y } = pos(e);
+          const ctx = canvasRef.current.getContext("2d");
+          ctx.lineTo(x, y);
+          ctx.stroke();
+          if (!hasInk) setHasInk(true);
+        };
+        const end = () => {
+          drawing = false;
+        };
+        const clear = () => {
+          const ctx = canvasRef.current.getContext("2d");
+          ctx.clearRect(
+            0,
+            0,
+            canvasRef.current.width,
+            canvasRef.current.height,
+          );
+          setHasInk(false);
+        };
+
+        return (
+          <div className="sheet-overlay top">
+            <div className="sheet sig-sheet">
+              <div
+                className="sheet-handle-wrap"
+                onClick={onCancel}
+              >
+                <div className="sheet-handle" />
+              </div>
+              <header className="sheet-header">
+                <button
+                  className="icon-btn ghost"
+                  onClick={onCancel}
+                >
+                  <IX size={18} />
+                </button>
+                <div className="sheet-title">Unterschrift</div>
+                <div style={{ width: 34 }} />
+              </header>
+              <div className="sheet-body">
+                <div className="sig-title">{title}</div>
+                <div className="sig-sub">{subtitle}</div>
+                <div className="sig-signer">
+                  <IUser size={12} /> {signerLabel}
+                </div>
+
+                <div className="sig-canvas-wrap">
+                  <canvas
+                    ref={canvasRef}
+                    className="sig-pad"
+                    onMouseDown={start}
+                    onMouseMove={move}
+                    onMouseUp={end}
+                    onMouseLeave={end}
+                    onTouchStart={start}
+                    onTouchMove={move}
+                    onTouchEnd={end}
+                  />
+                  {!hasInk && (
+                    <div className="sig-placeholder">Hier unterschreiben</div>
+                  )}
+                  <div className="sig-line" />
+                  <div className="sig-date-stamp mono">
+                    × {new Date().toLocaleDateString("de-DE")}
+                  </div>
+                </div>
+
+                <div className="sig-actions">
+                  <button
+                    className="btn"
+                    onClick={clear}
+                  >
+                    Leeren
+                  </button>
+                  <button
+                    className="btn accent lg"
+                    style={{ flex: 1 }}
+                    disabled={!hasInk}
+                    onClick={() =>
+                      onConfirm(canvasRef.current.toDataURL("image/png"))
+                    }
+                  >
+                    <ICheck
+                      size={15}
+                      stroke={2.5}
+                    />{" "}
+                    Bestätigen
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      /* ============================= MANAGER FLOW ============================= */
+      function ManagerFlow({
+        state,
+        setState,
+        monthDate,
+        monthEntries,
+        managerName,
+        onCommit,
+      }) {
+        const unsigned = monthEntries.filter((e) => !e.userSig);
+        const toApprove = monthEntries.filter((e) => e.userSig && !e.mgrSig);
+        const workMins = monthEntries
+          .filter((e) => e.type === "work")
+          .reduce((s, e) => s + (e.end - e.start), 0);
+        const sickDays = monthEntries.filter((e) => e.type === "sick").length;
+
+        if (state.stage === "not-ready") {
+          return (
+            <Sheet
+              title="Freigabe"
+              onClose={() => setState(null)}
+            >
+              <div className="warn-banner">
+                <strong>
+                  Es fehlen noch {unsigned.length} Signatur
+                  {unsigned.length === 1 ? "" : "en"}.
+                </strong>
+                <div style={{ marginTop: 6 }}>
+                  Bitte zuerst alle Einträge selbst signieren, bevor der Monat
+                  freigegeben werden kann.
+                </div>
+              </div>
+              <button
+                className="btn primary lg"
+                style={{ width: "100%" }}
+                onClick={() => setState(null)}
+              >
+                Verstanden
+              </button>
+            </Sheet>
+          );
+        }
+
+        if (state.stage === "intro") {
+          return (
+            <Sheet
+              title="Freigabe Vorgesetzter"
+              onClose={() => setState(null)}
+            >
+              <div className="mgr-hero">
+                <div className="mgr-hero-icon">
+                  <IShield size={24} />
+                </div>
+                <div className="mgr-hero-title">Gerät übergeben</div>
+                <div className="mgr-hero-sub">
+                  Bitte geben Sie Ihr Telefon nun an
+                  <br />
+                  <strong>{managerName}</strong>.
+                </div>
+              </div>
+
+              <div className="summary-grid">
+                <div>
+                  <div className="summary-label">Monat</div>
+                  <div className="summary-value">
+                    {MONTHS[monthDate.getMonth()]}
+                  </div>
+                </div>
+                <div>
+                  <div className="summary-label">Stunden</div>
+                  <div className="summary-value mono">{durFmt(workMins)}</div>
+                </div>
+                <div>
+                  <div className="summary-label">Krank</div>
+                  <div className="summary-value">{sickDays}T</div>
+                </div>
+                <div>
+                  <div className="summary-label">Einträge</div>
+                  <div className="summary-value">{toApprove.length}</div>
+                </div>
+              </div>
+
+              <div
+                className="field-label"
+                style={{ marginTop: 20, marginBottom: 8 }}
+              >
+                Zu prüfende Einträge
+              </div>
+              <div className="mgr-list">
+                {monthEntries.map((e, i) => (
+                  <div
+                    key={e.id}
+                    className="mgr-list-row"
+                  >
+                    <span
+                      className="mono"
+                      style={{
+                        minWidth: 40,
+                        color: "var(--muted-fg)",
+                        fontSize: 12,
+                      }}
+                    >
+                      {e.date.slice(8, 10)}.{e.date.slice(5, 7)}.
+                    </span>
+                    <span
+                      className="mono"
+                      style={{
+                        color: "var(--fg-soft)",
+                        fontSize: 12,
+                        minWidth: 82,
+                      }}
+                    >
+                      {fmtTime(e.start)}–{fmtTime(e.end)}
+                    </span>
+                    <span
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: 12,
+                        color:
+                          e.type === "work" ? "var(--accent)" : "var(--sick)",
+                        fontWeight: 500,
+                        flex: 1,
+                      }}
+                    >
+                      {e.type === "work" ? (
+                        <IBriefcase size={11} />
+                      ) : (
+                        <IStethoscope size={11} />
+                      )}
+                      {e.type === "work" ? durFmt(e.end - e.start) : "krank"}
+                    </span>
+                    {e.mgrSig ? (
+                      <span className="tag ok-solid">
+                        <ICheck
+                          size={10}
+                          stroke={3}
+                        />
+                      </span>
+                    ) : e.userSig ? (
+                      <span className="tag ok">
+                        <ICheck
+                          size={10}
+                          stroke={3}
+                        />
+                      </span>
+                    ) : (
+                      <span className="tag warn">!</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="sheet-actions">
+                <button
+                  className="btn"
+                  onClick={() => setState(null)}
+                >
+                  Abbrechen
+                </button>
+                <button
+                  className="btn accent lg"
+                  style={{ flex: 1 }}
+                  disabled={toApprove.length === 0}
+                  onClick={() => setState({ ...state, stage: "sign" })}
+                >
+                  <IPen size={15} /> Weiter zur Unterschrift
+                </button>
+              </div>
+            </Sheet>
+          );
+        }
+
+        if (state.stage === "sign") {
+          return (
+            <SignaturePad
+              title={`${MONTHS[monthDate.getMonth()]} ${monthDate.getFullYear()}`}
+              subtitle={`${toApprove.length} Einträge · ${durFmt(workMins)} · ${sickDays} Krank`}
+              signerLabel={`${managerName} (Vorgesetzte/r)`}
+              onCancel={() => setState({ ...state, stage: "intro" })}
+              onConfirm={(dataUrl) => onCommit(dataUrl)}
+            />
+          );
+        }
+
+        if (state.stage === "done") {
+          return (
+            <Sheet
+              title=""
+              onClose={() => setState(null)}
+            >
+              <div className="success">
+                <div className="success-icon">
+                  <ICheck
+                    size={36}
+                    stroke={2.5}
+                  />
+                </div>
+                <div className="success-title">Monat freigegeben</div>
+                <div className="success-sub">
+                  {state.count} Einträge für {MONTHS[monthDate.getMonth()]}{" "}
+                  {monthDate.getFullYear()}
+                  <br />
+                  wurden von {managerName} unterschrieben.
+                </div>
+                <button
+                  className="btn primary lg"
+                  style={{ width: "100%", marginTop: 20 }}
+                  onClick={() => setState(null)}
+                >
+                  Fertig
+                </button>
+              </div>
+            </Sheet>
+          );
+        }
+        return null;
+      }
+
+      /* ============================= SETTINGS ============================= */
+      function SettingsView({ tweaks, updateTweak }) {
+        return (
+          <>
+            <header className="page-header">
+              <div className="eyebrow">Einstellungen</div>
+              <div className="page-title">Mehr</div>
+            </header>
+
+            <div className="profile-card">
+              <div className="avatar">AM</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 15 }}>A. Müller</div>
+                <div style={{ fontSize: 12, color: "var(--muted-fg)" }}>
+                  Betreuer · Wohngruppe Nord
+                </div>
+              </div>
+            </div>
+
+            <div className="settings-group">
+              <div className="settings-group-title">Darstellung</div>
+              <div className="settings-card">
+                <div className="settings-row">
+                  <div>
+                    <div className="settings-label">Akzentfarbe</div>
+                    <div className="settings-hint">Primärfarbe der App</div>
+                  </div>
+                  <div className="color-swatches">
+                    {[
+                      { key: "indigo", v: "#6366f1" },
+                      { key: "violet", v: "#7c3aed" },
+                      { key: "blue", v: "#2563eb" },
+                      { key: "emerald", v: "#059669" },
+                      { key: "amber", v: "#d97706" },
+                    ].map((c) => (
+                      <button
+                        key={c.key}
+                        className={
+                          "swatch " + (tweaks.accent === c.key ? "active" : "")
+                        }
+                        style={{ background: c.v }}
+                        onClick={() => updateTweak({ accent: c.key })}
+                        aria-label={c.key}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="settings-group">
+              <div className="settings-group-title">Arbeitszeiten</div>
+              <div className="settings-card">
+                <div className="settings-row">
+                  <div className="settings-label">Standardstart</div>
+                  <input
+                    className="time-input mono"
+                    type="time"
+                    step="900"
+                    value={tweaks.defaultStart || "08:00"}
+                    onChange={(e) =>
+                      updateTweak({ defaultStart: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="settings-sep" />
+                <div className="settings-row">
+                  <div className="settings-label">Standardende</div>
+                  <input
+                    className="time-input mono"
+                    type="time"
+                    step="900"
+                    value={tweaks.defaultEnd || "17:00"}
+                    onChange={(e) =>
+                      updateTweak({ defaultEnd: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="settings-group">
+              <div className="settings-group-title">Vorgesetzte/r</div>
+              <div className="settings-card">
+                <div className="settings-row">
+                  <div className="settings-label">Name</div>
+                  <input
+                    className="input"
+                    style={{ maxWidth: 160, textAlign: "right" }}
+                    value={tweaks.manager || ""}
+                    onChange={(e) => updateTweak({ manager: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="settings-group">
+              <div className="settings-group-title">Daten</div>
+              <div className="settings-card">
+                <button
+                  className="settings-row settings-action"
+                  onClick={() => {
+                    if (confirm("Alle lokalen Einträge löschen?")) {
+                      localStorage.removeItem(LS_ENTRIES);
+                      location.reload();
+                    }
+                  }}
+                >
+                  <div>
+                    <div
+                      className="settings-label"
+                      style={{ color: "var(--sick)" }}
+                    >
+                      Alle Daten zurücksetzen
+                    </div>
+                    <div className="settings-hint">Lokale Einträge löschen</div>
+                  </div>
+                  <IChevronR
+                    size={16}
+                    color="var(--muted-fg)"
+                  />
+                </button>
+              </div>
+            </div>
+
+            <div
+              style={{
+                textAlign: "center",
+                fontSize: 11,
+                color: "var(--muted-fg)",
+                padding: "16px 0 8px",
+              }}
+            >
+              Zeiterfassung · Version 1.0
+            </div>
+          </>
+        );
+      }
+
+      /* ============================= MOUNT ============================= */
+      ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    </script>
+  </body>
 </html>

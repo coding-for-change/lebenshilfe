@@ -118,11 +118,7 @@ export const TimesheetFacade = {
     return { createdCount: 1, signatureKey };
   },
 
-  async updateEvent(
-    userId: string,
-    eventId: string,
-    input: UpdateEventInput,
-  ) {
+  async updateEvent(userId: string, eventId: string, input: UpdateEventInput) {
     const parsed = UpdateEventSchema.parse(input);
     const event = await findEventById(eventId);
     if (!event || event.userId !== userId) {
@@ -170,16 +166,9 @@ export const TimesheetFacade = {
     return deleteEventById(eventId);
   },
 
-  async submitMonthlyReport(
-    userId: string,
-    input: SubmitMonthlyReportInput,
-  ) {
+  async submitMonthlyReport(userId: string, input: SubmitMonthlyReportInput) {
     const parsed = SubmitMonthlyReportSchema.parse(input);
-    const existing = await findMonthlyReport(
-      userId,
-      parsed.year,
-      parsed.month,
-    );
+    const existing = await findMonthlyReport(userId, parsed.year, parsed.month);
     if (existing) {
       throw new Error("Monat bereits freigegeben.");
     }

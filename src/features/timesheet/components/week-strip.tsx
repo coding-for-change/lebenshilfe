@@ -42,7 +42,8 @@ export function WeekStrip({
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-          KW {isoWeek(selectedDate)} · {MONTHS_SHORT[selectedDate.getUTCMonth()]}{" "}
+          KW {isoWeek(selectedDate)} ·{" "}
+          {MONTHS_SHORT[selectedDate.getUTCMonth()]}{" "}
           {selectedDate.getUTCFullYear()}
         </p>
         <div className="flex items-center gap-1">

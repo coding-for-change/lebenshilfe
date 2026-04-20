@@ -91,7 +91,10 @@ export default function OnboardPage({
         className="absolute inset-0 -z-10 bg-cover bg-center"
         style={{ backgroundImage: "url('/login.webp')" }}
       />
-      <div aria-hidden className="absolute inset-0 -z-10 bg-black/30" />
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 bg-black/30"
+      />
 
       <div className="flex w-full max-w-md flex-col gap-8">
         <div className="flex justify-center">
@@ -148,7 +151,9 @@ export default function OnboardPage({
               <form onSubmit={handleSubmit}>
                 <FieldGroup className="gap-6">
                   <Field>
-                    <FieldLabel htmlFor="email">E-Mail (verifiziert)</FieldLabel>
+                    <FieldLabel htmlFor="email">
+                      E-Mail (verifiziert)
+                    </FieldLabel>
                     <Input
                       id="email"
                       disabled

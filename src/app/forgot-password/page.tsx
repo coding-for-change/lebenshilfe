@@ -39,7 +39,10 @@ export default function ForgotPasswordPage() {
         className="absolute inset-0 -z-10 bg-cover bg-center"
         style={{ backgroundImage: "url('/login.webp')" }}
       />
-      <div aria-hidden className="absolute inset-0 -z-10 bg-black/30" />
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 bg-black/30"
+      />
 
       <div className="flex w-full max-w-sm flex-col gap-8">
         <div className="flex justify-center">

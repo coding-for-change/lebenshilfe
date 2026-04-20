@@ -52,13 +52,14 @@ export function SettingsDialog({ open, onOpenChange, name, email }: Props) {
     .toUpperCase();
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <DialogContent className="gap-0 p-0 overflow-hidden sm:max-w-4xl md:max-h-[34rem]">
         <DialogHeader className="sr-only">
           <DialogTitle>Einstellungen</DialogTitle>
-          <DialogDescription>
-            Profil und Konto verwalten.
-          </DialogDescription>
+          <DialogDescription>Profil und Konto verwalten.</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col md:h-[34rem] md:flex-row">
           <aside className="flex shrink-0 flex-col gap-1 border-b border-border bg-muted/40 p-3 md:w-56 md:border-b-0 md:border-r">

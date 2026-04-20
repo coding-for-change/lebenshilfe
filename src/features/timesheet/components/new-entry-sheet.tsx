@@ -51,7 +51,10 @@ type Props = {
 };
 
 function addMinutes(time: string, minutes: number): string {
-  const total = Math.max(0, Math.min(24 * 60 - 1, timeToMinutes(time) + minutes));
+  const total = Math.max(
+    0,
+    Math.min(24 * 60 - 1, timeToMinutes(time) + minutes),
+  );
   const h = Math.floor(total / 60);
   const m = total % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
@@ -97,9 +100,7 @@ export function NewEntrySheet({
   }, [startTime, endTime]);
 
   const canProceed =
-    type === EventType.SICK
-      ? true
-      : childIds.length >= 1 && Boolean(duration);
+    type === EventType.SICK ? true : childIds.length >= 1 && Boolean(duration);
 
   const toggleChild = (id: string) => {
     setChildIds((cur) =>
@@ -178,9 +179,7 @@ export function NewEntrySheet({
       setSigOpen(false);
       onOpenChange(false);
     } catch (e: unknown) {
-      toast.error(
-        e instanceof Error ? e.message : "Speichern fehlgeschlagen.",
-      );
+      toast.error(e instanceof Error ? e.message : "Speichern fehlgeschlagen.");
     } finally {
       setSubmitting(false);
     }
@@ -193,7 +192,10 @@ export function NewEntrySheet({
 
   return (
     <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
+      <Sheet
+        open={open}
+        onOpenChange={onOpenChange}
+      >
         <SheetContent
           side="bottom"
           className="rounded-t-2xl sm:max-w-lg sm:mx-auto"

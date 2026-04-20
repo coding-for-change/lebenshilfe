@@ -129,18 +129,13 @@ export function WeekGrid({
                 (e.childId && selectedChildIds.includes(e.childId))),
           );
           const daySchedules = schedules.filter(
-            (s) =>
-              s.weekday === wd &&
-              selectedChildIds.includes(s.childId),
+            (s) => s.weekday === wd && selectedChildIds.includes(s.childId),
           );
 
           return (
             <div
               key={formatDateIso(d)}
-              className={cn(
-                "relative",
-                i > 0 && "border-l border-border",
-              )}
+              className={cn("relative", i > 0 && "border-l border-border")}
             >
               {hours.map((h, j) => (
                 <div
@@ -158,8 +153,7 @@ export function WeekGrid({
                 <>
                   {daySchedules.map((s) => {
                     const top = posFromTime(s.startTime);
-                    const h =
-                      posFromTime(s.endTime) - posFromTime(s.startTime);
+                    const h = posFromTime(s.endTime) - posFromTime(s.startTime);
                     return (
                       <div
                         key={s.id}
@@ -171,9 +165,7 @@ export function WeekGrid({
                     );
                   })}
                   {dayWork.map((ev, k) => {
-                    const top = ev.startTime
-                      ? posFromTime(ev.startTime)
-                      : 0;
+                    const top = ev.startTime ? posFromTime(ev.startTime) : 0;
                     const h =
                       ev.startTime && ev.endTime
                         ? posFromTime(ev.endTime) - posFromTime(ev.startTime)

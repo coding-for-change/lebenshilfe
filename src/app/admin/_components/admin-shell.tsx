@@ -209,9 +209,7 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Einstellungen</DialogTitle>
-              <DialogDescription>
-                Profil und Konto-Aktionen.
-              </DialogDescription>
+              <DialogDescription>Profil und Konto-Aktionen.</DialogDescription>
             </DialogHeader>
             <div className="flex items-center gap-3 py-2">
               <div className="grid size-12 shrink-0 place-items-center rounded-lg bg-sidebar-accent text-sm font-semibold text-sidebar-accent-foreground">

@@ -19,7 +19,9 @@ export function PageSection({
         <h2 className="text-xl font-bold">{title}</h2>
         {action ? <div>{action}</div> : null}
       </div>
-      <div className="overflow-hidden rounded-xl border bg-card">{children}</div>
+      <div className="overflow-hidden rounded-xl border bg-card">
+        {children}
+      </div>
     </section>
   );
 }

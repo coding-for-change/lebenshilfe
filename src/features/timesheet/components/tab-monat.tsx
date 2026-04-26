@@ -45,6 +45,7 @@ export function TabMonat({
   );
 
   const locked = lockedMonths.has(`${year}-${month}`);
+  const monthCompleted = new Date(Date.UTC(year, month, 1)) <= today;
 
   return (
     <div className="space-y-4">
@@ -109,13 +110,15 @@ export function TabMonat({
       <Button
         size="lg"
         className="w-full h-14"
-        disabled={locked}
+        disabled={locked || !monthCompleted}
         onClick={() => setHandoverOpen(true)}
       >
         <ShieldCheck className="size-5" />
         {locked
           ? "Bereits an Vorgesetzten übergeben"
-          : "An Vorgesetzten übergeben"}
+          : !monthCompleted
+            ? "Monat noch nicht abgeschlossen"
+            : "An Vorgesetzten übergeben"}
       </Button>
 
       <HandoverDialog

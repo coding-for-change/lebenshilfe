@@ -91,11 +91,7 @@ These **must** be set in GitHub → Settings → Secrets and Variables → Actio
 
 | Secret | Description |
 |--------|-------------|
-| `REGISTRY_USERNAME` | Username for the private Docker registry |
-| `REGISTRY_PASSWORD` | Password for the private Docker registry |
-| `VPS_DEPLOY_KEY` | SSH private key for the `deploy-lebenshilfe` user on the VPS |
-| `DATABASE_URL` | Production MySQL connection string |
-| `BETTER_AUTH_SECRET` | Production secret for Better Auth sessions (generate with `openssl rand -base64 32`) |
+| `ANSIBLE_VAULT_PASSWORD` | Password to decrypt `.config/secrets.yml` which contains all deployment secrets |
 
 ### Non-Secret Environment Variables
 
@@ -106,14 +102,3 @@ These are **hardcoded** in the workflow and automatically written to `.env` on t
 | `BETTER_AUTH_URL` | `https://lebenshilfe.codingforchange.com` | Canonical URL used by Better Auth |
 | `NEXT_PUBLIC_APP_URL` | `https://lebenshilfe.codingforchange.com` | Base URL used in email links (invitations, password reset) |
 | `EMAIL_FROM` | `info@codingforchange.de` | "From" address for all outgoing emails |
-
-### SMTP (TODO)
-
-A production mail provider has not yet been configured. Once set up, add these to the workflow:
-
-| Variable | Description |
-|----------|-------------|
-| `SMTP_HOST` | Hostname of the production SMTP server |
-| `SMTP_PORT` | Port of the production SMTP server (typically `587` or `465`) |
-
-> **Note:** For local development, [Mailpit](https://mailpit.axllent.org/) runs on port `1025` — no extra SMTP config needed locally.

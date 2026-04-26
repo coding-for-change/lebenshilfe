@@ -99,7 +99,7 @@ jobs:
             "S3_BUCKET=$(jq -r '.S3_BUCKET // empty' decrypted.json)" \
             "BETTER_AUTH_URL=https://lebenshilfe.codingforchange.com" \
             "NEXT_PUBLIC_APP_URL=https://lebenshilfe.codingforchange.com" \
-            "EMAIL_FROM=info@codingforchange.de" \
+            "EMAIL_FROM=info@codingforchange.com" \
             > /tmp/.env
           $SCP /tmp/.env ${SSH_TARGET}:/var/www/lebenshilfe/.env
           rm -f /tmp/.env

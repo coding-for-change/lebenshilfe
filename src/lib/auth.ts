@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
+import { Role, SchulbegleiterStatus } from "@/generated/prisma";
 import { sendMail } from "./mail";
 
 export const auth = betterAuth({
@@ -43,6 +44,24 @@ export const auth = betterAuth({
               role: invite.role,
             },
           };
+        },
+        after: async (user) => {
+          if (user.role !== Role.SCHOOL_ASSISTANT) return;
+          try {
+            await prisma.schoolAssistantProfile.update({
+              where: { email: user.email },
+              data: {
+                userId: user.id,
+                status: SchulbegleiterStatus.ACCEPTED,
+              },
+            });
+          } catch (error) {
+            // No matching profile (e.g. legacy invite without wizard data) — log and continue.
+            console.warn(
+              `[auth] could not link Schulbegleiter profile for ${user.email}:`,
+              error,
+            );
+          }
         },
       },
     },

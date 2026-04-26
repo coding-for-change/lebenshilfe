@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Role } from "@/generated/prisma";
 import { randomBytes } from "crypto";
-import { transporter } from "@/lib/mail";
+import { sendMail } from "@/lib/mail";
 
 export async function insertInvitation(
   email: string,
@@ -33,8 +33,7 @@ export async function processNewInvitation(email: string, role: Role) {
 
   const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/onboard?token=${token}`;
 
-  await transporter.sendMail({
-    from: process.env.EMAIL_FROM || "noreply@lebenshilfe.local",
+  await sendMail({
     to: email,
     subject: "Einladung: Willkommen bei Lebenshilfe",
     text: `Du wurdest eingeladen. Klicke hier, um dein Profil einzurichten: ${inviteUrl}`,

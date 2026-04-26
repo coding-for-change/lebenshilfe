@@ -1,6 +1,8 @@
 import { CreateInvitationSchema } from "./schemas";
 import {
+  expireUnusedInvitationsForEmail,
   findInvitationByToken,
+  findLatestInvitationByEmail,
   markInvitationUsed,
   processNewInvitation,
   getAllInvitations as fetchAllInvitations,
@@ -14,6 +16,13 @@ export const InvitationFacade = {
   ) {
     CreateInvitationSchema.parse({ email, role });
     // Token generation, database insertion, and email dispatch are delegated to the service boundary
+    return processNewInvitation(email, role);
+  },
+
+  async regenerateAndSend(email: string) {
+    const latest = await findLatestInvitationByEmail(email);
+    const role = latest?.role ?? Role.SCHOOL_ASSISTANT;
+    await expireUnusedInvitationsForEmail(email);
     return processNewInvitation(email, role);
   },
 

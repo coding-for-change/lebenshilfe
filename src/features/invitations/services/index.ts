@@ -48,3 +48,17 @@ export async function getAllInvitations() {
     orderBy: { createdAt: "desc" },
   });
 }
+
+export async function expireUnusedInvitationsForEmail(email: string) {
+  return prisma.invitation.updateMany({
+    where: { email, isUsed: false },
+    data: { expiresAt: new Date(0) },
+  });
+}
+
+export async function findLatestInvitationByEmail(email: string) {
+  return prisma.invitation.findFirst({
+    where: { email },
+    orderBy: { createdAt: "desc" },
+  });
+}

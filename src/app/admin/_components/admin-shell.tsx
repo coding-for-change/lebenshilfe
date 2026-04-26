@@ -2,10 +2,12 @@
 
 import { useState, type ReactNode } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
+  BookOpen,
   ChevronRight,
   LifeBuoy,
-  Mail,
   Send,
   Settings,
   Users,
@@ -42,8 +44,27 @@ type AdminShellProps = {
   children: ReactNode;
 };
 
+const NAV_ITEMS = [
+  {
+    href: "/admin/schulbegleiter",
+    label: "Schulbegleiter",
+    icon: Users,
+  },
+  {
+    href: "/admin/workshops",
+    label: "Workshops",
+    icon: BookOpen,
+  },
+] as const;
+
+function deriveBreadcrumb(pathname: string): string {
+  const match = NAV_ITEMS.find((item) => pathname.startsWith(item.href));
+  return match?.label ?? "Übersicht";
+}
+
 export function AdminShell({ currentUser, children }: AdminShellProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const pathname = usePathname();
 
   const userInitials = currentUser.name
     .split(" ")
@@ -51,6 +72,8 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
     .slice(0, 2)
     .join("")
     .toUpperCase();
+
+  const breadcrumb = deriveBreadcrumb(pathname);
 
   return (
     <>
@@ -73,14 +96,19 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
         >
           <SidebarHeader>
             <div className="flex items-center justify-center px-2 py-3 group-data-[collapsible=icon]:p-0">
-              <Image
-                src="/lebenshilfe-muenchen-logo_2026.svg"
-                alt="Lebenshilfe München"
-                width={160}
-                height={160}
-                priority
-                className="h-20 w-auto object-contain transition-all group-data-[collapsible=icon]:h-8"
-              />
+              <Link
+                href="/admin"
+                aria-label="Zur Übersicht"
+              >
+                <Image
+                  src="/lebenshilfe-muenchen-logo_2026.svg"
+                  alt="Lebenshilfe München"
+                  width={160}
+                  height={160}
+                  priority
+                  className="h-20 w-auto object-contain transition-all group-data-[collapsible=icon]:h-8"
+                />
+              </Link>
             </div>
           </SidebarHeader>
           <SidebarContent>
@@ -88,21 +116,24 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
               <SidebarGroupLabel>Verwaltung</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      isActive
-                      tooltip="Schulbegleiter"
-                    >
-                      <Users />
-                      <span>Schulbegleiter</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton tooltip="Einladungen">
-                      <Mail />
-                      <span>Einladungen</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  {NAV_ITEMS.map((item) => {
+                    const isActive = pathname.startsWith(item.href);
+                    const Icon = item.icon;
+                    return (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={item.label}
+                        >
+                          <Link href={item.href}>
+                            <Icon />
+                            <span>{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -196,7 +227,7 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
             >
               <span>Verwaltung</span>
               <ChevronRight className="size-3.5 opacity-60" />
-              <span className="font-medium text-foreground">Übersicht</span>
+              <span className="font-medium text-foreground">{breadcrumb}</span>
             </nav>
           </header>
           <div className="mx-auto w-full max-w-7xl px-6 py-8">{children}</div>

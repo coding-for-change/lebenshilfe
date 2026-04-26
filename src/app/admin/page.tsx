@@ -1,18 +1,14 @@
-import { UserFacade } from "@/features/users/facade";
-import { InvitationFacade } from "@/features/invitations/facade";
-import { UsersPanel } from "./_components/users-panel";
-import { InvitationsPanel } from "./_components/invitations-panel";
-
-export default async function AdminDashboard() {
-  const [schoolAssistants, invitations] = await Promise.all([
-    UserFacade.getSchoolAssistants(),
-    InvitationFacade.getAllInvitations(),
-  ]);
-
+export default function AdminDashboard() {
   return (
-    <div className="space-y-10">
-      <UsersPanel users={schoolAssistants} />
-      <InvitationsPanel invitations={invitations} />
+    <div className="flex min-h-[40vh] items-center justify-center">
+      <div className="rounded-xl border bg-card px-8 py-10 text-center shadow-sm">
+        <h1 className="text-xl font-semibold">
+          Willkommen im Verwaltungsbereich.
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Wähle links einen Bereich, um zu beginnen.
+        </p>
+      </div>
     </div>
   );
 }

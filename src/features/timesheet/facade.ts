@@ -42,6 +42,17 @@ function assertMonthNotLocked(
   }
 }
 
+function checkIsMonthFinished(year: number, month: number) {
+  const now = new Date();
+  const currentYear = now.getUTCFullYear();
+  const currentMonth = now.getUTCMonth() + 1;
+  if (year > currentYear || (year === currentYear && month >= currentMonth)) {
+    throw new Error(
+      "Der Monat ist noch nicht abgeschlossen und kann erst nach Monatsende übergeben werden.",
+    );
+  }
+}
+
 export const TimesheetFacade = {
   async listAssignedChildren(userId: string) {
     return getAssignedChildren(userId);
@@ -169,17 +180,7 @@ export const TimesheetFacade = {
   async submitMonthlyReport(userId: string, input: SubmitMonthlyReportInput) {
     const parsed = SubmitMonthlyReportSchema.parse(input);
 
-    const now = new Date();
-    const currentYear = now.getUTCFullYear();
-    const currentMonth = now.getUTCMonth() + 1;
-    if (
-      parsed.year > currentYear ||
-      (parsed.year === currentYear && parsed.month >= currentMonth)
-    ) {
-      throw new Error(
-        "Der Monat ist noch nicht abgeschlossen und kann erst nach Monatsende übergeben werden.",
-      );
-    }
+    checkIsMonthFinished(parsed.year, parsed.month);
 
     const existing = await findMonthlyReport(userId, parsed.year, parsed.month);
     if (existing) {

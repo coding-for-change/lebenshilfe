@@ -18,6 +18,11 @@ enum EventType {
   SICK
 }
 
+enum SchulbegleiterStatus {
+  INVITATION_PENDING
+  ACCEPTED
+}
+
 model User {
   id            String    @id
   name          String
@@ -35,6 +40,7 @@ model User {
   assignments   ChildAssignment[]
   events        Event[]
   monthlyReports MonthlyReport[]
+  profile       SchoolAssistantProfile?
 
   @@unique([email])
   @@map("user")
@@ -171,4 +177,50 @@ model MonthlyReport {
 
   @@unique([userId, year, month])
   @@map("monthly_report")
+}
+
+model SchoolAssistantProfile {
+  id                String               @id @default(cuid())
+  userId            String?              @unique
+  email             String               @unique
+  name              String
+  status            SchulbegleiterStatus @default(INVITATION_PENDING)
+  leosOne           Boolean              @default(false)
+  outlook           Boolean              @default(false)
+  weeklyHours       Decimal?             @db.Decimal(5, 2)
+  zvNeuNachBescheid Boolean              @default(false)
+  zvNeuNote         String?              @db.Text
+  introductionDay   DateTime?            @db.Date
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  user              User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attendances       WorkshopAttendance[]
+
+  @@index([status])
+  @@map("school_assistant_profile")
+}
+
+model Workshop {
+  id          String               @id @default(cuid())
+  name        String
+  description String?              @db.Text
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  attendances WorkshopAttendance[]
+
+  @@map("workshop")
+}
+
+model WorkshopAttendance {
+  id         String                 @id @default(cuid())
+  workshopId String
+  profileId  String
+  attendedOn DateTime               @db.Date
+  createdAt  DateTime               @default(now())
+  workshop   Workshop               @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  profile    SchoolAssistantProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([workshopId, profileId])
+  @@index([profileId])
+  @@map("workshop_attendance")
 }

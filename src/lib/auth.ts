@@ -1,8 +1,11 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { createElement } from "react";
 import { prisma } from "./prisma";
 import { Role, SchulbegleiterStatus } from "@/generated/prisma";
 import { sendMail } from "./mail";
+import { renderEmail } from "./email/render";
+import { ResetPasswordEmail } from "./email/templates/reset-password-email";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -19,10 +22,14 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     sendResetPassword: async ({ url, user }) => {
+      const { html, text } = await renderEmail(
+        createElement(ResetPasswordEmail, { resetUrl: url }),
+      );
       await sendMail({
         to: user.email,
-        subject: "Passwort zurücksetzen – Lebenshilfe",
-        text: `Hallo,\n\ndu hast eine Anfrage zum Zurücksetzen deines Passworts gestellt.\n\nKlicke auf den folgenden Link, um dein neues Passwort festzulegen:\n${url}\n\nDer Link ist 1 Stunde gültig. Falls du diese Anfrage nicht gestellt hast, kannst du diese E-Mail ignorieren.\n\nDein Lebenshilfe-Team`,
+        subject: "Passwort zurücksetzen – Lebenshilfe München",
+        html,
+        text,
       });
     },
   },

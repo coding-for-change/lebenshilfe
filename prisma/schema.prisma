@@ -11,6 +11,7 @@ datasource db {
 enum Role {
   ADMIN
   SCHOOL_ASSISTANT
+  OWNER
 }
 
 enum EventType {
@@ -109,14 +110,29 @@ model Invitation {
 }
 
 model Child {
-  id          String            @id @default(cuid())
-  firstName   String
-  lastName    String
-  createdAt   DateTime          @default(now())
-  assignments ChildAssignment[]
-  schedules   Schedule[]
-  events      Event[]
+  id                         String            @id @default(cuid())
+  firstName                  String
+  lastName                   String
+  leosOne                    Boolean           @default(false)
+  bescheid                   String?           @db.Text
+  sbIb                       String?
+  schweigepflichtsentbindung Boolean           @default(false)
+  bemerkung                  String?           @db.Text
+  schoolName                 String?
+  schoolAddress              String?
+  schoolPlaceId              String?
+  schoolLat                  Decimal?          @db.Decimal(10, 7)
+  schoolLng                  Decimal?          @db.Decimal(10, 7)
+  kostentraegerId            String?
+  createdAt                  DateTime          @default(now())
+  updatedAt                  DateTime          @updatedAt
+  kostentraeger              Kostentraeger?    @relation(fields: [kostentraegerId], references: [id], onDelete: SetNull)
+  assignments                ChildAssignment[]
+  schedules                  Schedule[]
+  events                     Event[]
+  absences                   ChildAbsence[]
 
+  @@index([kostentraegerId])
   @@map("child")
 }
 
@@ -124,13 +140,42 @@ model ChildAssignment {
   id        String   @id @default(cuid())
   childId   String
   userId    String
+  weekday   Int      @default(0)
+  startTime String   @default("08:00")
+  endTime   String   @default("14:00")
+  tandem    Boolean  @default(false)
   createdAt DateTime @default(now())
   child     Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([childId, userId])
   @@index([userId])
+  @@index([childId, weekday])
   @@map("child_assignment")
+}
+
+model Kostentraeger {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  address   String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  children  Child[]
+
+  @@map("kostentraeger")
+}
+
+model ChildAbsence {
+  id        String   @id @default(cuid())
+  childId   String
+  date      DateTime @db.Date
+  note      String?  @db.Text
+  createdAt DateTime @default(now())
+  child     Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, date])
+  @@index([childId, date])
+  @@map("child_absence")
 }
 
 model Schedule {

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Role } from "@/generated/prisma";
 import { TimesheetFacade, SchulbegleiterApp } from "@/features/timesheet";
+import { KinderFacade } from "@/features/kinder";
 
 export default async function LandingPage() {
   const session = await AuthFacade.getSession();
@@ -45,11 +46,18 @@ export default async function LandingPage() {
   const assignedChildren = await TimesheetFacade.listAssignedChildren(user.id);
   const childIds = assignedChildren.map((c) => c.id);
 
-  const [events, schedules, lockedMonthKeys] = await Promise.all([
-    TimesheetFacade.getEventsInRange(user.id, rangeStart, rangeEnd),
-    TimesheetFacade.getSchedulesForChildren(childIds),
-    TimesheetFacade.listLockedMonthKeys(user.id),
-  ]);
+  const [events, schedules, lockedMonthKeys, childAbsences] = await Promise.all(
+    [
+      TimesheetFacade.getEventsInRange(user.id, rangeStart, rangeEnd),
+      TimesheetFacade.getSchedulesForChildren(childIds),
+      TimesheetFacade.listLockedMonthKeys(user.id),
+      KinderFacade.listAbsencesForChildrenInRange(
+        childIds,
+        rangeStart,
+        rangeEnd,
+      ),
+    ],
+  );
 
   return (
     <SchulbegleiterApp
@@ -62,6 +70,11 @@ export default async function LandingPage() {
       events={events}
       schedules={schedules}
       lockedMonthKeys={lockedMonthKeys}
+      childAbsences={childAbsences.map((a) => ({
+        childId: a.childId,
+        date: a.date.toISOString().slice(0, 10),
+        note: a.note,
+      }))}
     />
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Lock, Plus, Stethoscope } from "lucide-react";
+import { Clock, Lock, Plus, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -15,8 +15,9 @@ import {
 } from "./date-utils";
 import { WeekStrip } from "./week-strip";
 import { deleteEventAction } from "../actions";
-import type { Event } from "@/generated/prisma";
+import type { Event, Schedule } from "@/generated/prisma";
 import type { ChildOption } from "./children-filter";
+import type { ChildAbsenceLite } from "./timesheet-shell";
 
 type EventWithChild = Event & {
   child: { firstName: string; lastName: string } | null;
@@ -30,6 +31,8 @@ type Props = {
   events: EventWithChild[];
   lockedMonths: Set<string>;
   assignedChildren: ChildOption[];
+  childAbsences: ChildAbsenceLite[];
+  schedules: Schedule[];
 };
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -42,6 +45,8 @@ export function TabTag({
   events,
   lockedMonths,
   assignedChildren,
+  childAbsences,
+  schedules,
 }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -49,6 +54,35 @@ export function TabTag({
     () => events.filter((e) => isSameUtcDay(e.date, selectedDate)),
     [events, selectedDate],
   );
+
+  const selectedDateIso = useMemo(() => {
+    const y = selectedDate.getUTCFullYear();
+    const m = String(selectedDate.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(selectedDate.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }, [selectedDate]);
+
+  const childById = useMemo(
+    () => new Map(assignedChildren.map((c) => [c.id, c])),
+    [assignedChildren],
+  );
+
+  const dayAbsences = useMemo(() => {
+    return childAbsences
+      .filter((a) => a.date === selectedDateIso)
+      .map((a) => ({ ...a, child: childById.get(a.childId) }))
+      .filter((a): a is ChildAbsenceLite & { child: ChildOption } => !!a.child);
+  }, [childAbsences, selectedDateIso, childById]);
+
+  const daySchedules = useMemo(() => {
+    // Convert UTC weekday (0=Sun..6=Sat) to Mon=0..Sun=6.
+    const weekday = (selectedDate.getUTCDay() + 6) % 7;
+    return schedules
+      .filter((s) => s.weekday === weekday)
+      .map((s) => ({ ...s, child: childById.get(s.childId) }))
+      .filter((s): s is Schedule & { child: ChildOption } => !!s.child)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }, [schedules, selectedDate, childById]);
   const sickEvent = dayEvents.find((e) => e.type === "SICK");
   const workEvents = dayEvents.filter((e) => e.type === "WORK");
   const monthKey = `${selectedDate.getUTCFullYear()}-${
@@ -121,6 +155,66 @@ export function TabTag({
           )}
         </div>
       </div>
+
+      {dayAbsences.length > 0 && (
+        <Card className="border-rose-200 bg-rose-500/5 p-4">
+          <div className="flex items-start gap-3">
+            <div className="grid place-items-center size-10 shrink-0 rounded-full bg-rose-500/15 text-rose-700">
+              <Stethoscope className="size-5" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <p className="font-semibold text-rose-900">
+                {dayAbsences.length === 1
+                  ? `${dayAbsences[0].child.firstName} ${dayAbsences[0].child.lastName} ist krank gemeldet`
+                  : `${dayAbsences.length} zugewiesene Kinder sind krank gemeldet`}
+              </p>
+              {dayAbsences.length > 1 && (
+                <ul className="text-sm text-rose-900/80">
+                  {dayAbsences.map((a) => (
+                    <li key={a.childId}>
+                      {a.child.firstName} {a.child.lastName}
+                      {a.note ? ` — ${a.note}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {dayAbsences.length === 1 && dayAbsences[0].note && (
+                <p className="text-sm text-rose-900/80">
+                  {dayAbsences[0].note}
+                </p>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {daySchedules.length > 0 && (
+        <Card className="border-muted bg-muted/30 p-4">
+          <div className="flex items-start gap-3">
+            <div className="grid place-items-center size-10 shrink-0 rounded-full bg-muted text-muted-foreground">
+              <Clock className="size-5" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <p className="text-sm font-semibold">Stundenplan der Kinder</p>
+              <ul className="text-sm text-muted-foreground">
+                {daySchedules.map((s) => (
+                  <li
+                    key={s.id}
+                    className="flex justify-between gap-3 tabular-nums"
+                  >
+                    <span>
+                      {s.child.firstName} {s.child.lastName}
+                    </span>
+                    <span>
+                      {s.startTime}–{s.endTime}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {sickEvent && (
         <Card className="border-rose-200 bg-rose-500/10 p-4">

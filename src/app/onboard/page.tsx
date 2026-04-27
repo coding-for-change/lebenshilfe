@@ -6,7 +6,7 @@ import Image from "next/image";
 import { CheckIcon } from "lucide-react";
 
 import {
-  fetchEmailFromToken,
+  fetchInviteDetails,
   consumeUsedToken,
 } from "@/use-cases/onboard-invited-user";
 import { authClient } from "@/lib/auth-client";
@@ -40,9 +40,10 @@ export default function OnboardPage({
 
   useEffect(() => {
     if (token) {
-      fetchEmailFromToken(token)
-        .then((resEmail) => {
+      fetchInviteDetails(token)
+        .then(({ email: resEmail, name: resName }) => {
           setEmail(resEmail);
+          setName(resName);
           setStatus("idle");
         })
         .catch(() => {
@@ -57,11 +58,15 @@ export default function OnboardPage({
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!name.trim() || !password.trim()) return;
+    if (!password.trim()) return;
 
     setStatus("loading");
     try {
-      const result = await authClient.signUp.email({ email, password, name });
+      const result = await authClient.signUp.email({
+        email,
+        password,
+        name: "",
+      });
       if (result.error) throw result.error;
 
       await consumeUsedToken(token as string);
@@ -162,17 +167,12 @@ export default function OnboardPage({
                     />
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="name">Vollständiger Name</FieldLabel>
+                    <FieldLabel htmlFor="name">Name</FieldLabel>
                     <Input
                       id="name"
-                      type="text"
-                      placeholder="Max Mustermann"
-                      required
-                      autoComplete="name"
+                      disabled
                       value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      disabled={status === "loading"}
-                      className="h-11"
+                      className="h-11 bg-muted/60"
                     />
                   </Field>
                   <Field>

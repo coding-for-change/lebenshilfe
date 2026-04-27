@@ -48,6 +48,10 @@ export const SchulbegleiterFacade = {
     return findProfileById(id);
   },
 
+  async getByEmail(email: string) {
+    return findProfileByEmail(email);
+  },
+
   async create(input: CreateSchulbegleiterInput) {
     const parsed = CreateSchulbegleiterSchema.parse(input);
 

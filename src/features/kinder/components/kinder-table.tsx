@@ -45,12 +45,21 @@ export function KinderTable({
 }: Props) {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [openChildId, setOpenChildId] = useState<string | null>(null);
+  const [openTab, setOpenTab] = useState<
+    "allgemeines" | "historie" | "kalender"
+  >("allgemeines");
   const [extraOptions, setExtraOptions] = useState<KostentraegerOption[]>([]);
 
-  const allKostentraegerOptions = useMemo(
-    () => [...kostentraegerOptions, ...extraOptions],
-    [kostentraegerOptions, extraOptions],
-  );
+  // Merge the server-fetched options with locally-created ones, deduping by
+  // id. After `revalidatePath`, the freshly-created Kostenträger lands in
+  // both arrays — without deduping it would render twice.
+  const allKostentraegerOptions = useMemo(() => {
+    const byId = new Map<string, KostentraegerOption>();
+    for (const opt of [...kostentraegerOptions, ...extraOptions]) {
+      byId.set(opt.id, opt);
+    }
+    return Array.from(byId.values());
+  }, [kostentraegerOptions, extraOptions]);
 
   const openChild = useMemo(
     () => kinder.find((c) => c.id === openChildId) ?? null,
@@ -145,12 +154,18 @@ export function KinderTable({
             prev.some((o) => o.id === created.id) ? prev : [...prev, created],
           )
         }
+        onSavedOpenCalendar={(childId) => {
+          setOpenTab("kalender");
+          setOpenChildId(childId);
+        }}
       />
 
       <KindDetailSheet
         child={openChild}
         open={!!openChild}
         onOpenChange={(next) => !next && setOpenChildId(null)}
+        tab={openTab}
+        onTabChange={setOpenTab}
         kostentraegerOptions={allKostentraegerOptions}
         schulbegleiterOptions={schulbegleiterOptions}
         onKostentraegerCreated={(created) =>

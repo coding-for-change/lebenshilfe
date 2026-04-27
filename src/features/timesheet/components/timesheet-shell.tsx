@@ -56,6 +56,9 @@ type Props = {
   schedules: Schedule[];
   lockedMonthKeys: string[];
   childAbsences: ChildAbsenceLite[];
+  // Plain map of weekday (Mon=0..Sun=6) → child ids assigned on that day.
+  // Used to preselect the (only) assigned child when creating a new entry.
+  assignmentsByWeekday: Record<string, string[]>;
 };
 
 const NAV_ITEMS: Array<{
@@ -85,6 +88,7 @@ export function SchulbegleiterApp({
   schedules,
   lockedMonthKeys,
   childAbsences,
+  assignmentsByWeekday,
 }: Props) {
   const today = useMemo(() => startOfDayUtc(new Date()), []);
   const [activeTab, setActiveTab] = useState<Exclude<TabId, "mehr">>("tag");
@@ -356,6 +360,7 @@ export function SchulbegleiterApp({
           onOpenChange={setNewEntryOpen}
           defaultDate={selectedDate}
           assignedChildren={assignedChildren}
+          assignmentsByWeekday={assignmentsByWeekday}
           currentUserName={currentUser.name}
           schedules={schedules}
           lastEntry={
@@ -376,7 +381,7 @@ export function SchulbegleiterApp({
         />
 
         <Toaster
-          position="top-center"
+          position="bottom-right"
           richColors
         />
       </SidebarProvider>

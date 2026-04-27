@@ -301,7 +301,7 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
         </SidebarInset>
 
         <Toaster
-          position="top-center"
+          position="bottom-right"
           richColors
         />
       </SidebarProvider>

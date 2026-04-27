@@ -1,40 +1,28 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MapPin, X } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { loadGoogleMaps } from "./maps-loader";
-import { fetchPlaceDetails, usePlaceSuggestions } from "./places-api";
-
-export type SchuleValue = {
-  placeId: string | null;
-  name: string | null;
-  address: string | null;
-  lat: number | null;
-  lng: number | null;
-};
-
-const EMPTY: SchuleValue = {
-  placeId: null,
-  name: null,
-  address: null,
-  lat: null,
-  lng: null,
-};
+import { usePlaceSuggestions } from "./places-api";
 
 type Props = {
-  value: SchuleValue;
-  onChange: (next: SchuleValue) => void;
+  value: string;
+  onChange: (next: string) => void;
   id?: string;
+  placeholder?: string;
   ariaInvalid?: boolean;
 };
 
-export function SchuleAutocomplete({
+// Single-line address input backed by Google's modern AutocompleteSuggestion
+// API. Stores the resulting value as a plain formatted-address string —
+// downstream consumers don't need place_id / lat / lng.
+export function AddressAutocomplete({
   value,
   onChange,
   id,
+  placeholder,
   ariaInvalid,
 }: Props) {
   const [ready, setReady] = useState(false);
@@ -54,36 +42,39 @@ export function SchuleAutocomplete({
     };
   }, []);
 
-  if (error) {
-    return (
-      <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-        Google Maps konnte nicht geladen werden ({error}). Adresse manuell als
-        Hinweis im Bemerkungsfeld festhalten.
-      </div>
-    );
-  }
-
-  if (!ready) {
+  // Gracefully degrade to a plain text input if Maps is unavailable.
+  if (error || !ready) {
     return (
       <Input
         id={id}
-        disabled
-        placeholder="Lade Google Maps…"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={
+          error ? "Adresse manuell eingeben…" : (placeholder ?? "Adresse…")
+        }
+        aria-invalid={ariaInvalid}
       />
     );
   }
 
   return (
     <ReadyAutocomplete
+      id={id}
       value={value}
       onChange={onChange}
-      id={id}
+      placeholder={placeholder}
       ariaInvalid={ariaInvalid}
     />
   );
 }
 
-function ReadyAutocomplete({ value, onChange, id, ariaInvalid }: Props) {
+function ReadyAutocomplete({
+  value,
+  onChange,
+  id,
+  placeholder,
+  ariaInvalid,
+}: Props) {
   const {
     query,
     setQuery,
@@ -93,7 +84,7 @@ function ReadyAutocomplete({ value, onChange, id, ariaInvalid }: Props) {
     resetSession,
   } = usePlaceSuggestions({
     ready: true,
-    includedPrimaryTypes: ["establishment"],
+    includedPrimaryTypes: ["address"],
     debounceMs: 250,
   });
 
@@ -101,9 +92,9 @@ function ReadyAutocomplete({ value, onChange, id, ariaInvalid }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (value.name && !query) setQuery(value.name, true);
+    if (value !== query) setQuery(value, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value.name]);
+  }, [value]);
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -113,36 +104,12 @@ function ReadyAutocomplete({ value, onChange, id, ariaInvalid }: Props) {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  async function handleSelect(placeId: string, fallbackDescription: string) {
-    try {
-      const details = await fetchPlaceDetails(placeId);
-      onChange({
-        placeId: details.placeId,
-        name: details.name || fallbackDescription,
-        address: details.address || fallbackDescription,
-        lat: details.lat,
-        lng: details.lng,
-      });
-      setQuery(details.name || fallbackDescription, true);
-    } catch {
-      onChange({
-        ...EMPTY,
-        name: fallbackDescription,
-        address: fallbackDescription,
-      });
-      setQuery(fallbackDescription, true);
-    } finally {
-      clearSuggestions();
-      resetSession();
-      setOpen(false);
-    }
-  }
-
-  function handleClear() {
-    onChange(EMPTY);
-    setQuery("", true);
+  function handleSelect(description: string) {
+    onChange(description);
+    setQuery(description, true);
     clearSuggestions();
     resetSession();
+    setOpen(false);
   }
 
   return (
@@ -157,25 +124,14 @@ function ReadyAutocomplete({ value, onChange, id, ariaInvalid }: Props) {
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
+            onChange(e.target.value);
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
-          placeholder="Schule suchen (Name oder Adresse)…"
+          placeholder={placeholder ?? "Straße, PLZ Ort"}
           aria-invalid={ariaInvalid}
-          className="pl-9 pr-9"
+          className="pl-9"
         />
-        {value.placeId ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="absolute top-1/2 right-1 -translate-y-1/2"
-            onClick={handleClear}
-            aria-label="Auswahl entfernen"
-          >
-            <X />
-          </Button>
-        ) : null}
       </div>
       {open && status === "OK" && suggestions.length > 0 ? (
         <ul className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border bg-popover p-1 text-sm shadow-md">
@@ -186,7 +142,7 @@ function ReadyAutocomplete({ value, onChange, id, ariaInvalid }: Props) {
                 className={cn(
                   "flex w-full flex-col items-start gap-0.5 rounded-sm px-2 py-2 text-left hover:bg-accent",
                 )}
-                onClick={() => handleSelect(s.placeId, s.description)}
+                onClick={() => handleSelect(s.description)}
               >
                 <span className="font-medium">{s.mainText}</span>
                 <span className="text-xs text-muted-foreground">

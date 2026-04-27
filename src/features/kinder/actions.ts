@@ -17,7 +17,13 @@ export async function createKindAction(input: CreateKindInput) {
   await AuthFacade.requireAdmin();
   const created = await KinderFacade.create(input);
   revalidatePath(ROUTE);
-  return { success: true as const, child: created };
+  // Return only plain-serializable fields. The full Prisma row contains
+  // Decimal (schoolLat / schoolLng) which Next.js refuses to send across
+  // the server-action → client-component boundary.
+  return {
+    success: true as const,
+    child: { id: created.id },
+  };
 }
 
 export async function updateKindAction(id: string, input: UpdateKindInput) {

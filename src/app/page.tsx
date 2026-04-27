@@ -29,13 +29,28 @@ export default async function LandingPage() {
   const assignedChildren = await TimesheetFacade.listAssignedChildren(user.id);
   const childIds = assignedChildren.map((c) => c.id);
 
-  const [events, schedules, lockedMonthKeys, profile, childAbsences] = await Promise.all([
+  const [
+    events,
+    schedules,
+    lockedMonthKeys,
+    childAbsences,
+    assignmentsByWeekday,
+    profile,
+  ] = await Promise.all([
     TimesheetFacade.getEventsInRange(user.id, rangeStart, rangeEnd),
     TimesheetFacade.getSchedulesForChildren(childIds),
     TimesheetFacade.listLockedMonthKeys(user.id),
-    SchulbegleiterFacade.getByEmail(user.email),
     KinderFacade.listAbsencesForChildrenInRange(childIds, rangeStart, rangeEnd),
+    TimesheetFacade.getAssignmentsByWeekday(user.id),
+    SchulbegleiterFacade.getByEmail(user.email),
   ]);
+
+  // Server actions can't ship Maps over the RSC boundary; flatten to a plain
+  // object keyed by weekday string with arrays of child ids.
+  const assignmentsByWeekdayPlain: Record<string, string[]> = {};
+  for (const [weekday, ids] of assignmentsByWeekday.entries()) {
+    assignmentsByWeekdayPlain[String(weekday)] = Array.from(ids);
+  }
 
   return (
     <SchulbegleiterApp
@@ -57,6 +72,7 @@ export default async function LandingPage() {
         date: a.date.toISOString().slice(0, 10),
         note: a.note,
       }))}
+      assignmentsByWeekday={assignmentsByWeekdayPlain}
     />
   );
 }

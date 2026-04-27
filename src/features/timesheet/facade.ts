@@ -13,6 +13,7 @@ import {
   findEventById,
   findMonthlyReport,
   getAssignedChildren,
+  getAssignmentsByWeekday,
   getEventsForUserInMonth,
   getEventsForUserInRange,
   getSchedulesForChildren,
@@ -56,6 +57,10 @@ function checkIsMonthFinished(year: number, month: number) {
 export const TimesheetFacade = {
   async listAssignedChildren(userId: string) {
     return getAssignedChildren(userId);
+  },
+
+  async getAssignmentsByWeekday(userId: string) {
+    return getAssignmentsByWeekday(userId);
   },
 
   async getSchedulesForChildren(childIds: string[]) {

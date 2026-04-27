@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  Baby,
   BookOpen,
   ChevronRight,
   LifeBuoy,
@@ -54,6 +55,11 @@ const NAV_ITEMS = [
     href: "/admin/schulbegleiter",
     label: "Schulbegleiter",
     icon: Users,
+  },
+  {
+    href: "/admin/kinder",
+    label: "Kinder",
+    icon: Baby,
   },
   {
     href: "/admin/workshops",

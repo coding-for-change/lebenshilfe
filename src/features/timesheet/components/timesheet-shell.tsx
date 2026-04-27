@@ -43,12 +43,19 @@ type EventWithChild = Event & {
   child: { firstName: string; lastName: string } | null;
 };
 
+export type ChildAbsenceLite = {
+  childId: string;
+  date: string; // YYYY-MM-DD
+  note: string | null;
+};
+
 type Props = {
   currentUser: { id: string; name: string; email: string };
   assignedChildren: ChildOption[];
   events: EventWithChild[];
   schedules: Schedule[];
   lockedMonthKeys: string[];
+  childAbsences: ChildAbsenceLite[];
 };
 
 const NAV_ITEMS: Array<{
@@ -77,6 +84,7 @@ export function SchulbegleiterApp({
   events,
   schedules,
   lockedMonthKeys,
+  childAbsences,
 }: Props) {
   const today = useMemo(() => startOfDayUtc(new Date()), []);
   const [activeTab, setActiveTab] = useState<Exclude<TabId, "mehr">>("tag");
@@ -138,6 +146,8 @@ export function SchulbegleiterApp({
             events={events}
             lockedMonths={lockedMonths}
             assignedChildren={assignedChildren}
+            childAbsences={childAbsences}
+            schedules={schedules}
           />
         );
       case "woche":

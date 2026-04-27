@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { isAdmin } from "@/lib/roles";
 import { TimesheetFacade, SchulbegleiterApp } from "@/features/timesheet";
 import { SchulbegleiterFacade } from "@/features/schulbegleiter";
+import { KinderFacade } from "@/features/kinder";
 
 export default async function LandingPage() {
   const session = await getSession();
@@ -28,11 +29,12 @@ export default async function LandingPage() {
   const assignedChildren = await TimesheetFacade.listAssignedChildren(user.id);
   const childIds = assignedChildren.map((c) => c.id);
 
-  const [events, schedules, lockedMonthKeys, profile] = await Promise.all([
+  const [events, schedules, lockedMonthKeys, profile, childAbsences] = await Promise.all([
     TimesheetFacade.getEventsInRange(user.id, rangeStart, rangeEnd),
     TimesheetFacade.getSchedulesForChildren(childIds),
     TimesheetFacade.listLockedMonthKeys(user.id),
     SchulbegleiterFacade.getByEmail(user.email),
+    KinderFacade.listAbsencesForChildrenInRange(childIds, rangeStart, rangeEnd),
   ]);
 
   return (
@@ -50,6 +52,11 @@ export default async function LandingPage() {
       events={events}
       schedules={schedules}
       lockedMonthKeys={lockedMonthKeys}
+      childAbsences={childAbsences.map((a) => ({
+        childId: a.childId,
+        date: a.date.toISOString().slice(0, 10),
+        note: a.note,
+      }))}
     />
   );
 }

@@ -12,7 +12,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Field,
   FieldContent,
@@ -21,6 +20,7 @@ import {
 } from "@/components/ui/field";
 import { createKostentraegerAction } from "@/features/kostentraeger/actions";
 import { KostentraegerSchema } from "@/features/kostentraeger";
+import { AddressAutocomplete } from "./address-autocomplete";
 
 type Props = {
   open: boolean;
@@ -137,17 +137,16 @@ export function KostentraegerCreateDialog({
               <FieldContent>
                 <span>Adresse</span>
                 <span className="text-xs font-normal text-muted-foreground">
-                  Optional.
+                  Optional. Vorschläge per Google Maps.
                 </span>
               </FieldContent>
             </FieldLabel>
-            <Textarea
+            <AddressAutocomplete
               id="kt-address"
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              rows={3}
+              onChange={setAddress}
               placeholder="Straße, PLZ Ort"
-              aria-invalid={!!errors.address}
+              ariaInvalid={!!errors.address}
             />
             <FieldError>{errors.address}</FieldError>
           </Field>

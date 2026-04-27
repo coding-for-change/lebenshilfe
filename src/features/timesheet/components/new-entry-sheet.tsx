@@ -45,6 +45,10 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   defaultDate: Date;
   assignedChildren: ChildOption[];
+  // Plain map weekday-string (Mon=0..Sun=6) → child ids assigned on that
+  // day. Lets the form show only the children scheduled for the selected
+  // date and preselect when there's just one.
+  assignmentsByWeekday: Record<string, string[]>;
   currentUserName: string;
   schedules: Schedule[];
   lastEntry: LastEntry | null;
@@ -65,6 +69,7 @@ export function NewEntrySheet({
   onOpenChange,
   defaultDate,
   assignedChildren,
+  assignmentsByWeekday,
   currentUserName,
   schedules,
   lastEntry,
@@ -74,8 +79,20 @@ export function NewEntrySheet({
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("17:00");
   const [note, setNote] = useState("");
+
+  // Children assigned to this Schulbegleiter on the weekday of `date`.
+  // Falls back to all assignedChildren if the weekday has no entry (e.g.
+  // the SB is assigned on a different weekday but the user picks today).
+  const dayAssignedChildren = useMemo(() => {
+    const wd = weekdayIndex(parseIsoDate(date));
+    const allowed = assignmentsByWeekday[String(wd)];
+    if (!allowed || allowed.length === 0) return [] as ChildOption[];
+    const allowedSet = new Set(allowed);
+    return assignedChildren.filter((c) => allowedSet.has(c.id));
+  }, [date, assignmentsByWeekday, assignedChildren]);
+
   const [childIds, setChildIds] = useState<string[]>(
-    assignedChildren.length === 1 ? [assignedChildren[0].id] : [],
+    dayAssignedChildren.length === 1 ? [dayAssignedChildren[0].id] : [],
   );
   const [sigOpen, setSigOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -87,11 +104,22 @@ export function NewEntrySheet({
       setStartTime("08:00");
       setEndTime("17:00");
       setNote("");
-      setChildIds(
-        assignedChildren.length === 1 ? [assignedChildren[0].id] : [],
-      );
     }
-  }, [open, defaultDate, assignedChildren]);
+  }, [open, defaultDate]);
+
+  // Whenever the day's assigned children change (open, date change, or
+  // the underlying data updates), preselect the only one if applicable
+  // and otherwise clear any selections that are no longer valid for the day.
+  useEffect(() => {
+    setChildIds((prev) => {
+      const allowed = new Set(dayAssignedChildren.map((c) => c.id));
+      const filtered = prev.filter((id) => allowed.has(id));
+      if (filtered.length === 0 && dayAssignedChildren.length === 1) {
+        return [dayAssignedChildren[0].id];
+      }
+      return filtered;
+    });
+  }, [dayAssignedChildren]);
 
   const duration = useMemo(() => {
     if (!startTime || !endTime) return null;
@@ -120,7 +148,7 @@ export function NewEntrySheet({
 
     const wd = weekdayIndex(parseIsoDate(date));
     const relevantChildIds =
-      childIds.length > 0 ? childIds : assignedChildren.map((c) => c.id);
+      childIds.length > 0 ? childIds : dayAssignedChildren.map((c) => c.id);
     const daySchedules = schedules.filter(
       (s) => s.weekday === wd && relevantChildIds.includes(s.childId),
     );
@@ -155,7 +183,7 @@ export function NewEntrySheet({
     }
 
     return out;
-  }, [date, schedules, assignedChildren, childIds, lastEntry]);
+  }, [date, schedules, dayAssignedChildren, childIds, lastEntry]);
 
   const submitWithSignature = async (pngBase64: string) => {
     setSubmitting(true);
@@ -244,22 +272,21 @@ export function NewEntrySheet({
 
             {type === EventType.WORK && (
               <>
-                {assignedChildren.length === 0 ? (
+                {dayAssignedChildren.length === 0 ? (
                   <p className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
-                    Noch keinem Kind zugewiesen — bitte an die Administration
-                    wenden.
+                    An diesem Tag ist dir kein Kind zugewiesen.
                   </p>
-                ) : assignedChildren.length === 1 ? (
+                ) : dayAssignedChildren.length === 1 ? (
                   <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm">
                     <span className="text-muted-foreground">Kind: </span>
-                    {assignedChildren[0].firstName}{" "}
-                    {assignedChildren[0].lastName}
+                    {dayAssignedChildren[0].firstName}{" "}
+                    {dayAssignedChildren[0].lastName}
                   </div>
                 ) : (
                   <div className="space-y-1.5">
                     <Label>Kinder</Label>
                     <div className="space-y-1 rounded-lg border border-border p-2">
-                      {assignedChildren.map((c) => (
+                      {dayAssignedChildren.map((c) => (
                         <label
                           key={c.id}
                           htmlFor={`child-${c.id}`}

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { debounce } from "perfect-debounce";
-import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,29 +60,29 @@ export function TabAllgemeines({
   kostentraegerOptions,
   onKostentraegerCreated,
 }: Props) {
+  // Form state is initialised from the first `child` prop and intentionally
+  // does NOT re-sync on subsequent same-child re-renders (e.g. autosave →
+  // revalidatePath → re-render), otherwise in-flight edits to OTHER fields
+  // would be clobbered. Switching to a different child remounts this
+  // component via `key={child.id}` on the parent, resetting everything.
   const [form, setForm] = useState<FormState>(() => fromChild(child));
-  const [saving, setSaving] = useState(false);
   const initial = useRef(fromChild(child));
 
-  // Reset state when the child changes (different row clicked).
+  // Keep `initial.current` in sync with the latest server snapshot so that
+  // future patches diff against fresh server state. Form state is left alone.
   useEffect(() => {
-    const next = fromChild(child);
-    setForm(next);
-    initial.current = next;
+    initial.current = fromChild(child);
   }, [child]);
 
   const persist = useMemo(
     () =>
       debounce(async (patch: UpdateKindInput) => {
-        setSaving(true);
         try {
           await updateKindAction(child.id, patch);
         } catch (err) {
           toast.error(
             err instanceof Error ? err.message : "Speichern fehlgeschlagen.",
           );
-        } finally {
-          setSaving(false);
         }
       }, 600),
     [child.id],
@@ -135,17 +134,6 @@ export function TabAllgemeines({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-end text-xs text-muted-foreground">
-        {saving ? (
-          <span className="flex items-center gap-1.5">
-            <Loader2 className="size-3 animate-spin" />
-            Speichert…
-          </span>
-        ) : (
-          <span>Änderungen werden automatisch gespeichert.</span>
-        )}
-      </div>
-
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field>
           <FieldLabel htmlFor="det-first">

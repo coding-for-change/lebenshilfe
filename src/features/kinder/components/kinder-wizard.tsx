@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { ChevronDown, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  ButtonGroup,
+  ButtonGroupSeparator,
+} from "@/components/ui/button-group";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +16,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { createKindAction } from "../actions";
 import {
   CreateKindSchema,
@@ -35,7 +46,13 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   kostentraegerOptions: KostentraegerOption[];
   onKostentraegerCreated: (created: KostentraegerOption) => void;
+  // Optional: invoked when the user submits via "Anlegen & Zuweisen". Parent
+  // is expected to open the detail sheet on the calendar tab so the new
+  // child's assignments can be added immediately.
+  onSavedOpenCalendar?: (childId: string) => void;
 };
+
+type SubmitMode = "close" | "open-calendar" | "create-another";
 
 function buildInput(value: KindWizardFormState): CreateKindInput {
   return {
@@ -76,6 +93,7 @@ export function KinderWizard({
   onOpenChange,
   kostentraegerOptions,
   onKostentraegerCreated,
+  onSavedOpenCalendar,
 }: Props) {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<KindWizardFormState>(EMPTY_KIND_FORM);
@@ -132,7 +150,7 @@ export function KinderWizard({
     setStep((s) => Math.max(s - 1, 0));
   }
 
-  async function handleSubmit() {
+  async function handleSubmit(mode: SubmitMode) {
     const input = buildInput(form);
     const parse = CreateKindSchema.safeParse(input);
     if (!parse.success) {
@@ -146,9 +164,19 @@ export function KinderWizard({
     }
     setBusy(true);
     try {
-      await createKindAction(input);
+      const result = await createKindAction(input);
       toast.success(`${input.firstName} ${input.lastName} hinzugefügt.`);
-      onOpenChange(false);
+      if (mode === "open-calendar") {
+        onOpenChange(false);
+        onSavedOpenCalendar?.(result.child.id);
+      } else if (mode === "create-another") {
+        // Reset wizard for the next child; keep the dialog open.
+        setStep(0);
+        setErrors({});
+        setForm(EMPTY_KIND_FORM);
+      } else {
+        onOpenChange(false);
+      }
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Speichern fehlgeschlagen.",
@@ -205,7 +233,9 @@ export function KinderWizard({
           </div>
         </DialogHeader>
 
-        <div className="max-h-[60vh] overflow-y-auto px-1">{stepBody}</div>
+        <div className="min-h-[60vh] max-h-[75vh] overflow-y-auto px-1">
+          {stepBody}
+        </div>
 
         <DialogFooter className="sm:justify-between">
           <Button
@@ -225,13 +255,52 @@ export function KinderWizard({
               Weiter
             </Button>
           ) : (
-            <Button
-              type="button"
-              onClick={handleSubmit}
-              disabled={busy}
-            >
-              {busy ? "Wird gespeichert…" : "Anlegen"}
-            </Button>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <ButtonGroup>
+                <Button
+                  type="button"
+                  onClick={() => handleSubmit("close")}
+                  disabled={busy}
+                >
+                  {busy ? "Wird gespeichert…" : "Anlegen"}
+                </Button>
+                <ButtonGroupSeparator className="bg-primary-foreground/20" />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      disabled={busy}
+                      aria-label="Weitere Optionen"
+                      className="px-2"
+                    >
+                      <ChevronDown />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-64"
+                  >
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        void handleSubmit("create-another");
+                      }}
+                    >
+                      <Plus />
+                      Speichern & neues erstellen
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </ButtonGroup>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => handleSubmit("open-calendar")}
+                disabled={busy}
+              >
+                Anlegen & Zuweisen
+              </Button>
+            </div>
           )}
         </DialogFooter>
       </DialogContent>

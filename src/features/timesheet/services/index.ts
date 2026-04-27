@@ -3,12 +3,37 @@ import { uploadSignaturePng } from "@/lib/storage";
 import { EventType, Prisma } from "@/generated/prisma";
 
 export async function getAssignedChildren(userId: string) {
+  // A Schulbegleiter can have multiple ChildAssignment rows for the same
+  // child (one per weekday after the cod-14 schema change), so we dedupe
+  // by child id before returning.
   const rows = await prisma.childAssignment.findMany({
     where: { userId },
     include: { child: true },
     orderBy: { child: { firstName: "asc" } },
   });
-  return rows.map((r) => r.child);
+  const seen = new Set<string>();
+  const unique: (typeof rows)[number]["child"][] = [];
+  for (const r of rows) {
+    if (seen.has(r.child.id)) continue;
+    seen.add(r.child.id);
+    unique.push(r.child);
+  }
+  return unique;
+}
+
+// Returns the per-weekday set of children that this Schulbegleiter is
+// assigned to. Mon=0..Sun=6.
+export async function getAssignmentsByWeekday(userId: string) {
+  const rows = await prisma.childAssignment.findMany({
+    where: { userId },
+    select: { childId: true, weekday: true },
+  });
+  const byWeekday = new Map<number, Set<string>>();
+  for (const r of rows) {
+    if (!byWeekday.has(r.weekday)) byWeekday.set(r.weekday, new Set());
+    byWeekday.get(r.weekday)!.add(r.childId);
+  }
+  return byWeekday;
 }
 
 export async function assertChildrenAssignedToUser(

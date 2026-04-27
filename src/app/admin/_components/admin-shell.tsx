@@ -1,15 +1,17 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   BookOpen,
   ChevronRight,
   LifeBuoy,
+  LogOut,
+  MoreVertical,
   Send,
-  Settings,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 import {
@@ -28,16 +30,18 @@ import {
   SidebarRail,
   SidebarSeparator,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { LogoutButton } from "@/components/logout-button";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { authClient } from "@/lib/auth-client";
 
 type AdminShellProps = {
   currentUser: { id: string; name: string; email: string };
@@ -57,22 +61,97 @@ const NAV_ITEMS = [
   },
 ] as const;
 
+const ADMIN_NAV_ITEMS = [
+  {
+    href: "/admin/user-management",
+    label: "Benutzerverwaltung",
+    icon: ShieldCheck,
+  },
+] as const;
+
+const ALL_NAV_ITEMS = [...NAV_ITEMS, ...ADMIN_NAV_ITEMS] as const;
+
 function deriveBreadcrumb(pathname: string): string {
-  const match = NAV_ITEMS.find((item) => pathname.startsWith(item.href));
+  const match = ALL_NAV_ITEMS.find((item) => pathname.startsWith(item.href));
   return match?.label ?? "Übersicht";
 }
 
-export function AdminShell({ currentUser, children }: AdminShellProps) {
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const pathname = usePathname();
-
-  const userInitials = currentUser.name
+function getInitials(name: string) {
+  return name
     .split(" ")
     .map((p) => p[0])
+    .filter(Boolean)
     .slice(0, 2)
     .join("")
     .toUpperCase();
+}
 
+function NavUser({ user }: { user: { name: string; email: string } }) {
+  const router = useRouter();
+  const { isMobile } = useSidebar();
+  const initials = getInitials(user.name);
+
+  async function handleSignOut() {
+    await authClient.signOut();
+    router.push("/login");
+    router.refresh();
+  }
+
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton
+              size="lg"
+              tooltip={user.name}
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+            >
+              <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-sidebar-accent text-xs font-semibold text-sidebar-accent-foreground">
+                {initials}
+              </div>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-medium">{user.name}</span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {user.email}
+                </span>
+              </div>
+              <MoreVertical className="ml-auto size-4" />
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+            side={isMobile ? "bottom" : "right"}
+            align="end"
+            sideOffset={4}
+          >
+            <DropdownMenuLabel className="p-0 font-normal">
+              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-sidebar-accent text-xs font-semibold text-sidebar-accent-foreground">
+                  {initials}
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-medium">{user.name}</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {user.email}
+                  </span>
+                </div>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={handleSignOut}>
+              <LogOut />
+              Abmelden
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
+}
+
+export function AdminShell({ currentUser, children }: AdminShellProps) {
+  const pathname = usePathname();
   const breadcrumb = deriveBreadcrumb(pathname);
 
   return (
@@ -138,18 +217,27 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
               </SidebarGroupContent>
             </SidebarGroup>
             <SidebarGroup>
-              <SidebarGroupLabel>Konto</SidebarGroupLabel>
+              <SidebarGroupLabel>Admin</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      onClick={() => setSettingsOpen(true)}
-                      tooltip="Einstellungen"
-                    >
-                      <Settings />
-                      <span>Einstellungen</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  {ADMIN_NAV_ITEMS.map((item) => {
+                    const isActive = pathname.startsWith(item.href);
+                    const Icon = item.icon;
+                    return (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={item.label}
+                        >
+                          <Link href={item.href}>
+                            <Icon />
+                            <span>{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -189,27 +277,9 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
             </SidebarGroup>
           </SidebarContent>
           <SidebarFooter>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  size="lg"
-                  onClick={() => setSettingsOpen(true)}
-                  tooltip={currentUser.name}
-                >
-                  <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-sidebar-accent text-xs font-semibold text-sidebar-accent-foreground">
-                    {userInitials}
-                  </div>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">
-                      {currentUser.name}
-                    </span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {currentUser.email}
-                    </span>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
+            <NavUser
+              user={{ name: currentUser.name, email: currentUser.email }}
+            />
           </SidebarFooter>
           <SidebarRail />
         </Sidebar>
@@ -232,32 +302,6 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
           </header>
           <div className="mx-auto w-full max-w-7xl px-6 py-8">{children}</div>
         </SidebarInset>
-
-        <Dialog
-          open={settingsOpen}
-          onOpenChange={setSettingsOpen}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Einstellungen</DialogTitle>
-              <DialogDescription>Profil und Konto-Aktionen.</DialogDescription>
-            </DialogHeader>
-            <div className="flex items-center gap-3 py-2">
-              <div className="grid size-12 shrink-0 place-items-center rounded-lg bg-sidebar-accent text-sm font-semibold text-sidebar-accent-foreground">
-                {userInitials}
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{currentUser.name}</span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {currentUser.email}
-                </span>
-              </div>
-            </div>
-            <div className="pt-2">
-              <LogoutButton />
-            </div>
-          </DialogContent>
-        </Dialog>
 
         <Toaster
           position="top-center"

@@ -18,6 +18,17 @@ export async function findInvitationByToken(token: string) {
   return prisma.invitation.findUnique({ where: { token } });
 }
 
+export async function findInvitationById(id: string) {
+  return prisma.invitation.findUnique({ where: { id } });
+}
+
+export async function expireInvitationById(id: string) {
+  return prisma.invitation.update({
+    where: { id },
+    data: { expiresAt: new Date(0) },
+  });
+}
+
 export async function markInvitationUsed(id: string) {
   return prisma.invitation.update({
     where: { id },
@@ -44,6 +55,17 @@ export async function processNewInvitation(email: string, role: Role) {
 
 export async function getAllInvitations() {
   return prisma.invitation.findMany({
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function listPendingInvitationsByRoles(roles: Role[]) {
+  return prisma.invitation.findMany({
+    where: {
+      isUsed: false,
+      role: { in: roles },
+      expiresAt: { gt: new Date() },
+    },
     orderBy: { createdAt: "desc" },
   });
 }

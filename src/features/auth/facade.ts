@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { Role } from "@/generated/prisma";
+import { isAdmin, isOwner } from "@/lib/roles";
 
 export const AuthFacade = {
   async getSession() {
@@ -9,8 +9,16 @@ export const AuthFacade = {
 
   async requireAdmin() {
     const session = await this.getSession();
-    if (!session || session.user.role !== Role.ADMIN) {
+    if (!session || !isAdmin(session.user.role)) {
       throw new Error("Unauthorized: Admin role required.");
+    }
+    return session.user;
+  },
+
+  async requireOwner() {
+    const session = await this.getSession();
+    if (!session || !isOwner(session.user.role)) {
+      throw new Error("Unauthorized: Owner role required.");
     }
     return session.user;
   },

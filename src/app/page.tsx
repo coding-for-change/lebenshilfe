@@ -1,8 +1,6 @@
 import { AuthFacade } from "@/features/auth/facade";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Role } from "@/generated/prisma";
+import { isAdmin } from "@/lib/roles";
 import { TimesheetFacade, SchulbegleiterApp } from "@/features/timesheet";
 import { KinderFacade } from "@/features/kinder";
 
@@ -10,28 +8,12 @@ export default async function LandingPage() {
   const session = await AuthFacade.getSession();
 
   if (!session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-zinc-950 p-4">
-        <div className="max-w-md w-full bg-white dark:bg-zinc-900 border border-border shadow-xl rounded-2xl p-8 text-center space-y-6">
-          <h1 className="text-3xl font-bold text-primary">
-            Willkommen bei Lebenshilfe
-          </h1>
-          <p className="text-muted-foreground">
-            Dieses Portal ist ausschließlich für geladene Mitglieder zugänglich.
-          </p>
-          <div className="pt-4">
-            <Link href="/login">
-              <Button className="w-full h-12 text-lg">Zum Login</Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
+    redirect("/login");
   }
 
   const { user } = session;
 
-  if (user.role === Role.ADMIN) {
+  if (isAdmin(user.role)) {
     redirect("/admin");
   }
 

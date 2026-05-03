@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { AuthFacade } from "@/features/auth/facade";
+import { getSession } from "@/lib/auth-guards";
 import { TimesheetFacade } from "./facade";
 import type {
   CreateEventInput,
@@ -10,7 +10,7 @@ import type {
 } from "./schemas";
 
 async function requireUserId(): Promise<string> {
-  const session = await AuthFacade.getSession();
+  const session = await getSession();
   if (!session) throw new Error("Nicht angemeldet.");
   return session.user.id;
 }

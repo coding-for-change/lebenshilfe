@@ -1,8 +1,11 @@
 import { CreateInvitationSchema } from "./schemas";
 import {
+  expireInvitationById,
   expireUnusedInvitationsForEmail,
+  findInvitationById,
   findInvitationByToken,
   findLatestInvitationByEmail,
+  listPendingInvitationsByRoles,
   markInvitationUsed,
   processNewInvitation,
   getAllInvitations as fetchAllInvitations,
@@ -40,5 +43,26 @@ export const InvitationFacade = {
 
   async getAllInvitations() {
     return fetchAllInvitations();
+  },
+
+  async listPendingByRoles(roles: Role[]) {
+    return listPendingInvitationsByRoles(roles);
+  },
+
+  async getById(id: string) {
+    return findInvitationById(id);
+  },
+
+  // Cancel a pending invitation by expiring it. Idempotent.
+  async cancelById(id: string) {
+    const invitation = await findInvitationById(id);
+    if (!invitation) {
+      throw new Error("Einladung nicht gefunden.");
+    }
+    if (invitation.isUsed) {
+      throw new Error("Eingelöste Einladungen können nicht widerrufen werden.");
+    }
+    await expireInvitationById(id);
+    return invitation;
   },
 };

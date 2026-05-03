@@ -1,6 +1,6 @@
 "use server";
 
-import { InvitationFacade } from "@/features/invitations/facade";
+import { InvitationFacade } from "./facade";
 import { SchulbegleiterFacade } from "@/features/schulbegleiter/facade";
 
 export async function fetchInviteDetails(token: string) {

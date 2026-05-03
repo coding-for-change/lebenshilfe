@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { AuthFacade } from "@/features/auth/facade";
+import { requireAdmin } from "@/lib/auth-guards";
 import { SchulbegleiterFacade } from "./facade";
 import type {
   CreateSchulbegleiterInput,
@@ -24,14 +24,14 @@ export async function updateSchulbegleiterAction(
   profileId: string,
   input: UpdateSchulbegleiterInput,
 ) {
-  await AuthFacade.requireAdmin();
+  await requireAdmin();
   await SchulbegleiterFacade.update(profileId, input);
   revalidatePath(ROUTE);
   return { success: true };
 }
 
 export async function deleteSchulbegleiterAction(profileId: string) {
-  await AuthFacade.requireAdmin();
+  await requireAdmin();
   await SchulbegleiterFacade.delete(profileId);
   revalidatePath(ROUTE);
   return { success: true };

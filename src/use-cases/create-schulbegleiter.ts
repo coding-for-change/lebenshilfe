@@ -1,7 +1,5 @@
-"use server";
-
 import { Role } from "@/generated/prisma";
-import { AuthFacade } from "@/features/auth/facade";
+import { requireAdmin } from "@/lib/auth-guards";
 import { InvitationFacade } from "@/features/invitations/facade";
 import { SchulbegleiterFacade } from "@/features/schulbegleiter/facade";
 import type { CreateSchulbegleiterInput } from "@/features/schulbegleiter/schemas";
@@ -14,7 +12,7 @@ import type { CreateSchulbegleiterInput } from "@/features/schulbegleiter/schema
 export async function createSchulbegleiterUseCase(
   input: CreateSchulbegleiterInput,
 ) {
-  await AuthFacade.requireAdmin();
+  await requireAdmin();
 
   await SchulbegleiterFacade.create(input);
   await InvitationFacade.generateAndSendInvite(

@@ -14,9 +14,11 @@ import {
 import { PageSection } from "@/components/page-section";
 import { SearchableTable } from "@/components/searchable-table";
 import { Role } from "@/generated/prisma";
+import { formatDate, getInitials } from "@/lib/utils";
+import { AdminUserActions } from "./admin-user-actions";
+import { InvitationActions } from "./invitation-actions";
 import { InviteAdminDialog } from "./invite-admin-dialog";
 import { RoleBadge } from "./role-badge";
-import { UserRowActions, type UserRowSubject } from "./user-row-actions";
 
 export type AdminUserRow = {
   id: string;
@@ -44,29 +46,11 @@ type Props = {
   currentUser: { id: string; role: Role };
 };
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("de-DE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((p) => p[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
-
 function NameCell({ name, email }: { name: string; email: string }) {
   return (
     <div className="flex items-center gap-3">
       <div className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
-        {initials(name)}
+        {getInitials(name)}
       </div>
       <div className="grid leading-tight">
         <span className="font-medium">{name}</span>
@@ -147,22 +131,6 @@ export function UserManagementTable({
                 </TableHeader>
                 <TableBody>
                   {filtered.map((row) => {
-                    const subject: UserRowSubject =
-                      row.kind === "user"
-                        ? {
-                            kind: "user",
-                            id: row.data.id,
-                            name: row.data.name,
-                            email: row.data.email,
-                            role: row.data.role,
-                          }
-                        : {
-                            kind: "invitation",
-                            id: row.data.id,
-                            email: row.data.email,
-                            role: row.data.role,
-                          };
-
                     const isSelf =
                       row.kind === "user" && row.data.id === currentUser.id;
 
@@ -207,11 +175,18 @@ export function UserManagementTable({
                           {formatDate(row.data.createdAt)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <UserRowActions
-                            subject={subject}
-                            currentUser={currentUser}
-                            ownerCount={ownerCount}
-                          />
+                          {row.kind === "user" ? (
+                            <AdminUserActions
+                              user={row.data}
+                              currentUser={currentUser}
+                              ownerCount={ownerCount}
+                            />
+                          ) : (
+                            <InvitationActions
+                              invitation={row.data}
+                              currentUser={currentUser}
+                            />
+                          )}
                         </TableCell>
                       </TableRow>
                     );

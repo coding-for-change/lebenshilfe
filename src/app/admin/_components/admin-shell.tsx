@@ -42,6 +42,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { authClient } from "@/lib/auth-client";
+import { getInitials } from "@/lib/utils";
 
 type AdminShellProps = {
   currentUser: { id: string; name: string; email: string };
@@ -74,16 +75,6 @@ const ALL_NAV_ITEMS = [...NAV_ITEMS, ...ADMIN_NAV_ITEMS] as const;
 function deriveBreadcrumb(pathname: string): string {
   const match = ALL_NAV_ITEMS.find((item) => pathname.startsWith(item.href));
   return match?.label ?? "Übersicht";
-}
-
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((p) => p[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
 }
 
 function NavUser({ user }: { user: { name: string; email: string } }) {

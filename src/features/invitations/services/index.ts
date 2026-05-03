@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import type { Role } from "@/generated/prisma";
 import { randomBytes } from "crypto";
+import { createElement } from "react";
 import { sendMail } from "@/lib/mail";
+import { renderEmail } from "@/lib/email/render";
+import { InvitationEmail } from "@/lib/email/templates/invitation-email";
 
 export async function insertInvitation(
   email: string,
@@ -33,10 +36,15 @@ export async function processNewInvitation(email: string, role: Role) {
 
   const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/onboard?token=${token}`;
 
+  const { html, text } = await renderEmail(
+    createElement(InvitationEmail, { inviteUrl }),
+  );
+
   await sendMail({
     to: email,
-    subject: "Einladung: Willkommen bei Lebenshilfe",
-    text: `Du wurdest eingeladen. Klicke hier, um dein Profil einzurichten: ${inviteUrl}`,
+    subject: "Einladung: Willkommen bei der Lebenshilfe München",
+    html,
+    text,
   });
 
   return invitation;

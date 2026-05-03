@@ -4,7 +4,7 @@ import { randomBytes } from "crypto";
 import { createElement } from "react";
 import { sendMail } from "@/lib/mail";
 import { renderEmail } from "@/lib/email/render";
-import { InvitationEmail } from "@/features/invitations/emails/invitation-email";
+import { InvitationEmail } from "@/lib/email/templates/invitation-email";
 
 export async function insertInvitation(
   email: string,

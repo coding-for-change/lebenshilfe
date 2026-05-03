@@ -14,19 +14,29 @@ Imports must only flow downward. Violation of these rules is a build-breaking er
 
 ### THE PRESENTATION LAYER (`src/app` & `src/features/*/components`)
 - **Role**: UI Rendering & User Input.
-- **Law**: Can ONLY call Global Use Cases or Feature Facades. NEVER call a Service or DB.
+- **Law**: Can ONLY call Server Actions, Global Use Cases, or Feature Facades. NEVER call a Service or DB.
+
+### THE BOUNDARY LAYER (`src/features/*/actions.ts` & `src/app/**/actions.ts`)
+- **Role**: Server-action transport. The single entry point from Client Components into the server.
+- **Responsibilities**: auth checks (via `lib/auth-guards`), `revalidatePath`/`revalidateTag`, response shaping for the UI.
+- **Law**: Calls a Use Case (cross-feature) OR a Facade directly (single-feature). Never calls Services or DB.
+- **Rule of thumb**: If the work touches only one feature, the Action calls the Facade directly. A Use Case is only created when the Action would have to coordinate two or more Facades.
 
 ### THE ORCHESTRATION LAYER (`src/use-cases/`)
 - **Role**: Coordinates workflows across multiple features.
-- **Law**: Can call multiple Feature Facades. CANNOT call Services or DB directly.
+- **Law**: Can call multiple Feature Facades. CANNOT call Services or DB directly. Must NOT exist for single-feature operations — those collapse into the Action.
 
 ### THE DOMAIN BOUNDARY LAYER (`src/features/*/facade.ts`)
 - **Role**: Feature gatekeeper. Handles internal validation and domain logic.
-- **Law**: Can only call its own feature's Services. CANNOT call other features or Use Cases.
+- **Law**: Can only call its own feature's Services. CANNOT call other features or Use Cases. MUST stay free of HTTP/session context so it can be reused from CRON, scripts, and other Use Cases.
 
 ### THE DATA ACCESS LAYER (`src/features/*/services/`)
 - **Role**: Raw DB/API operations.
 - **Law**: Must be "dumb." No knowledge of sessions or complex business workflows.
+
+### CROSS-CUTTING INFRASTRUCTURE (`src/lib/`)
+- **Role**: Shared infrastructure usable from any layer (DB client, mailer, role enums, **auth guards**).
+- **`lib/auth-guards.ts`**: `getSession`, `requireAuth`, `requireAdmin`, `requireOwner`. Auth is a cross-cutting concern, not a feature. Call these from Actions and Use Cases (NOT from Facades).
 
 ## 3. FOLDER STRUCTURE & COMPONENT PLACEMENT
 ```text
@@ -44,7 +54,7 @@ src/
 │       ├── index.ts      # PUBLIC API: Export ONLY the Facade and Components.
 │       └── schemas.ts    # Contracts: Zod schemas and TS types.
 ├── components/ui/        # ATOMIC UI: Shared, stateless shadcn components.
-├── lib/                  # INFRA: Shared DB clients, Auth config.
+├── lib/                  # INFRA: DB client, mailer, roles, auth-guards (cross-cutting).
 └── docs/architecture/    # SYSTEM MANIFESTO: Architecture diagrams and rules.
 ```
 
@@ -60,8 +70,12 @@ Constraint: If an import statement violates this map, you MUST refactor the logi
 Actionable Chain: When asked to build a feature:
 1. Define Zod Schemas (`schemas.ts`).
 2. Write Dumb Services (`services/`).
-3. Write the Feature Facade (`facade.ts`) to wrap services with business logic.
-4. (Optional) Create a Global Use Case if cross-feature logic is needed.
-5. Finally, create the UI/Server Action.
+3. Write the Feature Facade (`facade.ts`) to wrap services with business logic. No auth, no `revalidatePath` here.
+4. Write the Server Action (`actions.ts`): `requireAdmin()` (or similar) → call Facade → `revalidatePath`.
+5. (Only if the Action would have to call two or more different feature Facades) Create a Use Case in `src/use-cases/` and have the Action delegate to it.
+6. Wire up the UI to call the Action.
 
-No Shortcuts: Even if a database call is one line, it MUST go through the Service -> Facade pipeline.
+No Shortcuts:
+- Database calls MUST go through Service → Facade.
+- A "use case" that touches only one feature is not a use case — collapse it into the Action.
+- Auth checks live in `lib/auth-guards.ts`, called from Actions and (cross-feature) Use Cases. Never inside a Facade.

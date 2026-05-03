@@ -1,11 +1,12 @@
-import { AuthFacade } from "@/features/auth/facade";
+import { getSession } from "@/lib/auth-guards";
 import { redirect } from "next/navigation";
 import { isAdmin } from "@/lib/roles";
 import { TimesheetFacade, SchulbegleiterApp } from "@/features/timesheet";
+import { SchulbegleiterFacade } from "@/features/schulbegleiter";
 import { KinderFacade } from "@/features/kinder";
 
 export default async function LandingPage() {
-  const session = await AuthFacade.getSession();
+  const session = await getSession();
 
   if (!session) {
     redirect("/login");
@@ -32,12 +33,14 @@ export default async function LandingPage() {
     events,
     schedules,
     lockedMonthKeys,
+    profile,
     childAbsences,
     assignmentsByWeekday,
   ] = await Promise.all([
     TimesheetFacade.getEventsInRange(user.id, rangeStart, rangeEnd),
     TimesheetFacade.getSchedulesForChildren(childIds),
     TimesheetFacade.listLockedMonthKeys(user.id),
+    SchulbegleiterFacade.getByEmail(user.email),
     KinderFacade.listAbsencesForChildrenInRange(childIds, rangeStart, rangeEnd),
     TimesheetFacade.getAssignmentsByWeekday(user.id),
   ]);
@@ -51,7 +54,11 @@ export default async function LandingPage() {
 
   return (
     <SchulbegleiterApp
-      currentUser={{ id: user.id, name: user.name, email: user.email }}
+      currentUser={{
+        id: user.id,
+        name: profile?.name ?? "",
+        email: user.email,
+      }}
       assignedChildren={assignedChildren.map((c) => ({
         id: c.id,
         firstName: c.firstName,

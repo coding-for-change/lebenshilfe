@@ -2,6 +2,7 @@ import { getSession } from "@/lib/auth-guards";
 import { redirect } from "next/navigation";
 import { isAdmin } from "@/lib/roles";
 import { TimesheetFacade, SchulbegleiterApp } from "@/features/timesheet";
+import { SchulbegleiterFacade } from "@/features/schulbegleiter";
 
 export default async function LandingPage() {
   const session = await getSession();
@@ -27,15 +28,20 @@ export default async function LandingPage() {
   const assignedChildren = await TimesheetFacade.listAssignedChildren(user.id);
   const childIds = assignedChildren.map((c) => c.id);
 
-  const [events, schedules, lockedMonthKeys] = await Promise.all([
+  const [events, schedules, lockedMonthKeys, profile] = await Promise.all([
     TimesheetFacade.getEventsInRange(user.id, rangeStart, rangeEnd),
     TimesheetFacade.getSchedulesForChildren(childIds),
     TimesheetFacade.listLockedMonthKeys(user.id),
+    SchulbegleiterFacade.getByEmail(user.email),
   ]);
 
   return (
     <SchulbegleiterApp
-      currentUser={{ id: user.id, name: user.name, email: user.email }}
+      currentUser={{
+        id: user.id,
+        name: profile?.name ?? "",
+        email: user.email,
+      }}
       assignedChildren={assignedChildren.map((c) => ({
         id: c.id,
         firstName: c.firstName,

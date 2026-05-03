@@ -8,7 +8,7 @@ import { CheckIcon } from "lucide-react";
 import {
   fetchEmailFromToken,
   consumeUsedToken,
-} from "@/use-cases/onboard-invited-user";
+} from "@/features/invitations/actions";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import {

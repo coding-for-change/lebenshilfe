@@ -1,10 +1,10 @@
-import { AuthFacade } from "@/features/auth/facade";
+import { getSession } from "@/lib/auth-guards";
 import { redirect } from "next/navigation";
 import { isAdmin } from "@/lib/roles";
 import { TimesheetFacade, SchulbegleiterApp } from "@/features/timesheet";
 
 export default async function LandingPage() {
-  const session = await AuthFacade.getSession();
+  const session = await getSession();
 
   if (!session) {
     redirect("/login");

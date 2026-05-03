@@ -1,10 +1,10 @@
-import { AuthFacade } from "@/features/auth/facade";
+import { requireAdmin } from "@/lib/auth-guards";
 import { InvitationFacade } from "@/features/invitations/facade";
 import { UserFacade, UserManagementTable } from "@/features/users";
 import { Role } from "@/generated/prisma";
 
 export default async function UserManagementPage() {
-  const currentUser = await AuthFacade.requireAdmin();
+  const currentUser = await requireAdmin();
 
   const [users, ownerCount, pending] = await Promise.all([
     UserFacade.listAdminUsers(),

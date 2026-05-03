@@ -1,6 +1,6 @@
 "use server";
 
-import { InvitationFacade } from "@/features/invitations/facade";
+import { InvitationFacade } from "./facade";
 
 export async function fetchEmailFromToken(token: string) {
   const invite = await InvitationFacade.verifyToken(token);

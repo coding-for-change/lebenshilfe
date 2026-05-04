@@ -81,7 +81,7 @@ function greet(name: string): string {
   return `Guten Abend, ${firstName}`;
 }
 
-export function SchulbegleiterApp({
+export function SchoolAssistantApp({
   currentUser,
   assignedChildren,
   events,

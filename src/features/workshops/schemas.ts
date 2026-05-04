@@ -11,3 +11,6 @@ export const WorkshopSchema = z.object({
 });
 
 export type WorkshopInput = z.infer<typeof WorkshopSchema>;
+
+export const UpdateWorkshopSchema = WorkshopSchema.partial();
+export type UpdateWorkshopInput = z.infer<typeof UpdateWorkshopSchema>;

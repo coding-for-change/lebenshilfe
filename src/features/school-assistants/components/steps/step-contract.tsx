@@ -2,7 +2,6 @@
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Field,
@@ -10,6 +9,7 @@ import {
   FieldError,
   FieldLabel,
 } from "@/components/ui/field";
+import { FlagRow } from "@/components/flag-row";
 import type { WizardErrors, WizardFormState } from "../wizard-types";
 
 type Props = {
@@ -112,36 +112,5 @@ export function StepContract({ value, onChange, errors }: Props) {
         ) : null}
       </div>
     </div>
-  );
-}
-
-function FlagRow({
-  id,
-  label,
-  description,
-  checked,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  description: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <label
-      htmlFor={id}
-      className="flex cursor-pointer items-start gap-3"
-    >
-      <Checkbox
-        id={id}
-        checked={checked}
-        onCheckedChange={(v) => onChange(v === true)}
-      />
-      <div className="flex flex-col leading-tight">
-        <span className="text-sm font-medium">{label}</span>
-        <span className="text-xs text-muted-foreground">{description}</span>
-      </div>
-    </label>
   );
 }

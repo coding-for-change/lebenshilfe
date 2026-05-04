@@ -12,12 +12,11 @@ export async function insertWorkshop(name: string, description: string | null) {
   return prisma.workshop.create({ data: { name, description } });
 }
 
-export async function updateWorkshopFields(
+export async function updateWorkshopPartial(
   id: string,
-  name: string,
-  description: string | null,
+  patch: { name?: string; description?: string | null },
 ) {
-  return prisma.workshop.update({ where: { id }, data: { name, description } });
+  return prisma.workshop.update({ where: { id }, data: patch });
 }
 
 export async function deleteWorkshopById(id: string) {

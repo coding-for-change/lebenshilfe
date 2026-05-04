@@ -52,10 +52,11 @@ export type CreateSchoolAssistantInput = z.infer<
   typeof CreateSchulbegleiterSchema
 >;
 
+// Email is intentionally omitted — it's the stable identity for the linked
+// invitation/account.
 export const UpdateSchulbegleiterSchema = z
-  .object({ name: stammdatenSchema.shape.name })
-  .merge(profileFieldsSchema)
-  .superRefine(sharedRefinement);
+  .object({ name: stammdatenSchema.shape.name.optional() })
+  .merge(profileFieldsSchema.partial());
 
 export type UpdateSchoolAssistantInput = z.infer<
   typeof UpdateSchulbegleiterSchema

@@ -13,15 +13,9 @@ type Props = {
   value: WizardFormState;
   onChange: (next: Partial<WizardFormState>) => void;
   errors: WizardErrors;
-  emailDisabled?: boolean;
 };
 
-export function StepBasicInfo({
-  value,
-  onChange,
-  errors,
-  emailDisabled,
-}: Props) {
+export function StepBasicInfo({ value, onChange, errors }: Props) {
   return (
     <div className="flex flex-col gap-5">
       <Field>
@@ -58,7 +52,6 @@ export function StepBasicInfo({
           value={value.email}
           onChange={(e) => onChange({ email: e.target.value })}
           placeholder="name@beispiel.de"
-          disabled={emailDisabled}
           aria-invalid={!!errors.email}
         />
         <FieldError>{errors.email}</FieldError>

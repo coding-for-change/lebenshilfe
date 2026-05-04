@@ -55,28 +55,29 @@ export async function createProfileWithAttendances(args: {
   });
 }
 
-export async function updateProfileWithAttendances(args: {
+export async function updateProfilePartial(args: {
   profileId: string;
-  name: string;
-  fields: ProfileFields;
-  attendances: Array<{ workshopId: string; attendedOn: Date }>;
+  patch: Partial<ProfileFields> & { name?: string };
+  attendances?: Array<{ workshopId: string; attendedOn: Date }>;
 }) {
   return prisma.$transaction(async (tx) => {
-    await tx.workshopAttendance.deleteMany({
-      where: { profileId: args.profileId },
-    });
-    return tx.schoolAssistantProfile.update({
-      where: { id: args.profileId },
-      data: {
-        name: args.name,
-        ...args.fields,
-        attendances: {
-          create: args.attendances.map((a) => ({
+    if (args.attendances !== undefined) {
+      await tx.workshopAttendance.deleteMany({
+        where: { profileId: args.profileId },
+      });
+      if (args.attendances.length > 0) {
+        await tx.workshopAttendance.createMany({
+          data: args.attendances.map((a) => ({
+            profileId: args.profileId,
             workshopId: a.workshopId,
             attendedOn: a.attendedOn,
           })),
-        },
-      },
+        });
+      }
+    }
+    return tx.schoolAssistantProfile.update({
+      where: { id: args.profileId },
+      data: args.patch,
     });
   });
 }

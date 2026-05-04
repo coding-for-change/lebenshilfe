@@ -12,12 +12,10 @@ import {
   findProfileById,
   linkUserToProfileByEmail,
   listProfiles,
-  updateProfileWithAttendances,
+  updateProfilePartial,
 } from "./services";
 
-function toFields(
-  input: CreateSchoolAssistantInput | UpdateSchoolAssistantInput,
-) {
+function toFields(input: CreateSchoolAssistantInput) {
   return {
     leosOne: input.leosOne,
     outlook: input.outlook,
@@ -30,9 +28,7 @@ function toFields(
   };
 }
 
-function toAttendances(
-  input: CreateSchoolAssistantInput | UpdateSchoolAssistantInput,
-) {
+function toAttendances(input: CreateSchoolAssistantInput) {
   return input.workshops.map((w) => ({
     workshopId: w.workshopId,
     attendedOn: new Date(`${w.attendedOn}T00:00:00.000Z`),
@@ -77,12 +73,37 @@ export const SchoolAssistantsFacade = {
       throw new Error("Schulbegleiter nicht gefunden.");
     }
 
-    return updateProfileWithAttendances({
-      profileId,
-      name: parsed.name,
-      fields: toFields(parsed),
-      attendances: toAttendances(parsed),
-    });
+    const patch: Parameters<typeof updateProfilePartial>[0]["patch"] = {};
+    if (parsed.name !== undefined) patch.name = parsed.name;
+    if (parsed.leosOne !== undefined) patch.leosOne = parsed.leosOne;
+    if (parsed.outlook !== undefined) patch.outlook = parsed.outlook;
+    if (parsed.weeklyHours !== undefined) {
+      patch.weeklyHours = parsed.weeklyHours ?? null;
+    }
+    if (parsed.zvNeuNachBescheid !== undefined) {
+      patch.zvNeuNachBescheid = parsed.zvNeuNachBescheid;
+      // Toggling off must clear the note so stale text doesn't linger.
+      if (parsed.zvNeuNachBescheid === false) patch.zvNeuNote = null;
+    }
+    if (parsed.zvNeuNote !== undefined) {
+      const isActive = parsed.zvNeuNachBescheid ?? existing.zvNeuNachBescheid;
+      patch.zvNeuNote = isActive ? (parsed.zvNeuNote ?? null) : null;
+    }
+    if (parsed.introductionDay !== undefined) {
+      patch.introductionDay = parsed.introductionDay
+        ? new Date(`${parsed.introductionDay}T00:00:00.000Z`)
+        : null;
+    }
+
+    const attendances =
+      parsed.workshops !== undefined
+        ? parsed.workshops.map((w) => ({
+            workshopId: w.workshopId,
+            attendedOn: new Date(`${w.attendedOn}T00:00:00.000Z`),
+          }))
+        : undefined;
+
+    return updateProfilePartial({ profileId, patch, attendances });
   },
 
   async delete(profileId: string) {

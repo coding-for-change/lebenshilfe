@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { debounce } from "perfect-debounce";
-import { toast } from "sonner";
+import { useAutosave } from "@/components/use-autosave";
 import { updateChildAction } from "../../actions";
 import type { UpdateChildInput } from "../../schemas";
 import type { SerializedChild } from "../../serialize";
@@ -75,45 +73,14 @@ function diff(
   return Object.keys(patch).length > 0 ? patch : null;
 }
 
-// Debounced autosave for the "Allgemeines" tab. Form state is initialised
-// from the first `child` prop and intentionally does NOT re-sync on
-// subsequent same-child re-renders (e.g. autosave → revalidatePath →
-// re-render); switching child remounts via `key={child.id}` on the parent.
 export function useAutosaveGeneral(child: SerializedChild) {
-  const [form, setForm] = useState<GeneralFormState>(() => fromChild(child));
-  const initial = useRef(fromChild(child));
-
-  // Keep `initial.current` in sync with the latest server snapshot so future
-  // patches diff against fresh server state. Form state is left alone.
-  useEffect(() => {
-    initial.current = fromChild(child);
-  }, [child]);
-
-  const persist = useMemo(
-    () =>
-      debounce(async (patch: UpdateChildInput) => {
-        try {
-          await updateChildAction(child.id, patch);
-        } catch (err) {
-          toast.error(
-            err instanceof Error ? err.message : "Speichern fehlgeschlagen.",
-          );
-        }
-      }, 600),
-    [child.id],
-  );
-
-  function update<K extends keyof GeneralFormState>(
-    key: K,
-    value: GeneralFormState[K],
-  ) {
-    setForm((prev) => {
-      const next = { ...prev, [key]: value };
-      const patch = diff(initial.current, next);
-      if (patch) void persist(patch);
-      return next;
-    });
-  }
-
-  return { form, update };
+  return useAutosave({
+    entity: child,
+    entityKey: child.id,
+    toForm: fromChild,
+    diff,
+    persist: async (patch) => {
+      await updateChildAction(child.id, patch);
+    },
+  });
 }

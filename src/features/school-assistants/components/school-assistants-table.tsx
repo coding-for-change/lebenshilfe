@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -11,12 +10,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { FlagCell } from "@/components/flag-cell";
 import { PageSection } from "@/components/page-section";
 import { SearchableTable } from "@/components/searchable-table";
 import { SchoolAssistantRowActions } from "./school-assistant-row-actions";
 import { SchoolAssistantWizard } from "./school-assistant-wizard";
+import { SchoolAssistantDetailSheet } from "./school-assistant-detail-sheet";
 import { StatusBadge } from "./status-badge";
-import type { WizardFormState, WorkshopOption } from "./wizard-types";
+import type { WorkshopOption } from "./wizard-types";
 import type { SerializedProfile } from "../serialize";
 
 type Props = {
@@ -29,67 +30,20 @@ function formatIsoDate(iso: string | null) {
   return new Date(`${iso}T00:00:00`).toLocaleDateString("de-DE");
 }
 
-function FlagCell({ on }: { on: boolean }) {
-  return on ? (
-    <Check className="size-4 text-green-600" />
-  ) : (
-    <Minus className="size-4 text-muted-foreground" />
-  );
-}
-
-function profileToFormState(
-  profile: SerializedProfile,
-  workshops: WorkshopOption[],
-): WizardFormState {
-  const attendanceMap = new Map(
-    profile.attendances.map((a) => [a.workshopId, a]),
-  );
-  return {
-    name: profile.name,
-    email: profile.email,
-    leosOne: profile.leosOne,
-    outlook: profile.outlook,
-    weeklyHours: profile.weeklyHours == null ? "" : String(profile.weeklyHours),
-    zvNeuNachBescheid: profile.zvNeuNachBescheid,
-    zvNeuNote: profile.zvNeuNote ?? "",
-    introductionDay: profile.introductionDay ?? "",
-    workshops: workshops.map((w) => {
-      const found = attendanceMap.get(w.id);
-      return {
-        workshopId: w.id,
-        selected: !!found,
-        attendedOn: found ? found.attendedOn : "",
-      };
-    }),
-  };
-}
-
 export function SchoolAssistantsTable({ profiles, workshops }: Props) {
   const [wizardOpen, setWizardOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<{
-    id: string;
-    initial: WizardFormState;
-  } | null>(null);
+  const [openProfileId, setOpenProfileId] = useState<string | null>(null);
 
-  function openCreate() {
-    setEditTarget(null);
-    setWizardOpen(true);
-  }
-
-  function openEdit(profile: SerializedProfile) {
-    setEditTarget({
-      id: profile.id,
-      initial: profileToFormState(profile, workshops),
-    });
-    setWizardOpen(true);
-  }
+  const openProfile = profiles.find((p) => p.id === openProfileId) ?? null;
 
   return (
     <>
       <PageSection
         title="Schulbegleiter"
         action={
-          <Button onClick={openCreate}>+ Neuen Schulbegleiter anlegen</Button>
+          <Button onClick={() => setWizardOpen(true)}>
+            + Neuen Schulbegleiter anlegen
+          </Button>
         }
       >
         <div className="p-4">
@@ -123,7 +77,11 @@ export function SchoolAssistantsTable({ profiles, workshops }: Props) {
                 </TableHeader>
                 <TableBody>
                   {filtered.map((p) => (
-                    <TableRow key={p.id}>
+                    <TableRow
+                      key={p.id}
+                      className="cursor-pointer"
+                      onClick={() => setOpenProfileId(p.id)}
+                    >
                       <TableCell className="font-medium">{p.name}</TableCell>
                       <TableCell>{p.email}</TableCell>
                       <TableCell>
@@ -150,12 +108,15 @@ export function SchoolAssistantsTable({ profiles, workshops }: Props) {
                           <FlagCell on={p.zvNeuNachBescheid} />
                         </div>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell
+                        className="text-right"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <SchoolAssistantRowActions
                           profileId={p.id}
                           name={p.name}
                           status={p.status}
-                          onEdit={() => openEdit(p)}
+                          onOpenDetails={() => setOpenProfileId(p.id)}
                         />
                       </TableCell>
                     </TableRow>
@@ -171,7 +132,13 @@ export function SchoolAssistantsTable({ profiles, workshops }: Props) {
         open={wizardOpen}
         onOpenChange={setWizardOpen}
         workshops={workshops}
-        edit={editTarget}
+      />
+
+      <SchoolAssistantDetailSheet
+        profile={openProfile}
+        open={!!openProfile}
+        onOpenChange={(next) => !next && setOpenProfileId(null)}
+        workshops={workshops}
       />
     </>
   );

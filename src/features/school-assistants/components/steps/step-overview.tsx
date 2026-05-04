@@ -1,12 +1,11 @@
 "use client";
 
-import { Check, Minus } from "lucide-react";
+import { FlagCell } from "@/components/flag-cell";
 import type { WizardFormState, WorkshopOption } from "../wizard-types";
 
 type Props = {
   value: WizardFormState;
   workshops: WorkshopOption[];
-  mode: "create" | "edit";
 };
 
 function formatDate(iso: string) {
@@ -15,15 +14,7 @@ function formatDate(iso: string) {
   return d.toLocaleDateString("de-DE");
 }
 
-function FlagIcon({ on }: { on: boolean }) {
-  return on ? (
-    <Check className="size-4 text-green-600" />
-  ) : (
-    <Minus className="size-4 text-muted-foreground" />
-  );
-}
-
-export function StepOverview({ value, workshops, mode }: Props) {
+export function StepOverview({ value, workshops }: Props) {
   const selectedWorkshops = value.workshops
     .filter((w) => w.selected)
     .map((w) => ({
@@ -34,9 +25,8 @@ export function StepOverview({ value, workshops, mode }: Props) {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-muted-foreground">
-        {mode === "create"
-          ? "Prüfe die Angaben. Mit dem Absenden wird die Einladung per E-Mail verschickt."
-          : "Prüfe die Änderungen vor dem Speichern."}
+        Prüfe die Angaben. Mit dem Absenden wird die Einladung per E-Mail
+        verschickt.
       </p>
 
       <Section title="Stammdaten">
@@ -61,15 +51,15 @@ export function StepOverview({ value, workshops, mode }: Props) {
         />
         <Row
           label="Leos One"
-          value={<FlagIcon on={value.leosOne} />}
+          value={<FlagCell on={value.leosOne} />}
         />
         <Row
           label="Outlook"
-          value={<FlagIcon on={value.outlook} />}
+          value={<FlagCell on={value.outlook} />}
         />
         <Row
           label="ZV neu nach Bescheid"
-          value={<FlagIcon on={value.zvNeuNachBescheid} />}
+          value={<FlagCell on={value.zvNeuNachBescheid} />}
         />
         {value.zvNeuNachBescheid && value.zvNeuNote ? (
           <Row

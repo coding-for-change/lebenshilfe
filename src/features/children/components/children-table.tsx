@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -11,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { FlagCell } from "@/components/flag-cell";
 import { PageSection } from "@/components/page-section";
 import { SearchableTable } from "@/components/searchable-table";
 import { ChildRowActions } from "./child-row-actions";
@@ -29,14 +29,6 @@ type Props = {
   costBearerOptions: CostBearerOption[];
   schoolAssistantOptions: SchoolAssistantOption[];
 };
-
-function FlagCell({ on }: { on: boolean }) {
-  return on ? (
-    <Check className="size-4 text-green-600" />
-  ) : (
-    <Minus className="size-4 text-muted-foreground" />
-  );
-}
 
 export function ChildrenTable({
   data,

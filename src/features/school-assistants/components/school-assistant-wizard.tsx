@@ -11,10 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  createSchoolAssistantAction,
-  updateSchoolAssistantAction,
-} from "../actions";
+import { createSchoolAssistantAction } from "../actions";
 import {
   CreateSchulbegleiterSchema,
   BasicInfoStepSchema,
@@ -33,16 +30,10 @@ import {
   type WorkshopOption,
 } from "./wizard-types";
 
-type EditTarget = {
-  id: string;
-  initial: WizardFormState;
-};
-
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   workshops: WorkshopOption[];
-  edit?: EditTarget | null;
 };
 
 const EMPTY_FORM = (workshops: WorkshopOption[]): WizardFormState => ({
@@ -88,23 +79,20 @@ export function SchoolAssistantWizard({
   open,
   onOpenChange,
   workshops,
-  edit,
 }: Props) {
-  const mode: "create" | "edit" = edit ? "edit" : "create";
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<WizardFormState>(() =>
-    edit ? edit.initial : EMPTY_FORM(workshops),
+    EMPTY_FORM(workshops),
   );
   const [errors, setErrors] = useState<WizardErrors>({});
   const [busy, setBusy] = useState(false);
 
-  // Reset state when the dialog opens or the edit target changes.
   useEffect(() => {
     if (!open) return;
     setStep(0);
     setErrors({});
-    setForm(edit ? edit.initial : EMPTY_FORM(workshops));
-  }, [open, edit, workshops]);
+    setForm(EMPTY_FORM(workshops));
+  }, [open, workshops]);
 
   const update = (patch: Partial<WizardFormState>) =>
     setForm((prev) => ({ ...prev, ...patch }));
@@ -198,7 +186,6 @@ export function SchoolAssistantWizard({
         }
       }
       setErrors(e);
-      // Surface earliest failing step.
       const firstPath = fullParse.error.issues[0]?.path[0];
       if (firstPath === "name" || firstPath === "email") setStep(0);
       else setStep(1);
@@ -207,13 +194,8 @@ export function SchoolAssistantWizard({
 
     setBusy(true);
     try {
-      if (mode === "edit" && edit) {
-        await updateSchoolAssistantAction(edit.id, submitInput);
-        toast.success("Schulbegleiter aktualisiert.");
-      } else {
-        await createSchoolAssistantAction(submitInput);
-        toast.success("Einladung gesendet.");
-      }
+      await createSchoolAssistantAction(submitInput);
+      toast.success("Einladung gesendet.");
       onOpenChange(false);
     } catch (error) {
       toast.error(
@@ -231,7 +213,6 @@ export function SchoolAssistantWizard({
           value={form}
           onChange={update}
           errors={errors}
-          emailDisabled={mode === "edit"}
         />
       );
     if (step === 1)
@@ -255,10 +236,9 @@ export function SchoolAssistantWizard({
       <StepOverview
         value={form}
         workshops={workshops}
-        mode={mode}
       />
     );
-  }, [step, form, errors, workshops, mode]);
+  }, [step, form, errors, workshops]);
 
   return (
     <Dialog
@@ -267,15 +247,10 @@ export function SchoolAssistantWizard({
     >
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>
-            {mode === "edit"
-              ? "Schulbegleiter bearbeiten"
-              : "Neuen Schulbegleiter anlegen"}
-          </DialogTitle>
+          <DialogTitle>Neuen Schulbegleiter anlegen</DialogTitle>
           <DialogDescription>
-            {mode === "edit"
-              ? "Stammdaten, Vertrag und Workshops aktualisieren."
-              : "Geführte Anlage in vier Schritten — am Ende wird die Einladung verschickt."}
+            Geführte Anlage in vier Schritten — am Ende wird die Einladung
+            verschickt.
           </DialogDescription>
           <div className="pt-2">
             <WizardProgress
@@ -311,11 +286,7 @@ export function SchoolAssistantWizard({
               onClick={handleSubmit}
               disabled={busy}
             >
-              {busy
-                ? "Wird gespeichert…"
-                : mode === "edit"
-                  ? "Speichern"
-                  : "Einladung senden"}
+              {busy ? "Wird gespeichert…" : "Einladung senden"}
             </Button>
           )}
         </DialogFooter>

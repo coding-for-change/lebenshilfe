@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { Eye, MoreVertical, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,10 +17,14 @@ import { deleteWorkshopAction } from "../actions";
 type Props = {
   workshopId: string;
   name: string;
-  onEdit: () => void;
+  onOpenDetails: () => void;
 };
 
-export function WorkshopsRowActions({ workshopId, name, onEdit }: Props) {
+export function WorkshopsRowActions({
+  workshopId,
+  name,
+  onOpenDetails,
+}: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   async function handleDelete() {
@@ -48,9 +52,9 @@ export function WorkshopsRowActions({ workshopId, name, onEdit }: Props) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={onEdit}>
-            <Pencil />
-            Bearbeiten
+          <DropdownMenuItem onSelect={onOpenDetails}>
+            <Eye />
+            Details öffnen
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem

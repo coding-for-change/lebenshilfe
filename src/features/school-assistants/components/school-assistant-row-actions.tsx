@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreVertical, Pencil, Send, Trash2 } from "lucide-react";
+import { Eye, MoreVertical, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,14 +22,14 @@ type Props = {
   profileId: string;
   name: string;
   status: SchulbegleiterStatus;
-  onEdit: () => void;
+  onOpenDetails: () => void;
 };
 
 export function SchoolAssistantRowActions({
   profileId,
   name,
   status,
-  onEdit,
+  onOpenDetails,
 }: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [resending, setResending] = useState(false);
@@ -76,9 +76,9 @@ export function SchoolAssistantRowActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={onEdit}>
-            <Pencil />
-            Bearbeiten
+          <DropdownMenuItem onSelect={onOpenDetails}>
+            <Eye />
+            Details öffnen
           </DropdownMenuItem>
           <DropdownMenuItem
             disabled={!canResend || resending}

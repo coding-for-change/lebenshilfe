@@ -1,9 +1,9 @@
 import { getSession } from "@/lib/auth-guards";
 import { redirect } from "next/navigation";
 import { isAdmin } from "@/lib/roles";
-import { TimesheetFacade, SchulbegleiterApp } from "@/features/timesheet";
-import { SchulbegleiterFacade } from "@/features/schulbegleiter";
-import { KinderFacade } from "@/features/kinder";
+import { TimesheetFacade, SchoolAssistantApp } from "@/features/timesheet";
+import { SchoolAssistantsFacade } from "@/features/school-assistants";
+import { ChildrenFacade } from "@/features/children";
 
 export default async function LandingPage() {
   const session = await getSession();
@@ -40,9 +40,13 @@ export default async function LandingPage() {
     TimesheetFacade.getEventsInRange(user.id, rangeStart, rangeEnd),
     TimesheetFacade.getSchedulesForChildren(childIds),
     TimesheetFacade.listLockedMonthKeys(user.id),
-    KinderFacade.listAbsencesForChildrenInRange(childIds, rangeStart, rangeEnd),
+    ChildrenFacade.listAbsencesForChildrenInRange(
+      childIds,
+      rangeStart,
+      rangeEnd,
+    ),
     TimesheetFacade.getAssignmentsByWeekday(user.id),
-    SchulbegleiterFacade.getByEmail(user.email),
+    SchoolAssistantsFacade.getByEmail(user.email),
   ]);
 
   // Server actions can't ship Maps over the RSC boundary; flatten to a plain
@@ -53,7 +57,7 @@ export default async function LandingPage() {
   }
 
   return (
-    <SchulbegleiterApp
+    <SchoolAssistantApp
       currentUser={{
         id: user.id,
         name: profile?.name ?? "",

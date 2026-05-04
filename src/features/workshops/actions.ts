@@ -11,7 +11,7 @@ export async function createWorkshopAction(input: WorkshopInput) {
   await requireAdmin();
   await WorkshopsFacade.create(input);
   revalidatePath(ROUTE);
-  revalidatePath("/admin/schulbegleiter");
+  revalidatePath("/admin/school-assistants");
   return { success: true };
 }
 
@@ -19,7 +19,7 @@ export async function updateWorkshopAction(id: string, input: WorkshopInput) {
   await requireAdmin();
   await WorkshopsFacade.update(id, input);
   revalidatePath(ROUTE);
-  revalidatePath("/admin/schulbegleiter");
+  revalidatePath("/admin/school-assistants");
   return { success: true };
 }
 

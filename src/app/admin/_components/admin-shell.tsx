@@ -52,12 +52,12 @@ type AdminShellProps = {
 
 const NAV_ITEMS = [
   {
-    href: "/admin/schulbegleiter",
+    href: "/admin/school-assistants",
     label: "Schulbegleiter",
     icon: Users,
   },
   {
-    href: "/admin/kinder",
+    href: "/admin/children",
     label: "Kinder",
     icon: Baby,
   },

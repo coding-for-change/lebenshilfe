@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, FileDown, Loader2, Mail } from "lucide-react";
+import { match } from "ts-pattern";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -68,13 +69,6 @@ export function TabHistory({ child }: Props) {
     };
   }, [child.id, refetch]);
 
-  const data =
-    state.status === "loaded" && state.childId === child.id ? state.data : null;
-  const error =
-    state.status === "error" && state.childId === child.id
-      ? state.message
-      : null;
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
@@ -122,25 +116,33 @@ export function TabHistory({ child }: Props) {
         </TooltipProvider>
       </div>
 
-      {error ? (
-        <div className="rounded-md border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive">
-          {error}
-        </div>
-      ) : data == null ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          Lade Historie…
-        </div>
-      ) : data.events.length === 0 ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Noch keine erfassten Zeiten.
-        </div>
-      ) : (
-        <ChildHistoryList
-          data={data}
-          onChanged={() => refetch(child.id)}
-        />
-      )}
+      {match(state)
+        .with({ status: "error", childId: child.id }, ({ message }) => (
+          <div className="rounded-md border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive">
+            {message}
+          </div>
+        ))
+        .with(
+          { status: "loaded", childId: child.id, data: { events: [] } },
+          () => (
+            <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
+              Noch keine erfassten Zeiten.
+            </div>
+          ),
+        )
+        .with({ status: "loaded", childId: child.id }, ({ data }) => (
+          <ChildHistoryList
+            data={data}
+            onChanged={() => refetch(child.id)}
+          />
+        ))
+        // Loading + stale (childId mismatch from a previously opened child).
+        .otherwise(() => (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            Lade Historie…
+          </div>
+        ))}
     </div>
   );
 }

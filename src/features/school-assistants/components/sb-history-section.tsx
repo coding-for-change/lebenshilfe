@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
+import { match } from "ts-pattern";
 import {
   listEventsForSchoolAssistantAction,
   type SerializedAdminHistory,
@@ -21,44 +22,41 @@ type Props = {
   userId: string | null;
 };
 
+// userId is tagged on each variant so the match guards against rendering
+// stale data from a previous selection during the render between a userId
+// change and the effect that resets state.
 type LoadState =
   | { status: "loading"; userId: string }
   | { status: "loaded"; userId: string; data: SerializedAdminHistory }
   | { status: "error"; userId: string; message: string };
 
 export function SbHistorySection({ userId }: Props) {
-  const [state, setState] = useState<LoadState | null>(
-    userId ? { status: "loading", userId } : null,
-  );
-
-  const refetch = useCallback(
-    (id: string, signal?: { cancelled: boolean }) => {
-      return listEventsForSchoolAssistantAction(id)
-        .then((data) => {
-          if (signal?.cancelled) return;
-          setState({ status: "loaded", userId: id, data });
-        })
-        .catch((err) => {
-          if (signal?.cancelled) return;
-          setState({
-            status: "error",
-            userId: id,
-            message:
-              err instanceof Error ? err.message : "Laden fehlgeschlagen.",
-          });
-        });
-    },
-    [],
-  );
+  const [state, setState] = useState<LoadState>({
+    status: "loading",
+    userId: userId ?? "",
+  });
+  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     if (!userId) return;
-    const signal = { cancelled: false };
-    void refetch(userId, signal);
+    setState({ status: "loading", userId });
+    let cancelled = false;
+    listEventsForSchoolAssistantAction(userId)
+      .then((data) => {
+        if (!cancelled) setState({ status: "loaded", userId, data });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setState({
+          status: "error",
+          userId,
+          message: err instanceof Error ? err.message : "Laden fehlgeschlagen.",
+        });
+      });
     return () => {
-      signal.cancelled = true;
+      cancelled = true;
     };
-  }, [userId, refetch]);
+  }, [userId, nonce]);
 
   if (!userId) {
     return (
@@ -69,34 +67,31 @@ export function SbHistorySection({ userId }: Props) {
     );
   }
 
-  const data =
-    state?.status === "loaded" && state.userId === userId ? state.data : null;
-  const error =
-    state?.status === "error" && state.userId === userId
-      ? state.message
-      : null;
-
   return (
     <div className="flex flex-col gap-2">
-      {error ? (
-        <div className="rounded-md border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive">
-          {error}
-        </div>
-      ) : data == null ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          Lade Historie…
-        </div>
-      ) : data.events.length === 0 ? (
-        <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-          Noch keine erfassten Zeiten.
-        </div>
-      ) : (
-        <SignedHistoryList
-          data={data}
-          onChanged={() => refetch(userId)}
-        />
-      )}
+      {match(state)
+        .with({ status: "error", userId }, ({ message }) => (
+          <div className="rounded-md border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive">
+            {message}
+          </div>
+        ))
+        .with({ status: "loaded", userId, data: { events: [] } }, () => (
+          <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+            Noch keine erfassten Zeiten.
+          </div>
+        ))
+        .with({ status: "loaded", userId }, ({ data }) => (
+          <SignedHistoryList
+            data={data}
+            onChanged={() => setNonce((n) => n + 1)}
+          />
+        ))
+        .otherwise(() => (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            Lade Historie…
+          </div>
+        ))}
     </div>
   );
 }
@@ -108,9 +103,6 @@ function SignedHistoryList({
   data: SerializedAdminHistory;
   onChanged: () => void;
 }) {
-  const signedKeys = new Set(
-    data.signedMonths.map((m) => `${m.userId}-${m.year}-${m.month}`),
-  );
   const signedByKey = new Map(
     data.signedMonths.map((m) => [`${m.userId}-${m.year}-${m.month}`, m]),
   );
@@ -120,21 +112,17 @@ function SignedHistoryList({
     const today = currentMonthKey();
     const earliest = keys[0] ?? today;
     const latest = keys[keys.length - 1] ?? today;
-    const min = compareMonthKey(earliest, today) < 0 ? earliest : today;
-    const max = compareMonthKey(latest, today) > 0 ? latest : today;
-    const todayHasData = keys.includes(today);
     return {
-      minMonthKey: min,
-      maxMonthKey: max,
-      defaultMonthKey: todayHasData ? today : latest,
+      minMonthKey: compareMonthKey(earliest, today) < 0 ? earliest : today,
+      maxMonthKey: compareMonthKey(latest, today) > 0 ? latest : today,
+      defaultMonthKey: keys.includes(today) ? today : latest,
     };
   }, [data.events]);
 
   const [monthKey, setMonthKey] = useState(defaultMonthKey);
-  const filtered = data.events.filter(
-    (e) => monthKeyOf(e.date) === monthKey,
+  const groups = groupByMonth(
+    data.events.filter((e) => monthKeyOf(e.date) === monthKey),
   );
-  const groups = groupByMonth(filtered);
 
   return (
     <div className="flex flex-col gap-3">
@@ -151,12 +139,9 @@ function SignedHistoryList({
       ) : null}
       {groups.map(({ key, label, rows }) => {
         const [yearStr, monthStr] = key.split("-");
-        const year = Number(yearStr);
-        const month = Number(monthStr);
-        const userId = rows[0]?.userId;
-        const signedKey = `${userId}-${year}-${month}`;
-        const signed = signedKeys.has(signedKey);
-        const signedReport = signedByKey.get(signedKey);
+        const signedReport = signedByKey.get(
+          `${rows[0]?.userId}-${Number(yearStr)}-${Number(monthStr)}`,
+        );
 
         return (
           <div
@@ -171,7 +156,7 @@ function SignedHistoryList({
               </span>
             </div>
 
-            {signed && signedReport ? (
+            {signedReport ? (
               <div className="flex items-center gap-2 border-b bg-amber-50/60 px-4 py-1.5 text-xs text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
                 <CheckCircle2 className="size-3.5" />
                 Vom Vorgesetzten ({signedReport.supervisorName}) unterschrieben
@@ -187,7 +172,7 @@ function SignedHistoryList({
                   key={event.id}
                   event={event}
                   edits={data.editsByEventId[event.id] ?? []}
-                  isMonthSigned={signed}
+                  isMonthSigned={!!signedReport}
                   secondary={
                     event.childName ? (
                       <span className="truncate">{event.childName}</span>

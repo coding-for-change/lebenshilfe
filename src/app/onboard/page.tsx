@@ -179,9 +179,7 @@ export default function OnboardPage({
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       disabled={hasPrefilledName || status === "loading"}
-                      className={
-                        hasPrefilledName ? "h-11 bg-muted/60" : "h-11"
-                      }
+                      className={hasPrefilledName ? "h-11 bg-muted/60" : "h-11"}
                     />
                   </Field>
                   <Field>

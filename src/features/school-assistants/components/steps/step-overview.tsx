@@ -42,7 +42,9 @@ export function StepOverview({ value, workshops }: Props) {
         />
         <Row
           label="Einführungstag"
-          value={value.introductionDay ? formatDate(value.introductionDay) : "—"}
+          value={
+            value.introductionDay ? formatDate(value.introductionDay) : "—"
+          }
         />
         <Row
           label="Leos One"

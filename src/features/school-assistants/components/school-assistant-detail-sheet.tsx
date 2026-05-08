@@ -1,16 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { DetailSheet } from "@/components/detail-sheet";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { FlagRow } from "@/components/flag-row";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type { SerializedProfile } from "../serialize";
+import { SbHistorySection } from "./sb-history-section";
 import { StatusBadge } from "./status-badge";
 import { useAutosaveSchoolAssistant } from "./use-autosave-school-assistant";
 import { WorkshopAttendanceList } from "./workshop-attendance-list";
 import type { WorkshopOption } from "./wizard-types";
+
+type DetailTab = "general" | "history";
 
 type Props = {
   profile: SerializedProfile | null;
@@ -25,6 +30,8 @@ export function SchoolAssistantDetailSheet({
   onOpenChange,
   workshops,
 }: Props) {
+  const [tab, setTab] = useState<DetailTab>("general");
+
   return (
     <DetailSheet
       open={open}
@@ -39,19 +46,38 @@ export function SchoolAssistantDetailSheet({
           </span>
         ) : null
       }
+      bodyClassName="overflow-hidden p-0"
     >
       {profile ? (
-        <DetailBody
-          key={profile.id}
-          profile={profile}
-          workshops={workshops}
-        />
+        <Tabs
+          value={tab}
+          onValueChange={(v) => setTab(v as DetailTab)}
+          className="flex flex-1 flex-col gap-3 overflow-hidden p-4"
+        >
+          <TabsList>
+            <TabsTrigger value="general">Allgemeines</TabsTrigger>
+            <TabsTrigger value="history">Historie</TabsTrigger>
+          </TabsList>
+
+          <div className="flex-1 overflow-y-auto pr-1">
+            <TabsContent value="general">
+              <GeneralTab
+                key={profile.id}
+                profile={profile}
+                workshops={workshops}
+              />
+            </TabsContent>
+            <TabsContent value="history">
+              <SbHistorySection userId={profile.userId} />
+            </TabsContent>
+          </div>
+        </Tabs>
       ) : null}
     </DetailSheet>
   );
 }
 
-function DetailBody({
+function GeneralTab({
   profile,
   workshops,
 }: {

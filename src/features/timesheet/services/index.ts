@@ -57,10 +57,16 @@ export async function assertChildrenAssignedToUser(
   childIds: string[],
 ) {
   if (childIds.length === 0) return;
-  const count = await prisma.childAssignment.count({
-    where: { userId, childId: { in: childIds } },
+  // ChildAssignment is per-weekday since cod-14, so the same (userId, childId)
+  // pair can map to multiple rows. Compare the *distinct* childId set against
+  // the requested ids — a row count would over-count and reject valid input.
+  const requested = new Set(childIds);
+  const rows = await prisma.childAssignment.findMany({
+    where: { userId, childId: { in: [...requested] } },
+    select: { childId: true },
+    distinct: ["childId"],
   });
-  if (count !== childIds.length) {
+  if (rows.length !== requested.size) {
     throw new Error("Ein Kind ist diesem Konto nicht zugewiesen.");
   }
 }
@@ -80,7 +86,7 @@ export async function getEventsForUserInRange(
 ) {
   return prisma.event.findMany({
     where: { userId, date: { gte: start, lt: endExclusive } },
-    include: { child: true },
+    include: { child: { select: { firstName: true, lastName: true } } },
     orderBy: [{ date: "asc" }, { startTime: "asc" }],
   });
 }
@@ -93,6 +99,53 @@ export async function getEventsForUserInMonth(
   const start = new Date(Date.UTC(year, month - 1, 1));
   const end = new Date(Date.UTC(year, month, 1));
   return getEventsForUserInRange(userId, start, end);
+}
+
+export async function listAllEventsWithChildForUser(userId: string) {
+  return prisma.event.findMany({
+    where: { userId },
+    include: { child: true },
+    orderBy: [{ date: "desc" }, { startTime: "desc" }],
+  });
+}
+
+export async function listEditsForEvents(eventIds: string[]) {
+  if (eventIds.length === 0) return [];
+  return prisma.eventEdit.findMany({
+    where: { eventId: { in: eventIds } },
+    include: { editedBy: { select: { id: true, name: true } } },
+    orderBy: { editedAt: "desc" },
+  });
+}
+
+export async function listWorkEventsForChildWithUser(childId: string) {
+  return prisma.event.findMany({
+    where: { childId, type: EventType.WORK },
+    include: { user: { select: { id: true, name: true } } },
+    orderBy: { date: "desc" },
+  });
+}
+
+export async function listMonthlyReportsForUserMonths(
+  pairs: { userId: string; year: number; month: number }[],
+) {
+  if (pairs.length === 0) return [];
+  return prisma.monthlyReport.findMany({
+    where: {
+      OR: pairs.map((p) => ({
+        userId: p.userId,
+        year: p.year,
+        month: p.month,
+      })),
+    },
+    select: {
+      userId: true,
+      year: true,
+      month: true,
+      supervisorName: true,
+      createdAt: true,
+    },
+  });
 }
 
 export async function insertWorkEvents(args: {
@@ -170,12 +223,44 @@ export async function listMonthlyReportsForUser(userId: string) {
   });
 }
 
+export async function listMonthlyReportSummariesForUser(userId: string) {
+  return prisma.monthlyReport.findMany({
+    where: { userId },
+    select: {
+      id: true,
+      year: true,
+      month: true,
+      supervisorName: true,
+      createdAt: true,
+    },
+    orderBy: [{ year: "desc" }, { month: "desc" }],
+  });
+}
+
+export async function findMonthlyReportSnapshot(
+  userId: string,
+  year: number,
+  month: number,
+) {
+  return prisma.monthlyReport.findUnique({
+    where: { userId_year_month: { userId, year, month } },
+    select: {
+      year: true,
+      month: true,
+      supervisorName: true,
+      createdAt: true,
+      signedSnapshot: true,
+    },
+  });
+}
+
 export async function insertMonthlyReport(args: {
   userId: string;
   year: number;
   month: number;
   supervisorName: string;
   supervisorSignatureKey: string;
+  signedSnapshot: Prisma.InputJsonValue;
 }) {
   return prisma.monthlyReport.create({ data: args });
 }

@@ -1,9 +1,12 @@
 import { randomUUID } from "crypto";
+import { prisma } from "@/lib/prisma";
+import { EventEditKind } from "@/generated/prisma";
 import {
   CreateEventSchema,
   SubmitMonthlyReportSchema,
   UpdateEventSchema,
   type CreateEventInput,
+  type SignedEventSnapshot,
   type SubmitMonthlyReportInput,
   type UpdateEventInput,
 } from "./schemas";
@@ -12,6 +15,7 @@ import {
   deleteEventById,
   findEventById,
   findMonthlyReport,
+  findMonthlyReportSnapshot,
   getAssignedChildren,
   getAssignmentsByWeekday,
   getEventsForUserInMonth,
@@ -20,7 +24,12 @@ import {
   insertMonthlyReport,
   insertSickEvent,
   insertWorkEvents,
+  listAllEventsWithChildForUser,
+  listEditsForEvents,
   listMonthlyReportsForUser,
+  listMonthlyReportsForUserMonths,
+  listMonthlyReportSummariesForUser,
+  listWorkEventsForChildWithUser,
   updateEventFields,
   uploadSignature,
 } from "./services";
@@ -52,6 +61,31 @@ function checkIsMonthFinished(year: number, month: number) {
       "Der Monat ist noch nicht abgeschlossen und kann erst nach Monatsende übergeben werden.",
     );
   }
+}
+
+function dateToIso(date: Date): string {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+async function buildSignedSnapshot(
+  userId: string,
+  year: number,
+  month: number,
+): Promise<SignedEventSnapshot[]> {
+  const events = await getEventsForUserInMonth(userId, year, month);
+  return events.map((e) => ({
+    eventId: e.id,
+    type: e.type,
+    date: dateToIso(e.date),
+    startTime: e.startTime,
+    endTime: e.endTime,
+    note: e.note,
+    childId: e.childId,
+    signatureKey: e.signatureKey,
+  }));
 }
 
 export const TimesheetFacade = {
@@ -191,6 +225,13 @@ export const TimesheetFacade = {
     if (existing) {
       throw new Error("Monat bereits freigegeben.");
     }
+
+    const snapshot = await buildSignedSnapshot(
+      userId,
+      parsed.year,
+      parsed.month,
+    );
+
     const key = `signatures/monthly/${userId}/${parsed.year}-${String(
       parsed.month,
     ).padStart(2, "0")}.png`;
@@ -201,6 +242,124 @@ export const TimesheetFacade = {
       month: parsed.month,
       supervisorName: parsed.supervisorName,
       supervisorSignatureKey: key,
+      signedSnapshot: snapshot,
     });
+  },
+
+  // ---------------- Admin override ----------------
+  // Bypass the 24-hour edit window AND the month lock. Every change is
+  // captured in EventEdit so the audit trail is append-only. The frozen
+  // signed snapshot on MonthlyReport is never touched here.
+
+  async adminUpdateEvent(
+    adminUserId: string,
+    eventId: string,
+    input: UpdateEventInput,
+  ) {
+    const parsed = UpdateEventSchema.parse(input);
+
+    return prisma.$transaction(async (tx) => {
+      const event = await tx.event.findUnique({ where: { id: eventId } });
+      if (!event) throw new Error("Eintrag nicht gefunden.");
+      if (event.type === "SICK" && (parsed.startTime || parsed.endTime)) {
+        throw new Error("Krankheitseinträge haben keine Zeiten.");
+      }
+
+      const nextStartTime = parsed.startTime ?? event.startTime;
+      const nextEndTime = parsed.endTime ?? event.endTime;
+      const nextNote = parsed.note === undefined ? event.note : parsed.note;
+
+      const timeChanged =
+        nextStartTime !== event.startTime || nextEndTime !== event.endTime;
+      const noteChanged = nextNote !== event.note;
+
+      if (!timeChanged && !noteChanged) return event;
+
+      const updated = await tx.event.update({
+        where: { id: eventId },
+        data: {
+          startTime: nextStartTime,
+          endTime: nextEndTime,
+          note: nextNote,
+        },
+      });
+
+      // Audit only when times actually changed. Note-only edits update the
+      // record but don't generate an EventEdit entry.
+      if (timeChanged) {
+        await tx.eventEdit.create({
+          data: {
+            eventId,
+            editedByUserId: adminUserId,
+            kind: EventEditKind.EDIT,
+            prevDate: event.date,
+            prevStartTime: event.startTime,
+            prevEndTime: event.endTime,
+            prevNote: event.note,
+            prevChildId: event.childId,
+            nextDate: updated.date,
+            nextStartTime: updated.startTime,
+            nextEndTime: updated.endTime,
+            nextNote: updated.note,
+            nextChildId: updated.childId,
+          },
+        });
+      }
+
+      return updated;
+    });
+  },
+
+  async adminDeleteEvent(adminUserId: string, eventId: string) {
+    return prisma.$transaction(async (tx) => {
+      const event = await tx.event.findUnique({ where: { id: eventId } });
+      if (!event) throw new Error("Eintrag nicht gefunden.");
+      await tx.eventEdit.create({
+        data: {
+          eventId,
+          editedByUserId: adminUserId,
+          kind: EventEditKind.DELETE,
+          prevDate: event.date,
+          prevStartTime: event.startTime,
+          prevEndTime: event.endTime,
+          prevNote: event.note,
+          prevChildId: event.childId,
+        },
+      });
+      await tx.event.delete({ where: { id: eventId } });
+    });
+  },
+
+  async listEventsForUserWithEdits(userId: string) {
+    const events = await listAllEventsWithChildForUser(userId);
+    const edits = await listEditsForEvents(events.map((e) => e.id));
+    const reports = await listMonthlyReportSummariesForUser(userId);
+    return { events, edits, reports };
+  },
+
+  async listEventsForChildWithEdits(childId: string) {
+    const events = await listWorkEventsForChildWithUser(childId);
+    const edits = await listEditsForEvents(events.map((e) => e.id));
+
+    // Distinct (userId, year, month) tuples — needed to look up which months
+    // have already been signed off by a supervisor across the SBs that
+    // worked with this Kind.
+    const seen = new Set<string>();
+    const tuples: { userId: string; year: number; month: number }[] = [];
+    for (const e of events) {
+      const year = e.date.getUTCFullYear();
+      const month = e.date.getUTCMonth() + 1;
+      const key = `${e.userId}-${year}-${month}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      tuples.push({ userId: e.userId, year, month });
+    }
+    const reports = await listMonthlyReportsForUserMonths(tuples);
+
+    return { events, edits, reports };
+  },
+
+  async getMonthlyReportSnapshot(userId: string, year: number, month: number) {
+    return findMonthlyReportSnapshot(userId, year, month);
   },
 };

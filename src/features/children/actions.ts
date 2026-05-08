@@ -102,15 +102,3 @@ export async function deleteAbsenceAction(id: string) {
   return { success: true as const };
 }
 
-export async function listWorkEventsForChildAction(childId: string) {
-  await requireAdmin();
-  const events = await ChildrenFacade.listWorkEventsForChild(childId);
-  return events.map((e) => ({
-    id: e.id,
-    date: e.date.toISOString().slice(0, 10),
-    startTime: e.startTime,
-    endTime: e.endTime,
-    note: e.note,
-    userName: e.user.name,
-  }));
-}

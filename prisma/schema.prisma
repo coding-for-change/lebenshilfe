@@ -19,6 +19,11 @@ enum EventType {
   SICK
 }
 
+enum EventEditKind {
+  EDIT
+  DELETE
+}
+
 enum SchulbegleiterStatus {
   INVITATION_PENDING
   ACCEPTED
@@ -40,6 +45,7 @@ model User {
   accounts      Account[]
   assignments   ChildAssignment[]
   events        Event[]
+  eventEdits    EventEdit[]       @relation("EventEditEditedBy")
   monthlyReports MonthlyReport[]
   profile       SchoolAssistantProfile?
 
@@ -192,22 +198,47 @@ model Schedule {
 }
 
 model Event {
-  id           String    @id @default(cuid())
+  id           String      @id @default(cuid())
   childId      String?
   userId       String
   type         EventType
-  date         DateTime  @db.Date
+  date         DateTime    @db.Date
   startTime    String?
   endTime      String?
-  note         String?   @db.Text
+  note         String?     @db.Text
   signatureKey String
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  child        Child?    @relation(fields: [childId], references: [id])
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  child        Child?      @relation(fields: [childId], references: [id])
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  edits        EventEdit[]
 
   @@index([userId, date])
   @@map("event")
+}
+
+model EventEdit {
+  id             String        @id @default(cuid())
+  eventId        String?
+  editedByUserId String
+  editedAt       DateTime      @default(now())
+  kind           EventEditKind
+  prevDate       DateTime?     @db.Date
+  prevStartTime  String?
+  prevEndTime    String?
+  prevNote       String?       @db.Text
+  prevChildId    String?
+  nextDate       DateTime?     @db.Date
+  nextStartTime  String?
+  nextEndTime    String?
+  nextNote       String?       @db.Text
+  nextChildId    String?
+  event          Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  editedBy       User          @relation("EventEditEditedBy", fields: [editedByUserId], references: [id])
+
+  @@index([eventId, editedAt])
+  @@index([editedByUserId, editedAt])
+  @@map("event_edit")
 }
 
 model MonthlyReport {
@@ -217,6 +248,7 @@ model MonthlyReport {
   month                  Int
   supervisorName         String
   supervisorSignatureKey String
+  signedSnapshot         Json?
   createdAt              DateTime @default(now())
   user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

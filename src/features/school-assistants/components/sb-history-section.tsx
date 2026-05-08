@@ -1,16 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, FileDown, Loader2, Mail } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  listEventsForChildAction,
+  listEventsForSchoolAssistantAction,
   type SerializedAdminHistory,
 } from "@/features/timesheet/actions";
 import { AdminEventRow } from "@/features/timesheet/components/admin-event-row";
@@ -23,35 +16,33 @@ import {
   monthKeyOf,
   totalHours,
 } from "@/features/timesheet/lib/group";
-import type { SerializedChild } from "../../serialize";
 
 type Props = {
-  child: SerializedChild;
+  userId: string | null;
 };
 
 type LoadState =
-  | { status: "loading"; childId: string }
-  | { status: "loaded"; childId: string; data: SerializedAdminHistory }
-  | { status: "error"; childId: string; message: string };
+  | { status: "loading"; userId: string }
+  | { status: "loaded"; userId: string; data: SerializedAdminHistory }
+  | { status: "error"; userId: string; message: string };
 
-export function TabHistory({ child }: Props) {
-  const [state, setState] = useState<LoadState>({
-    status: "loading",
-    childId: child.id,
-  });
+export function SbHistorySection({ userId }: Props) {
+  const [state, setState] = useState<LoadState | null>(
+    userId ? { status: "loading", userId } : null,
+  );
 
   const refetch = useCallback(
-    (childId: string, signal?: { cancelled: boolean }) => {
-      return listEventsForChildAction(childId)
+    (id: string, signal?: { cancelled: boolean }) => {
+      return listEventsForSchoolAssistantAction(id)
         .then((data) => {
           if (signal?.cancelled) return;
-          setState({ status: "loaded", childId, data });
+          setState({ status: "loaded", userId: id, data });
         })
         .catch((err) => {
           if (signal?.cancelled) return;
           setState({
             status: "error",
-            childId,
+            userId: id,
             message:
               err instanceof Error ? err.message : "Laden fehlgeschlagen.",
           });
@@ -61,67 +52,32 @@ export function TabHistory({ child }: Props) {
   );
 
   useEffect(() => {
+    if (!userId) return;
     const signal = { cancelled: false };
-    void refetch(child.id, signal);
+    void refetch(userId, signal);
     return () => {
       signal.cancelled = true;
     };
-  }, [child.id, refetch]);
+  }, [userId, refetch]);
+
+  if (!userId) {
+    return (
+      <div className="rounded-md border border-dashed bg-muted/40 p-6 text-center text-sm text-muted-foreground">
+        Sobald die Einladung angenommen wurde, erscheinen hier alle erfassten
+        Arbeitszeiten.
+      </div>
+    );
+  }
 
   const data =
-    state.status === "loaded" && state.childId === child.id ? state.data : null;
+    state?.status === "loaded" && state.userId === userId ? state.data : null;
   const error =
-    state.status === "error" && state.childId === child.id
+    state?.status === "error" && state.userId === userId
       ? state.message
       : null;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          Übersicht aller Arbeitszeiten der Schulbegleiter mit{" "}
-          <strong>
-            {child.firstName} {child.lastName}
-          </strong>
-          .
-        </p>
-        <TooltipProvider delayDuration={200}>
-          <div className="flex shrink-0 items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span tabIndex={0}>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled
-                  >
-                    <FileDown />
-                    PDF erstellen
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>Kommt in Kürze.</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span tabIndex={0}>
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled
-                  >
-                    <Mail />
-                    An Kostenstelle senden
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>Kommt in Kürze.</TooltipContent>
-            </Tooltip>
-          </div>
-        </TooltipProvider>
-      </div>
-
+    <div className="flex flex-col gap-2">
       {error ? (
         <div className="rounded-md border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive">
           {error}
@@ -132,20 +88,20 @@ export function TabHistory({ child }: Props) {
           Lade Historie…
         </div>
       ) : data.events.length === 0 ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
+        <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
           Noch keine erfassten Zeiten.
         </div>
       ) : (
-        <ChildHistoryList
+        <SignedHistoryList
           data={data}
-          onChanged={() => refetch(child.id)}
+          onChanged={() => refetch(userId)}
         />
       )}
     </div>
   );
 }
 
-function ChildHistoryList({
+function SignedHistoryList({
   data,
   onChanged,
 }: {
@@ -154,6 +110,9 @@ function ChildHistoryList({
 }) {
   const signedKeys = new Set(
     data.signedMonths.map((m) => `${m.userId}-${m.year}-${m.month}`),
+  );
+  const signedByKey = new Map(
+    data.signedMonths.map((m) => [`${m.userId}-${m.year}-${m.month}`, m]),
   );
 
   const { minMonthKey, maxMonthKey, defaultMonthKey } = useMemo(() => {
@@ -194,9 +153,10 @@ function ChildHistoryList({
         const [yearStr, monthStr] = key.split("-");
         const year = Number(yearStr);
         const month = Number(monthStr);
-        const monthReports = data.signedMonths.filter(
-          (m) => m.year === year && m.month === month,
-        );
+        const userId = rows[0]?.userId;
+        const signedKey = `${userId}-${year}-${month}`;
+        const signed = signedKeys.has(signedKey);
+        const signedReport = signedByKey.get(signedKey);
 
         return (
           <div
@@ -211,35 +171,31 @@ function ChildHistoryList({
               </span>
             </div>
 
-            {monthReports.length > 0 ? (
+            {signed && signedReport ? (
               <div className="flex items-center gap-2 border-b bg-amber-50/60 px-4 py-1.5 text-xs text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
                 <CheckCircle2 className="size-3.5" />
-                {monthReports.length === 1
-                  ? `Monatsbericht von ${monthReports[0].supervisorName} unterschrieben.`
-                  : `Monatsberichte unterschrieben (${monthReports.length}).`}{" "}
+                Vom Vorgesetzten ({signedReport.supervisorName}) unterschrieben
+                am{" "}
+                {new Date(signedReport.signedAt).toLocaleDateString("de-DE")}.
                 Änderungen werden protokolliert.
               </div>
             ) : null}
 
             <ul className="divide-y">
-              {rows.map((event) => {
-                const signedKey = `${event.userId}-${year}-${month}`;
-                const isMonthSigned = signedKeys.has(signedKey);
-                return (
-                  <AdminEventRow
-                    key={event.id}
-                    event={event}
-                    edits={data.editsByEventId[event.id] ?? []}
-                    isMonthSigned={isMonthSigned}
-                    secondary={
-                      event.userName ? (
-                        <span className="truncate">{event.userName}</span>
-                      ) : null
-                    }
-                    onDeleted={onChanged}
-                  />
-                );
-              })}
+              {rows.map((event) => (
+                <AdminEventRow
+                  key={event.id}
+                  event={event}
+                  edits={data.editsByEventId[event.id] ?? []}
+                  isMonthSigned={signed}
+                  secondary={
+                    event.childName ? (
+                      <span className="truncate">{event.childName}</span>
+                    ) : null
+                  }
+                  onDeleted={onChanged}
+                />
+              ))}
             </ul>
           </div>
         );

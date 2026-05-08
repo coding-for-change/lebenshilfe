@@ -93,3 +93,17 @@ export const SubmitMonthlyReportSchema = z.object({
 export type SubmitMonthlyReportInput = z.infer<
   typeof SubmitMonthlyReportSchema
 >;
+
+// Snapshot of a single event captured at the moment a MonthlyReport is signed.
+// Persisted on MonthlyReport.signedSnapshot and never mutated afterwards, so
+// the supervisor's signature stays bound to the values they actually saw.
+export type SignedEventSnapshot = {
+  eventId: string;
+  type: EventType;
+  date: string; // YYYY-MM-DD
+  startTime: string | null;
+  endTime: string | null;
+  note: string | null;
+  childId: string | null;
+  signatureKey: string;
+};

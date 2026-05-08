@@ -26,7 +26,6 @@ import {
   listChildren,
   listSchedulesForChild,
   listSchedulesForChildren,
-  listWorkEventsForChild,
   updateAssignment,
   updateChild,
   updateSchedule,
@@ -168,9 +167,5 @@ export const ChildrenFacade = {
 
   async deleteAbsence(id: string) {
     await deleteAbsenceById(id);
-  },
-
-  async listWorkEventsForChild(childId: string) {
-    return listWorkEventsForChild(childId);
   },
 };

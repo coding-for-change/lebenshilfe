@@ -31,22 +31,22 @@ import {
 import { Toaster } from "@/components/ui/sonner";
 import { BottomTabBar, type TabId } from "./bottom-tab-bar";
 import { NewEntrySheet } from "./new-entry-sheet";
-import { TabTag } from "./tab-tag";
+import { TabDay } from "./tab-day";
 import { TabWoche } from "./tab-woche";
 import { TabMonat } from "./tab-monat";
 import { SettingsDialog } from "./settings-dialog";
 import { startOfDayUtc } from "./date-utils";
 import type { ChildOption } from "./children-filter";
-import type { Event, Schedule } from "@/generated/prisma";
+import type { ChildAbsence, Event, Schedule } from "@/generated/prisma";
+import type { AssignmentsByWeekday } from "../weekday";
 
 type EventWithChild = Event & {
   child: { firstName: string; lastName: string } | null;
 };
 
-export type ChildAbsenceLite = {
-  childId: string;
-  date: string; // YYYY-MM-DD
-  note: string | null;
+// Date-Spalte ist `@db.Date`; serialisiert als YYYY-MM-DD über die RSC-Grenze.
+export type ChildAbsenceItem = Pick<ChildAbsence, "childId" | "note"> & {
+  date: string;
 };
 
 type Props = {
@@ -55,10 +55,8 @@ type Props = {
   events: EventWithChild[];
   schedules: Schedule[];
   lockedMonthKeys: string[];
-  childAbsences: ChildAbsenceLite[];
-  // Plain map of weekday (Mon=0..Sun=6) → child ids assigned on that day.
-  // Used to preselect the (only) assigned child when creating a new entry.
-  assignmentsByWeekday: Record<string, string[]>;
+  childAbsences: ChildAbsenceItem[];
+  assignmentsByWeekday: AssignmentsByWeekday;
 };
 
 const NAV_ITEMS: Array<{
@@ -142,7 +140,7 @@ export function SchoolAssistantApp({
     switch (activeTab) {
       case "tag":
         return (
-          <TabTag
+          <TabDay
             selectedDate={selectedDate}
             today={today}
             onSelectDate={setSelectedDate}

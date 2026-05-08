@@ -19,9 +19,9 @@ import {
   saveAbsenceAction,
 } from "../../actions";
 import type { SerializedAbsence, SerializedAssignment } from "../../serialize";
-import { toIso } from "./week-utils";
+import { formatIsoDateLocal } from "@/lib/utils";
 import {
-  SchulbegleiterCombobox,
+  SchoolAssistantCombobox,
   type SchoolAssistantOption,
 } from "./school-assistant-combobox";
 
@@ -267,7 +267,7 @@ function DayAssignmentForm({
   return (
     <div className="flex flex-col gap-2 text-sm">
       <div className="text-xs font-medium">Neue Zuweisung</div>
-      <SchulbegleiterCombobox
+      <SchoolAssistantCombobox
         options={schoolAssistantOptions}
         value={userId || null}
         onChange={(id) => setUserId(id ?? "")}
@@ -325,7 +325,7 @@ function DayAbsenceForm({
     try {
       await saveAbsenceAction({
         childId,
-        date: toIso(date),
+        date: formatIsoDateLocal(date),
         note: note.trim() || null,
       });
       toast.success("Krankheitstag gespeichert.");

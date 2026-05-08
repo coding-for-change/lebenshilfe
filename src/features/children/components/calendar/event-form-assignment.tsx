@@ -8,7 +8,7 @@ import { createAssignmentAction } from "../../actions";
 import { hoursToTime } from "./week-utils";
 import { EventFormShell, TimeRangeFields } from "./event-form-shell";
 import {
-  SchulbegleiterCombobox,
+  SchoolAssistantCombobox,
   type SchoolAssistantOption,
 } from "./school-assistant-combobox";
 
@@ -93,7 +93,7 @@ export function EventFormAssignment({
             <span>Schulbegleiter</span>
           </FieldContent>
         </FieldLabel>
-        <SchulbegleiterCombobox
+        <SchoolAssistantCombobox
           id="ev-sb"
           options={schoolAssistantOptions}
           value={userId || null}

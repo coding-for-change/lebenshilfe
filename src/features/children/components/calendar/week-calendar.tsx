@@ -24,9 +24,9 @@ import {
   parseTime,
   snapHours,
   startOfWeekMonday,
-  toIso,
   type CalendarEvent,
 } from "./week-utils";
+import { formatIsoDateLocal } from "@/lib/utils";
 import { EventCreateForm } from "./event-create-dialog";
 import { EventBlock } from "./event-block";
 import { DayQuickAddSection } from "./day-quick-add";
@@ -282,7 +282,8 @@ export function KinderWeekCalendar({
           <div />
           {DAY_LABELS_DE.map((label, weekday) => {
             const date = addDays(weekStart, weekday);
-            const isToday = toIso(date) === toIso(new Date());
+            const isToday =
+              formatIsoDateLocal(date) === formatIsoDateLocal(new Date());
             const dayAssignments = assignmentsByWeekday.get(weekday) ?? [];
             const dayAbsence = absencesByWeekday.get(weekday) ?? null;
             return (

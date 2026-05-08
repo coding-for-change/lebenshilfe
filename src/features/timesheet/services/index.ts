@@ -1,6 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { uploadSignaturePng } from "@/lib/storage";
 import { EventType, Prisma } from "@/generated/prisma";
+import {
+  WEEKDAYS,
+  emptyAssignmentsByWeekday,
+  type AssignmentsByWeekday,
+} from "../weekday";
 
 export async function getAssignedChildren(userId: string) {
   // A Schulbegleiter can have multiple ChildAssignment rows for the same
@@ -21,21 +26,32 @@ export async function getAssignedChildren(userId: string) {
   return unique;
 }
 
-// Returns the per-weekday set of children that this Schulbegleiter is
-// assigned to. Mon=0..Sun=6.
-export async function getAssignmentsByWeekday(userId: string) {
+// Returns the per-weekday list of children this Schulbegleiter is assigned
+// to. The DB stores `weekday` as Mon=0..Sun=6; we map each row into the
+// corresponding key on AssignmentsByWeekday and dedupe ids per day.
+export async function getAssignmentsByWeekday(
+  userId: string,
+): Promise<AssignmentsByWeekday> {
   const rows = await prisma.childAssignment.findMany({
     where: { userId },
     select: { childId: true, weekday: true },
   });
-  const byWeekday = new Map<number, Set<string>>();
+  const result = emptyAssignmentsByWeekday();
+  const seen: Record<string, Set<string>> = {};
   for (const r of rows) {
-    if (!byWeekday.has(r.weekday)) byWeekday.set(r.weekday, new Set());
-    byWeekday.get(r.weekday)!.add(r.childId);
+    const key = WEEKDAYS[r.weekday];
+    if (!key) continue;
+    const set = (seen[key] ??= new Set());
+    if (set.has(r.childId)) continue;
+    set.add(r.childId);
+    result[key].push(r.childId);
   }
-  return byWeekday;
+  return result;
 }
 
+// Authorization guard: ensures every child the caller wants to log work for
+// is actually assigned to their account. Prevents a client from submitting
+// timesheet entries against a child they do not own.
 export async function assertChildrenAssignedToUser(
   userId: string,
   childIds: string[],

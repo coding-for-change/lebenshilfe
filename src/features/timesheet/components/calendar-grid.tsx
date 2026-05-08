@@ -1,11 +1,10 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { cn, formatIsoDateUtc } from "@/lib/utils";
 import {
   MONTHS_LONG,
   WEEKDAYS_SHORT,
   addDays,
-  formatDateIso,
   isSameUtcDay,
   startOfWeekUtc,
 } from "./date-utils";
@@ -36,7 +35,7 @@ export function CalendarGrid({
 
   const byIso = new Map<string, { work: boolean; sick: boolean }>();
   for (const ev of events) {
-    const iso = formatDateIso(ev.date);
+    const iso = formatIsoDateUtc(ev.date);
     const cur = byIso.get(iso) ?? { work: false, sick: false };
     if (ev.type === "WORK") cur.work = true;
     else cur.sick = true;
@@ -60,7 +59,7 @@ export function CalendarGrid({
       </div>
       <div className="grid grid-cols-7 gap-1">
         {days.map((d) => {
-          const iso = formatDateIso(d);
+          const iso = formatIsoDateUtc(d);
           const status = byIso.get(iso);
           const inMonth = d.getUTCMonth() === month - 1;
           const isToday = isSameUtcDay(d, today);

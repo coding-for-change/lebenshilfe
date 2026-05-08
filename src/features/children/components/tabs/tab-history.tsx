@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { FileDown, Loader2, Mail } from "lucide-react";
+import { match } from "ts-pattern";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -10,6 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { listWorkEventsForChildAction } from "../../actions";
+import { formatMonthYearLong, formatShortDateWithWeekday } from "@/lib/utils";
 import type { SerializedChild } from "../../serialize";
 
 type Props = {
@@ -20,24 +22,13 @@ type WorkEvent = Awaited<
   ReturnType<typeof listWorkEventsForChildAction>
 >[number];
 
-const monthFormatter = new Intl.DateTimeFormat("de-DE", {
-  year: "numeric",
-  month: "long",
-});
-
-const dateFormatter = new Intl.DateTimeFormat("de-DE", {
-  weekday: "short",
-  day: "2-digit",
-  month: "2-digit",
-});
-
 function groupByMonth(events: WorkEvent[]) {
   const groups = new Map<string, { label: string; rows: WorkEvent[] }>();
   for (const e of events) {
     const date = new Date(`${e.date}T00:00:00`);
     const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
     if (!groups.has(key)) {
-      groups.set(key, { label: monthFormatter.format(date), rows: [] });
+      groups.set(key, { label: formatMonthYearLong(date), rows: [] });
     }
     groups.get(key)!.rows.push(e);
   }
@@ -89,16 +80,6 @@ export function TabHistory({ child }: Props) {
     };
   }, [child.id]);
 
-  // Treat data as loading if it belongs to a different (previously open) child.
-  const events =
-    state.status === "loaded" && state.childId === child.id
-      ? state.events
-      : null;
-  const error =
-    state.status === "error" && state.childId === child.id
-      ? state.message
-      : null;
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
@@ -146,56 +127,61 @@ export function TabHistory({ child }: Props) {
         </TooltipProvider>
       </div>
 
-      {error ? (
-        <div className="rounded-md border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive">
-          {error}
-        </div>
-      ) : events == null ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          Lade Historie…
-        </div>
-      ) : events.length === 0 ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Noch keine erfassten Zeiten.
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {groupByMonth(events).map(({ key, label, rows }) => (
-            <div
-              key={key}
-              className="overflow-hidden rounded-md border"
-            >
-              <div className="flex items-baseline justify-between gap-2 border-b bg-muted/40 px-4 py-2">
-                <h4 className="text-sm font-medium">{label}</h4>
-                <span className="text-xs text-muted-foreground">
-                  {rows.length} Eintrag {rows.length === 1 ? "" : "e"} ·{" "}
-                  {totalHours(rows)} h
-                </span>
+      {match(state)
+        .with({ status: "error", childId: child.id }, ({ message }) => (
+          <div className="rounded-md border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive">
+            {message}
+          </div>
+        ))
+        .with({ status: "loaded", childId: child.id, events: [] }, () => (
+          <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
+            Noch keine erfassten Zeiten.
+          </div>
+        ))
+        .with({ status: "loaded", childId: child.id }, ({ events }) => (
+          <div className="flex flex-col gap-3">
+            {groupByMonth(events).map(({ key, label, rows }) => (
+              <div
+                key={key}
+                className="overflow-hidden rounded-md border"
+              >
+                <div className="flex items-baseline justify-between gap-2 border-b bg-muted/40 px-4 py-2">
+                  <h4 className="text-sm font-medium">{label}</h4>
+                  <span className="text-xs text-muted-foreground">
+                    {rows.length} Eintrag {rows.length === 1 ? "" : "e"} ·{" "}
+                    {totalHours(rows)} h
+                  </span>
+                </div>
+                <ul className="divide-y">
+                  {rows.map((r) => (
+                    <li
+                      key={r.id}
+                      className="grid grid-cols-[max-content_1fr_max-content] gap-3 px-4 py-2 text-sm"
+                    >
+                      <span className="font-medium">
+                        {formatShortDateWithWeekday(r.date)}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {r.userName}
+                        {r.note ? <> · {r.note}</> : null}
+                      </span>
+                      <span className="tabular-nums">
+                        {r.startTime ?? "—"} – {r.endTime ?? "—"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <ul className="divide-y">
-                {rows.map((r) => (
-                  <li
-                    key={r.id}
-                    className="grid grid-cols-[max-content_1fr_max-content] gap-3 px-4 py-2 text-sm"
-                  >
-                    <span className="font-medium">
-                      {dateFormatter.format(new Date(`${r.date}T00:00:00`))}
-                    </span>
-                    <span className="text-muted-foreground">
-                      {r.userName}
-                      {r.note ? <> · {r.note}</> : null}
-                    </span>
-                    <span className="tabular-nums">
-                      {r.startTime ?? "—"} – {r.endTime ?? "—"}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        ))
+        // Loading + stale (childId mismatch from a previously opened child).
+        .otherwise(() => (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            Lade Historie…
+          </div>
+        ))}
     </div>
   );
 }

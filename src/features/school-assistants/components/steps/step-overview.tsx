@@ -1,18 +1,13 @@
 "use client";
 
 import { FlagCell } from "@/components/flag-cell";
+import { formatDate } from "@/lib/utils";
 import type { WizardFormState, WorkshopOption } from "../wizard-types";
 
 type Props = {
   value: WizardFormState;
   workshops: WorkshopOption[];
 };
-
-function formatDate(iso: string) {
-  if (!iso) return "—";
-  const d = new Date(`${iso}T00:00:00`);
-  return d.toLocaleDateString("de-DE");
-}
 
 export function StepOverview({ value, workshops }: Props) {
   const selectedWorkshops = value.workshops
@@ -47,7 +42,7 @@ export function StepOverview({ value, workshops }: Props) {
         />
         <Row
           label="Einführungstag"
-          value={formatDate(value.introductionDay)}
+          value={value.introductionDay ? formatDate(value.introductionDay) : "—"}
         />
         <Row
           label="Leos One"
@@ -81,7 +76,7 @@ export function StepOverview({ value, workshops }: Props) {
               >
                 <span>{w.workshop?.name ?? w.workshopId}</span>
                 <span className="text-muted-foreground">
-                  {formatDate(w.attendedOn)}
+                  {w.attendedOn ? formatDate(w.attendedOn) : "—"}
                 </span>
               </li>
             ))}

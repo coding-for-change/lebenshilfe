@@ -5,7 +5,7 @@ import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 
-import { cn } from "@/lib/utils";
+import { cn, formatIsoDateLocal } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -29,14 +29,6 @@ function parseValue(value: string): Date | undefined {
   if (!value) return undefined;
   const d = new Date(`${value}T00:00:00`);
   return Number.isNaN(d.getTime()) ? undefined : d;
-}
-
-function toIso(date: Date): string {
-  // Local-time YYYY-MM-DD (avoid TZ shifting back a day).
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
 }
 
 export function DatePicker({
@@ -89,7 +81,7 @@ export function DatePicker({
           defaultMonth={selected}
           onSelect={(date) => {
             if (date) {
-              onChange(toIso(date));
+              onChange(formatIsoDateLocal(date));
               setOpen(false);
             } else {
               onChange("");

@@ -49,13 +49,6 @@ export default async function LandingPage() {
     TimesheetFacade.getAssignmentsByWeekday(user.id),
   ]);
 
-  // Server actions can't ship Maps over the RSC boundary; flatten to a plain
-  // object keyed by weekday string with arrays of child ids.
-  const assignmentsByWeekdayPlain: Record<string, string[]> = {};
-  for (const [weekday, ids] of assignmentsByWeekday.entries()) {
-    assignmentsByWeekdayPlain[String(weekday)] = Array.from(ids);
-  }
-
   return (
     <SchoolAssistantApp
       currentUser={{
@@ -76,7 +69,7 @@ export default async function LandingPage() {
         date: a.date.toISOString().slice(0, 10),
         note: a.note,
       }))}
-      assignmentsByWeekday={assignmentsByWeekdayPlain}
+      assignmentsByWeekday={assignmentsByWeekday}
     />
   );
 }

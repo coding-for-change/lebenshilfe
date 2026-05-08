@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { PageSection } from "@/components/page-section";
 import { SearchableTable } from "@/components/searchable-table";
+import { formatDate } from "@/lib/utils";
 import { WorkshopFormDialog } from "./workshop-form-dialog";
 import { WorkshopDetailSheet } from "./workshop-detail-sheet";
 import { WorkshopsRowActions } from "./workshops-row-actions";
@@ -74,9 +75,7 @@ export function WorkshopsTable({ workshops }: { workshops: WorkshopRow[] }) {
                       <TableCell className="max-w-md truncate text-muted-foreground">
                         {w.description ?? "—"}
                       </TableCell>
-                      <TableCell>
-                        {new Date(w.createdAt).toLocaleDateString("de-DE")}
-                      </TableCell>
+                      <TableCell>{formatDate(w.createdAt)}</TableCell>
                       <TableCell
                         className="text-right"
                         onClick={(e) => e.stopPropagation()}

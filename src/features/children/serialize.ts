@@ -1,3 +1,4 @@
+import { formatIsoDateUtc } from "@/lib/utils";
 import type { ChildWithRelations } from "./services";
 
 export type SerializedAssignment = {
@@ -50,13 +51,6 @@ export type SerializedChild = {
   absences: SerializedAbsence[];
 };
 
-function toIso(date: Date): string {
-  const y = date.getUTCFullYear();
-  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(date.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
 export function serializeChild(c: ChildWithRelations): SerializedChild {
   return {
     id: c.id,
@@ -97,7 +91,7 @@ export function serializeChild(c: ChildWithRelations): SerializedChild {
     })),
     absences: c.absences.map((a) => ({
       id: a.id,
-      date: toIso(a.date),
+      date: formatIsoDateUtc(a.date),
       note: a.note,
     })),
   };

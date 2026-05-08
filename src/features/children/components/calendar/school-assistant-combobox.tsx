@@ -31,7 +31,7 @@ type Props = {
   placeholder?: string;
 };
 
-export function SchulbegleiterCombobox({
+export function SchoolAssistantCombobox({
   id,
   options,
   value,

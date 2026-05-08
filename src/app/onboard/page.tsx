@@ -32,6 +32,7 @@ export default function OnboardPage({
 
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [hasPrefilledName, setHasPrefilledName] = useState(false);
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<
     "idle" | "loading" | "success" | "error" | "verifying"
@@ -43,7 +44,10 @@ export default function OnboardPage({
       fetchInviteDetails(token)
         .then(({ email: resEmail, name: resName }) => {
           setEmail(resEmail);
-          setName(resName);
+          if (resName) {
+            setName(resName);
+            setHasPrefilledName(true);
+          }
           setStatus("idle");
         })
         .catch(() => {
@@ -58,14 +62,14 @@ export default function OnboardPage({
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!password.trim()) return;
+    if (!password.trim() || !name.trim()) return;
 
     setStatus("loading");
     try {
       const result = await authClient.signUp.email({
         email,
         password,
-        name: "",
+        name: name.trim(),
       });
       if (result.error) throw result.error;
 
@@ -170,9 +174,14 @@ export default function OnboardPage({
                     <FieldLabel htmlFor="name">Name</FieldLabel>
                     <Input
                       id="name"
-                      disabled
+                      required
+                      autoComplete="name"
                       value={name}
-                      className="h-11 bg-muted/60"
+                      onChange={(e) => setName(e.target.value)}
+                      disabled={hasPrefilledName || status === "loading"}
+                      className={
+                        hasPrefilledName ? "h-11 bg-muted/60" : "h-11"
+                      }
                     />
                   </Field>
                   <Field>

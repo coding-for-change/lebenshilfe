@@ -6,7 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { saveAbsenceAction } from "../../actions";
-import { addDays, toIso } from "./week-utils";
+import { addDays } from "./week-utils";
+import { formatIsoDateLocal } from "@/lib/utils";
 import { EventFormShell } from "./event-form-shell";
 
 type Props = {
@@ -27,7 +28,7 @@ export function EventFormAbsence({
   onCancel,
 }: Props) {
   const [absenceDate, setAbsenceDate] = useState(
-    toIso(addDays(weekStart, weekday)),
+    formatIsoDateLocal(addDays(weekStart, weekday)),
   );
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);

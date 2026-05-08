@@ -17,7 +17,7 @@ import { WeekStrip } from "./week-strip";
 import { deleteEventAction } from "../actions";
 import type { Event, Schedule } from "@/generated/prisma";
 import type { ChildOption } from "./children-filter";
-import type { ChildAbsenceLite } from "./timesheet-shell";
+import type { ChildAbsenceItem } from "./timesheet-shell";
 
 type EventWithChild = Event & {
   child: { firstName: string; lastName: string } | null;
@@ -31,13 +31,13 @@ type Props = {
   events: EventWithChild[];
   lockedMonths: Set<string>;
   assignedChildren: ChildOption[];
-  childAbsences: ChildAbsenceLite[];
+  childAbsences: ChildAbsenceItem[];
   schedules: Schedule[];
 };
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-export function TabTag({
+export function TabDay({
   selectedDate,
   today,
   onSelectDate,
@@ -71,7 +71,7 @@ export function TabTag({
     return childAbsences
       .filter((a) => a.date === selectedDateIso)
       .map((a) => ({ ...a, child: childById.get(a.childId) }))
-      .filter((a): a is ChildAbsenceLite & { child: ChildOption } => !!a.child);
+      .filter((a): a is ChildAbsenceItem & { child: ChildOption } => !!a.child);
   }, [childAbsences, selectedDateIso, childById]);
 
   const daySchedules = useMemo(() => {

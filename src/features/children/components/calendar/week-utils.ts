@@ -29,13 +29,6 @@ export function addDays(d: Date, n: number): Date {
   return new Date(d.getTime() + n * MS_PER_DAY);
 }
 
-export function toIso(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
 // Convert "HH:MM" to fractional hours (e.g. "08:30" → 8.5).
 export function timeToHours(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);

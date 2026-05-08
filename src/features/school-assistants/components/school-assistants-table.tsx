@@ -17,6 +17,7 @@ import { SchoolAssistantRowActions } from "./school-assistant-row-actions";
 import { SchoolAssistantWizard } from "./school-assistant-wizard";
 import { SchoolAssistantDetailSheet } from "./school-assistant-detail-sheet";
 import { StatusBadge } from "./status-badge";
+import { formatDate } from "@/lib/utils";
 import type { WorkshopOption } from "./wizard-types";
 import type { SerializedProfile } from "../serialize";
 
@@ -24,11 +25,6 @@ type Props = {
   profiles: SerializedProfile[];
   workshops: WorkshopOption[];
 };
-
-function formatIsoDate(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(`${iso}T00:00:00`).toLocaleDateString("de-DE");
-}
 
 export function SchoolAssistantsTable({ profiles, workshops }: Props) {
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -92,7 +88,11 @@ export function SchoolAssistantsTable({ profiles, workshops }: Props) {
                           ? "—"
                           : `${Number(p.weeklyHours)} h`}
                       </TableCell>
-                      <TableCell>{formatIsoDate(p.introductionDay)}</TableCell>
+                      <TableCell>
+                        {p.introductionDay
+                          ? formatDate(p.introductionDay)
+                          : "—"}
+                      </TableCell>
                       <TableCell className="text-center">
                         <div className="flex justify-center">
                           <FlagCell on={p.leosOne} />

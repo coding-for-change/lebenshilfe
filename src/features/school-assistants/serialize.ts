@@ -1,4 +1,5 @@
 import type { SchulbegleiterStatus } from "@/generated/prisma";
+import { formatIsoDateUtc } from "@/lib/utils";
 import type { ProfileWithAttendances } from "./services";
 
 export type SerializedAttendance = {
@@ -21,13 +22,6 @@ export type SerializedProfile = {
   attendances: SerializedAttendance[];
 };
 
-function toIso(date: Date): string {
-  const y = date.getUTCFullYear();
-  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(date.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
 export function serializeProfile(p: ProfileWithAttendances): SerializedProfile {
   return {
     id: p.id,
@@ -40,10 +34,12 @@ export function serializeProfile(p: ProfileWithAttendances): SerializedProfile {
     weeklyHours: p.weeklyHours == null ? null : Number(p.weeklyHours),
     zvNeuNachBescheid: p.zvNeuNachBescheid,
     zvNeuNote: p.zvNeuNote,
-    introductionDay: p.introductionDay ? toIso(p.introductionDay) : null,
+    introductionDay: p.introductionDay
+      ? formatIsoDateUtc(p.introductionDay)
+      : null,
     attendances: p.attendances.map((a) => ({
       workshopId: a.workshopId,
-      attendedOn: toIso(a.attendedOn),
+      attendedOn: formatIsoDateUtc(a.attendedOn),
     })),
   };
 }

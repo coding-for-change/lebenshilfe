@@ -12,7 +12,7 @@ import {
   isSameUtcDay,
   relativeLabel,
   timeToMinutes,
-} from "./date-utils";
+} from "@/lib/dates";
 import { WeekStrip } from "./week-strip";
 import { deleteEventAction } from "../actions";
 import type { Event, Schedule } from "@/generated/prisma";

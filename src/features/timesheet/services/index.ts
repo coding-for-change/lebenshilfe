@@ -55,10 +55,12 @@ export async function getAssignmentsByWeekday(
 export async function assertChildrenAssignedToUser(
   userId: string,
   childIds: string[],
+  date: Date,
 ) {
   if (childIds.length === 0) return;
+  const day = date.getDay() - 1; //0 indexed
   const count = await prisma.childAssignment.count({
-    where: { userId, childId: { in: childIds } },
+    where: { userId, childId: { in: childIds }, weekday: day },
   });
   if (count !== childIds.length) {
     throw new Error("Ein Kind ist diesem Konto nicht zugewiesen.");

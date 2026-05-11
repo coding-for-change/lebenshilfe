@@ -199,10 +199,11 @@ model Event {
   date         DateTime  @db.Date
   startTime    String?
   endTime      String?
-  note         String?   @db.Text
-  signatureKey String
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  note            String?   @db.Text
+  signatureKey    String?
+  modifiedByAdmin Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   child        Child?    @relation(fields: [childId], references: [id])
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 

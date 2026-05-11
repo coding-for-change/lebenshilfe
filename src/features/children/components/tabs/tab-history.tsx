@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { FileDown, Loader2, Mail } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { FileDown, Loader2, Mail, Plus, Pencil, Trash } from "lucide-react";
 import { match } from "ts-pattern";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -10,12 +11,34 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { listWorkEventsForChildAction } from "../../actions";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  listWorkEventsForChildAction,
+  createWorkEventAsAdminAction,
+  updateWorkEventAsAdminAction,
+  deleteWorkEventAsAdminAction,
+} from "../../actions";
 import { formatMonthYearLong, formatShortDateWithWeekday } from "@/lib/utils";
 import type { SerializedChild } from "../../serialize";
 
 type Props = {
   child: SerializedChild;
+  schoolAssistantOptions: { id: string; name: string }[];
 };
 
 type WorkEvent = Awaited<
@@ -51,11 +74,23 @@ type LoadState =
   | { status: "loaded"; childId: string; events: WorkEvent[] }
   | { status: "error"; childId: string; message: string };
 
-export function TabHistory({ child }: Props) {
+export function TabHistory({ child, schoolAssistantOptions }: Props) {
   const [state, setState] = useState<LoadState>({
     status: "loading",
     childId: child.id,
   });
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<WorkEvent | null>(null);
+  const [formData, setFormData] = useState({
+    userId: "",
+    date: "",
+    startTime: "",
+    endTime: "",
+    note: "",
+  });
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     let cancelled = false;
@@ -78,7 +113,79 @@ export function TabHistory({ child }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [child.id]);
+  }, [child.id, refreshKey]);
+
+  const handleOpenAdd = () => {
+    setEditingEvent(null);
+    setFormData({
+      userId: "",
+      date: new Date().toISOString().slice(0, 10),
+      startTime: "",
+      endTime: "",
+      note: "",
+    });
+    setDialogOpen(true);
+  };
+
+  const handleOpenEdit = (e: WorkEvent) => {
+    setEditingEvent(e);
+    setFormData({
+      userId: e.userId ?? "",
+      date: e.date,
+      startTime: e.startTime ?? "",
+      endTime: e.endTime ?? "",
+      note: e.note ?? "",
+    });
+    setDialogOpen(true);
+  };
+
+  const handleDelete = (id: string) => {
+    if (!confirm("Eintrag wirklich löschen?")) return;
+    startTransition(async () => {
+      try {
+        await deleteWorkEventAsAdminAction(id);
+        toast.success("Eintrag gelöscht.");
+        setRefreshKey((k) => k + 1);
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Fehler beim Löschen.",
+        );
+      }
+    });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    startTransition(async () => {
+      try {
+        if (editingEvent) {
+          await updateWorkEventAsAdminAction(editingEvent.id, {
+            ...formData,
+            userId: formData.userId || undefined,
+            note: formData.note || undefined,
+          });
+          toast.success("Eintrag aktualisiert.");
+        } else {
+          if (!formData.userId) throw new Error("Benutzer auswählen.");
+          await createWorkEventAsAdminAction({
+            childId: child.id,
+            userId: formData.userId,
+            date: formData.date,
+            startTime: formData.startTime,
+            endTime: formData.endTime,
+            note: formData.note || undefined,
+          });
+          toast.success("Eintrag hinzugefügt.");
+        }
+        setDialogOpen(false);
+        setRefreshKey((k) => k + 1);
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Speichern fehlgeschlagen.",
+        );
+      }
+    });
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -92,6 +199,15 @@ export function TabHistory({ child }: Props) {
         </p>
         <TooltipProvider delayDuration={200}>
           <div className="flex shrink-0 items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleOpenAdd}
+            >
+              <Plus className="mr-1 h-4 w-4" />
+              Eintrag
+            </Button>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span tabIndex={0}>
@@ -102,7 +218,7 @@ export function TabHistory({ child }: Props) {
                     disabled
                   >
                     <FileDown />
-                    PDF erstellen
+                    PDF
                   </Button>
                 </span>
               </TooltipTrigger>
@@ -156,18 +272,47 @@ export function TabHistory({ child }: Props) {
                   {rows.map((r) => (
                     <li
                       key={r.id}
-                      className="grid grid-cols-[max-content_1fr_max-content] gap-3 px-4 py-2 text-sm"
+                      className="grid grid-cols-[max-content_1fr_max-content_max-content] items-center gap-3 px-4 py-2 text-sm hover:bg-muted/30"
                     >
                       <span className="font-medium">
                         {formatShortDateWithWeekday(r.date)}
                       </span>
-                      <span className="text-muted-foreground">
-                        {r.userName}
-                        {r.note ? <> · {r.note}</> : null}
+                      <span className="text-muted-foreground flex flex-col gap-0.5">
+                        <span className="flex items-center gap-2">
+                          {r.userName}
+                          {r.modifiedByAdmin && (
+                            <span className="rounded bg-primary/10 px-1 py-0.5 text-[10px] text-primary">
+                              Admin
+                            </span>
+                          )}
+                        </span>
+                        {r.note && (
+                          <span className="text-xs">Hinweis: {r.note}</span>
+                        )}
                       </span>
                       <span className="tabular-nums">
                         {r.startTime ?? "—"} – {r.endTime ?? "—"}
                       </span>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          onClick={() => handleOpenEdit(r)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDelete(r.id)}
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -175,13 +320,114 @@ export function TabHistory({ child }: Props) {
             ))}
           </div>
         ))
-        // Loading + stale (childId mismatch from a previously opened child).
         .otherwise(() => (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
             Lade Historie…
           </div>
         ))}
+
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingEvent ? "Eintrag bearbeiten" : "Neuen Eintrag hinzufügen"}
+            </DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={handleSubmit}
+            className="flex flex-col gap-4"
+          >
+            <div className="flex flex-col gap-2">
+              <Label>Mitarbeiter</Label>
+              <Select
+                value={formData.userId}
+                onValueChange={(v) => setFormData((p) => ({ ...p, userId: v }))}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Bitte wählen..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {schoolAssistantOptions.map((opt) => (
+                    <SelectItem
+                      key={opt.id}
+                      value={opt.id}
+                    >
+                      {opt.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>Datum</Label>
+              <Input
+                type="date"
+                required
+                value={formData.date}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, date: e.target.value }))
+                }
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-2">
+                <Label>Von</Label>
+                <Input
+                  type="time"
+                  required
+                  value={formData.startTime}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, startTime: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label>Bis</Label>
+                <Input
+                  type="time"
+                  required
+                  value={formData.endTime}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, endTime: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>Hinweis (optional)</Label>
+              <Input
+                type="text"
+                value={formData.note}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, note: e.target.value }))
+                }
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDialogOpen(false)}
+                disabled={isPending}
+              >
+                Abbrechen
+              </Button>
+              <Button
+                type="submit"
+                disabled={isPending}
+              >
+                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Speichern
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

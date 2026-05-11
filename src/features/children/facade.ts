@@ -9,6 +9,10 @@ import {
   type CreateChildInput,
   type ScheduleInput,
   type UpdateChildInput,
+  WorkEventSchema,
+  UpdateWorkEventSchema,
+  type WorkEventInput,
+  type UpdateWorkEventInput,
 } from "./schemas";
 import {
   createAssignment,
@@ -31,6 +35,9 @@ import {
   updateChild,
   updateSchedule,
   upsertAbsence,
+  createWorkEventAsAdmin,
+  updateWorkEventAsAdmin,
+  deleteWorkEventAsAdmin,
 } from "./services";
 
 function childFieldsFromCreate(input: CreateChildInput) {
@@ -172,5 +179,19 @@ export const ChildrenFacade = {
 
   async listWorkEventsForChild(childId: string) {
     return listWorkEventsForChild(childId);
+  },
+
+  async createWorkEventAsAdmin(input: WorkEventInput) {
+    const parsed = WorkEventSchema.parse(input);
+    return createWorkEventAsAdmin(parsed);
+  },
+
+  async updateWorkEventAsAdmin(id: string, input: UpdateWorkEventInput) {
+    const parsed = UpdateWorkEventSchema.parse(input);
+    return updateWorkEventAsAdmin(id, parsed);
+  },
+
+  async deleteWorkEventAsAdmin(id: string) {
+    return deleteWorkEventAsAdmin(id);
   },
 };

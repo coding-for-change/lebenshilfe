@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, X } from "lucide-react";
+import SignaturePad from "signature_pad";
 import {
   Dialog,
   DialogContent,
@@ -31,16 +32,11 @@ export function SignaturePadDialog({
   submitting,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const padRef = useRef<SignaturePad | null>(null);
   const [hasInk, setHasInk] = useState(false);
-  const drawingRef = useRef(false);
-  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
 
   const clear = useCallback(() => {
-    const c = canvasRef.current;
-    if (!c) return;
-    const ctx = c.getContext("2d");
-    if (!ctx) return;
-    ctx.clearRect(0, 0, c.width, c.height);
+    padRef.current?.clear();
     setHasInk(false);
   }, []);
 
@@ -49,76 +45,42 @@ export function SignaturePadDialog({
     const c = canvasRef.current;
     if (!c) return;
 
+    const pad = new SignaturePad(c, {
+      penColor: "#09090b",
+      minWidth: 1,
+      maxWidth: 2.4,
+    });
+    padRef.current = pad;
+
     const resize = () => {
-      const dpr = window.devicePixelRatio || 1;
-      const cssW = c.clientWidth;
-      const cssH = c.clientHeight;
+      const ratio = Math.max(window.devicePixelRatio || 1, 1);
+      const cssW = c.offsetWidth;
+      const cssH = c.offsetHeight;
       if (cssW === 0 || cssH === 0) return;
-      const nextW = Math.floor(cssW * dpr);
-      const nextH = Math.floor(cssH * dpr);
-      if (c.width === nextW && c.height === nextH) return;
-      c.width = nextW;
-      c.height = nextH;
-      const ctx = c.getContext("2d");
-      if (!ctx) return;
-      ctx.scale(dpr, dpr);
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.strokeStyle = "#09090b";
-      ctx.lineWidth = 2.4;
+      c.width = cssW * ratio;
+      c.height = cssH * ratio;
+      c.getContext("2d")?.scale(ratio, ratio);
+      pad.clear();
       setHasInk(false);
     };
 
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(c);
-    return () => ro.disconnect();
+
+    pad.addEventListener("beginStroke", () => setHasInk(true));
+
+    return () => {
+      ro.disconnect();
+      pad.off();
+      padRef.current = null;
+    };
   }, [open]);
 
-  const toLocal = (ev: React.PointerEvent<HTMLCanvasElement>) => {
-    const c = canvasRef.current!;
-    const rect = c.getBoundingClientRect();
-    const scaleX = rect.width ? c.clientWidth / rect.width : 1;
-    const scaleY = rect.height ? c.clientHeight / rect.height : 1;
-    return {
-      x: (ev.clientX - rect.left) * scaleX,
-      y: (ev.clientY - rect.top) * scaleY,
-    };
-  };
-
-  const onPointerDown = (ev: React.PointerEvent<HTMLCanvasElement>) => {
-    ev.preventDefault();
-    canvasRef.current?.setPointerCapture(ev.pointerId);
-    drawingRef.current = true;
-    lastPointRef.current = toLocal(ev);
-  };
-
-  const onPointerMove = (ev: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!drawingRef.current) return;
-    const ctx = canvasRef.current?.getContext("2d");
-    const last = lastPointRef.current;
-    if (!ctx || !last) return;
-    const p = toLocal(ev);
-    ctx.beginPath();
-    ctx.moveTo(last.x, last.y);
-    ctx.lineTo(p.x, p.y);
-    ctx.stroke();
-    lastPointRef.current = p;
-    if (!hasInk) setHasInk(true);
-  };
-
-  const onPointerUp = (ev: React.PointerEvent<HTMLCanvasElement>) => {
-    drawingRef.current = false;
-    lastPointRef.current = null;
-    try {
-      canvasRef.current?.releasePointerCapture(ev.pointerId);
-    } catch {}
-  };
-
   const confirm = async () => {
-    const c = canvasRef.current;
-    if (!c || !hasInk) return;
-    const data = c.toDataURL("image/png");
+    const pad = padRef.current;
+    if (!pad || pad.isEmpty()) return;
+    const data = pad.toDataURL("image/png");
     await onConfirm(data);
   };
 
@@ -147,10 +109,6 @@ export function SignaturePadDialog({
           <canvas
             ref={canvasRef}
             className="block h-[220px] w-full touch-none rounded-xl"
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerUp}
           />
           {!hasInk && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted-foreground/70">

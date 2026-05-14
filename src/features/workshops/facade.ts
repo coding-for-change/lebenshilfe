@@ -1,11 +1,16 @@
-import { WorkshopSchema, type WorkshopInput } from "./schemas";
+import {
+  WorkshopSchema,
+  UpdateWorkshopSchema,
+  type UpdateWorkshopInput,
+  type WorkshopInput,
+} from "./schemas";
 import {
   countAttendancesForWorkshop,
   deleteWorkshopById,
   findWorkshopById,
   insertWorkshop,
   listWorkshops,
-  updateWorkshopFields,
+  updateWorkshopPartial,
 } from "./services";
 
 function normaliseDescription(description: string | null | undefined) {
@@ -30,15 +35,18 @@ export const WorkshopsFacade = {
     );
   },
 
-  async update(id: string, input: WorkshopInput) {
-    const parsed = WorkshopSchema.parse(input);
+  async update(id: string, input: UpdateWorkshopInput) {
+    const parsed = UpdateWorkshopSchema.parse(input);
     const existing = await findWorkshopById(id);
     if (!existing) throw new Error("Workshop nicht gefunden.");
-    return updateWorkshopFields(
-      id,
-      parsed.name,
-      normaliseDescription(parsed.description),
-    );
+
+    const patch: { name?: string; description?: string | null } = {};
+    if (parsed.name !== undefined) patch.name = parsed.name;
+    if (parsed.description !== undefined) {
+      patch.description = normaliseDescription(parsed.description);
+    }
+    if (Object.keys(patch).length === 0) return existing;
+    return updateWorkshopPartial(id, patch);
   },
 
   async delete(id: string) {

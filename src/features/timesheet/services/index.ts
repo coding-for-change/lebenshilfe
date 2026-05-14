@@ -1,23 +1,66 @@
 import { prisma } from "@/lib/prisma";
 import { uploadSignaturePng } from "@/lib/storage";
 import { EventType, Prisma } from "@/generated/prisma";
+import {
+  WEEKDAYS,
+  emptyAssignmentsByWeekday,
+  type AssignmentsByWeekday,
+} from "../weekday";
 
 export async function getAssignedChildren(userId: string) {
+  // A Schulbegleiter can have multiple ChildAssignment rows for the same
+  // child (one per weekday after the cod-14 schema change), so we dedupe
+  // by child id before returning.
   const rows = await prisma.childAssignment.findMany({
     where: { userId },
     include: { child: true },
     orderBy: { child: { firstName: "asc" } },
   });
-  return rows.map((r) => r.child);
+  const seen = new Set<string>();
+  const unique: (typeof rows)[number]["child"][] = [];
+  for (const r of rows) {
+    if (seen.has(r.child.id)) continue;
+    seen.add(r.child.id);
+    unique.push(r.child);
+  }
+  return unique;
 }
 
+// Returns the per-weekday list of children this Schulbegleiter is assigned
+// to. The DB stores `weekday` as Mon=0..Sun=6; we map each row into the
+// corresponding key on AssignmentsByWeekday and dedupe ids per day.
+export async function getAssignmentsByWeekday(
+  userId: string,
+): Promise<AssignmentsByWeekday> {
+  const rows = await prisma.childAssignment.findMany({
+    where: { userId },
+    select: { childId: true, weekday: true },
+  });
+  const result = emptyAssignmentsByWeekday();
+  const seen: Record<string, Set<string>> = {};
+  for (const r of rows) {
+    const key = WEEKDAYS[r.weekday];
+    if (!key) continue;
+    const set = (seen[key] ??= new Set());
+    if (set.has(r.childId)) continue;
+    set.add(r.childId);
+    result[key].push(r.childId);
+  }
+  return result;
+}
+
+// Authorization guard: ensures every child the caller wants to log work for
+// is actually assigned to their account. Prevents a client from submitting
+// timesheet entries against a child they do not own.
 export async function assertChildrenAssignedToUser(
   userId: string,
   childIds: string[],
+  date: Date,
 ) {
   if (childIds.length === 0) return;
+  const day = date.getDay() - 1; //0 indexed
   const count = await prisma.childAssignment.count({
-    where: { userId, childId: { in: childIds } },
+    where: { userId, childId: { in: childIds }, weekday: day },
   });
   if (count !== childIds.length) {
     throw new Error("Ein Kind ist diesem Konto nicht zugewiesen.");

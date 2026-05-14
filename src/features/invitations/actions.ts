@@ -1,15 +1,10 @@
 "use server";
 
 import { InvitationFacade } from "./facade";
-import { SchulbegleiterFacade } from "@/features/schulbegleiter/facade";
+import { fetchInviteDetailsUseCase } from "@/use-cases/fetch-invite-details";
 
 export async function fetchInviteDetails(token: string) {
-  const invite = await InvitationFacade.verifyToken(token);
-  const profile = await SchulbegleiterFacade.getByEmail(invite.email);
-  if (!profile) {
-    throw new Error("Kein Schulbegleiter-Profil für diese Einladung gefunden.");
-  }
-  return { email: invite.email, name: profile.name };
+  return fetchInviteDetailsUseCase(token);
 }
 
 export async function consumeUsedToken(token: string) {

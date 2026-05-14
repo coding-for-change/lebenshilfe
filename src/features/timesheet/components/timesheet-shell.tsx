@@ -31,16 +31,22 @@ import {
 import { Toaster } from "@/components/ui/sonner";
 import { BottomTabBar, type TabId } from "./bottom-tab-bar";
 import { NewEntrySheet } from "./new-entry-sheet";
-import { TabTag } from "./tab-tag";
+import { TabDay } from "./tab-day";
 import { TabWoche } from "./tab-woche";
 import { TabMonat } from "./tab-monat";
 import { SettingsDialog } from "./settings-dialog";
 import { startOfDayUtc } from "./date-utils";
 import type { ChildOption } from "./children-filter";
-import type { Event, Schedule } from "@/generated/prisma";
+import type { ChildAbsence, Event, Schedule } from "@/generated/prisma";
+import type { AssignmentsByWeekday } from "../weekday";
 
 type EventWithChild = Event & {
   child: { firstName: string; lastName: string } | null;
+};
+
+// Date-Spalte ist `@db.Date`; serialisiert als YYYY-MM-DD über die RSC-Grenze.
+export type ChildAbsenceItem = Pick<ChildAbsence, "childId" | "note"> & {
+  date: string;
 };
 
 type Props = {
@@ -49,6 +55,8 @@ type Props = {
   events: EventWithChild[];
   schedules: Schedule[];
   lockedMonthKeys: string[];
+  childAbsences: ChildAbsenceItem[];
+  assignmentsByWeekday: AssignmentsByWeekday;
 };
 
 const NAV_ITEMS: Array<{
@@ -71,12 +79,14 @@ function greet(name: string): string {
   return `Guten Abend, ${firstName}`;
 }
 
-export function SchulbegleiterApp({
+export function SchoolAssistantApp({
   currentUser,
   assignedChildren,
   events,
   schedules,
   lockedMonthKeys,
+  childAbsences,
+  assignmentsByWeekday,
 }: Props) {
   const today = useMemo(() => startOfDayUtc(new Date()), []);
   const [activeTab, setActiveTab] = useState<Exclude<TabId, "mehr">>("tag");
@@ -130,7 +140,7 @@ export function SchulbegleiterApp({
     switch (activeTab) {
       case "tag":
         return (
-          <TabTag
+          <TabDay
             selectedDate={selectedDate}
             today={today}
             onSelectDate={setSelectedDate}
@@ -138,6 +148,8 @@ export function SchulbegleiterApp({
             events={events}
             lockedMonths={lockedMonths}
             assignedChildren={assignedChildren}
+            childAbsences={childAbsences}
+            schedules={schedules}
           />
         );
       case "woche":
@@ -346,6 +358,7 @@ export function SchulbegleiterApp({
           onOpenChange={setNewEntryOpen}
           defaultDate={selectedDate}
           assignedChildren={assignedChildren}
+          assignmentsByWeekday={assignmentsByWeekday}
           currentUserName={currentUser.name}
           schedules={schedules}
           lastEntry={
@@ -366,7 +379,7 @@ export function SchulbegleiterApp({
         />
 
         <Toaster
-          position="top-center"
+          position="bottom-right"
           richColors
         />
       </SidebarProvider>

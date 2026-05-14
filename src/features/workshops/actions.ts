@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth-guards";
 import { WorkshopsFacade } from "./facade";
-import type { WorkshopInput } from "./schemas";
+import type { UpdateWorkshopInput, WorkshopInput } from "./schemas";
 
 const ROUTE = "/admin/workshops";
 
@@ -11,15 +11,18 @@ export async function createWorkshopAction(input: WorkshopInput) {
   await requireAdmin();
   await WorkshopsFacade.create(input);
   revalidatePath(ROUTE);
-  revalidatePath("/admin/schulbegleiter");
+  revalidatePath("/admin/school-assistants");
   return { success: true };
 }
 
-export async function updateWorkshopAction(id: string, input: WorkshopInput) {
+export async function updateWorkshopAction(
+  id: string,
+  input: UpdateWorkshopInput,
+) {
   await requireAdmin();
   await WorkshopsFacade.update(id, input);
   revalidatePath(ROUTE);
-  revalidatePath("/admin/schulbegleiter");
+  revalidatePath("/admin/school-assistants");
   return { success: true };
 }
 

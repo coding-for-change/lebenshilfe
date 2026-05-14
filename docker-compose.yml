@@ -10,7 +10,16 @@ services:
     volumes:
       - mysql:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-plebenshilfe"]
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-uroot",
+          "-plebenshilfe",
+        ]
       interval: 5s
       timeout: 5s
       retries: 12

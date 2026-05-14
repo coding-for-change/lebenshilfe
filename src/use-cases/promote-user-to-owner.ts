@@ -1,10 +1,10 @@
 "use server";
 
-import { AuthFacade } from "@/features/auth/facade";
+import { requireOwner } from "@/lib/auth-guards";
 import { UserFacade } from "@/features/users/facade";
 
 export async function promoteUserToOwnerUseCase(userId: string) {
-  await AuthFacade.requireOwner();
+  await requireOwner();
   await UserFacade.promoteToOwner(userId);
   return { success: true };
 }

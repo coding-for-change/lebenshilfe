@@ -1,11 +1,11 @@
 "use server";
 
-import { AuthFacade } from "@/features/auth/facade";
+import { requireAdmin, requireOwner } from "@/lib/auth-guards";
 import { UserFacade } from "@/features/users/facade";
 import { Role } from "@/generated/prisma";
 
 export async function removeAdminUserUseCase(userId: string) {
-  const actor = await AuthFacade.requireAdmin();
+  const actor = await requireAdmin();
 
   if (actor.id === userId) {
     throw new Error("Du kannst dich nicht selbst entfernen.");
@@ -21,7 +21,7 @@ export async function removeAdminUserUseCase(userId: string) {
     );
   }
   if (target.role === Role.OWNER) {
-    await AuthFacade.requireOwner();
+    await requireOwner();
   }
 
   // The facade enforces the "always at least one owner" invariant inside a transaction.

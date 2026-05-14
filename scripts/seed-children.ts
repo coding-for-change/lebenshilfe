@@ -44,11 +44,14 @@ async function run() {
       },
     });
 
-    await prisma.childAssignment.upsert({
-      where: { childId_userId: { childId: child.id, userId: user.id } },
-      update: {},
-      create: { childId: child.id, userId: user.id },
+    const existingAssignment = await prisma.childAssignment.findFirst({
+      where: { childId: child.id, userId: user.id },
     });
+    if (!existingAssignment) {
+      await prisma.childAssignment.create({
+        data: { childId: child.id, userId: user.id },
+      });
+    }
     console.log(
       `  assigned ${child.firstName} ${child.lastName} → ${user.email}`,
     );

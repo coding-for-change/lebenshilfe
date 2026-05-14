@@ -2,12 +2,11 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, formatIsoDateUtc } from "@/lib/utils";
 import {
   MONTHS_SHORT,
   WEEKDAYS_SHORT,
   addDays,
-  formatDateIso,
   isSameUtcDay,
   isoWeek,
   startOfWeekUtc,
@@ -31,7 +30,7 @@ export function WeekStrip({
   const week = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   const eventByIso = new Map<string, { work: boolean; sick: boolean }>();
   for (const ev of events) {
-    const iso = formatDateIso(ev.date);
+    const iso = formatIsoDateUtc(ev.date);
     const cur = eventByIso.get(iso) ?? { work: false, sick: false };
     if (ev.type === "WORK") cur.work = true;
     else cur.sick = true;
@@ -74,7 +73,7 @@ export function WeekStrip({
       </div>
       <div className="grid grid-cols-7 gap-1">
         {week.map((d, i) => {
-          const iso = formatDateIso(d);
+          const iso = formatIsoDateUtc(d);
           const status = eventByIso.get(iso);
           const selected = isSameUtcDay(d, selectedDate);
           const isToday = isSameUtcDay(d, today);

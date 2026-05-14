@@ -1,0 +1,344 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { Clock, Lock, Plus, Stethoscope } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { toast } from "sonner";
+import {
+  formatDateLong,
+  formatDuration,
+  isSameUtcDay,
+  relativeLabel,
+  timeToMinutes,
+} from "./date-utils";
+import { WeekStrip } from "./week-strip";
+import { deleteEventAction } from "../actions";
+import type { Event, Schedule } from "@/generated/prisma";
+import type { ChildOption } from "./children-filter";
+import type { ChildAbsenceItem } from "./timesheet-shell";
+
+type EventWithChild = Event & {
+  child: { firstName: string; lastName: string } | null;
+};
+
+type Props = {
+  selectedDate: Date;
+  today: Date;
+  onSelectDate: (d: Date) => void;
+  onRequestNewEntry: () => void;
+  events: EventWithChild[];
+  lockedMonths: Set<string>;
+  assignedChildren: ChildOption[];
+  childAbsences: ChildAbsenceItem[];
+  schedules: Schedule[];
+};
+
+const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export function TabDay({
+  selectedDate,
+  today,
+  onSelectDate,
+  onRequestNewEntry,
+  events,
+  lockedMonths,
+  assignedChildren,
+  childAbsences,
+  schedules,
+}: Props) {
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const dayEvents = useMemo(
+    () => events.filter((e) => isSameUtcDay(e.date, selectedDate)),
+    [events, selectedDate],
+  );
+
+  const selectedDateIso = useMemo(() => {
+    const y = selectedDate.getUTCFullYear();
+    const m = String(selectedDate.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(selectedDate.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }, [selectedDate]);
+
+  const childById = useMemo(
+    () => new Map(assignedChildren.map((c) => [c.id, c])),
+    [assignedChildren],
+  );
+
+  const dayAbsences = useMemo(() => {
+    return childAbsences
+      .filter((a) => a.date === selectedDateIso)
+      .map((a) => ({ ...a, child: childById.get(a.childId) }))
+      .filter((a): a is ChildAbsenceItem & { child: ChildOption } => !!a.child);
+  }, [childAbsences, selectedDateIso, childById]);
+
+  const daySchedules = useMemo(() => {
+    // Convert UTC weekday (0=Sun..6=Sat) to Mon=0..Sun=6.
+    const weekday = (selectedDate.getUTCDay() + 6) % 7;
+    return schedules
+      .filter((s) => s.weekday === weekday)
+      .map((s) => ({ ...s, child: childById.get(s.childId) }))
+      .filter((s): s is Schedule & { child: ChildOption } => !!s.child)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }, [schedules, selectedDate, childById]);
+  const sickEvent = dayEvents.find((e) => e.type === "SICK");
+  const workEvents = dayEvents.filter((e) => e.type === "WORK");
+  const monthKey = `${selectedDate.getUTCFullYear()}-${
+    selectedDate.getUTCMonth() + 1
+  }`;
+  const locked = lockedMonths.has(monthKey);
+
+  const totalMinutes = workEvents.reduce(
+    (sum, e) =>
+      sum +
+      (e.startTime && e.endTime
+        ? timeToMinutes(e.endTime) - timeToMinutes(e.startTime)
+        : 0),
+    0,
+  );
+  const totalDuration =
+    totalMinutes > 0
+      ? `${Math.floor(totalMinutes / 60)}h${
+          totalMinutes % 60 ? ` ${totalMinutes % 60}m` : ""
+        }`
+      : null;
+
+  const canDelete = (ev: EventWithChild) =>
+    !locked && Date.now() - ev.createdAt.getTime() <= EDIT_WINDOW_MS;
+
+  const handleDelete = async (id: string) => {
+    setBusyId(id);
+    try {
+      await deleteEventAction(id);
+      toast.success("Eintrag gelöscht.");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Löschen fehlgeschlagen.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <WeekStrip
+        selectedDate={selectedDate}
+        onSelectDate={onSelectDate}
+        today={today}
+        events={events}
+      />
+
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {formatDateLong(selectedDate)}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {relativeLabel(selectedDate, today)}
+            {locked && (
+              <>
+                {" · "}
+                <Lock className="inline size-3.5" /> gesperrt
+              </>
+            )}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-right">
+          {totalDuration && (
+            <Badge
+              variant="secondary"
+              className="font-mono tabular-nums"
+            >
+              {totalDuration}
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      {dayAbsences.length > 0 && (
+        <Card className="border-rose-200 bg-rose-500/5 p-4">
+          <div className="flex items-start gap-3">
+            <div className="grid place-items-center size-10 shrink-0 rounded-full bg-rose-500/15 text-rose-700">
+              <Stethoscope className="size-5" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <p className="font-semibold text-rose-900">
+                {dayAbsences.length === 1
+                  ? `${dayAbsences[0].child.firstName} ${dayAbsences[0].child.lastName} ist krank gemeldet`
+                  : `${dayAbsences.length} zugewiesene Kinder sind krank gemeldet`}
+              </p>
+              {dayAbsences.length > 1 && (
+                <ul className="text-sm text-rose-900/80">
+                  {dayAbsences.map((a) => (
+                    <li key={a.childId}>
+                      {a.child.firstName} {a.child.lastName}
+                      {a.note ? ` — ${a.note}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {dayAbsences.length === 1 && dayAbsences[0].note && (
+                <p className="text-sm text-rose-900/80">
+                  {dayAbsences[0].note}
+                </p>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {daySchedules.length > 0 && (
+        <Card className="border-muted bg-muted/30 p-4">
+          <div className="flex items-start gap-3">
+            <div className="grid place-items-center size-10 shrink-0 rounded-full bg-muted text-muted-foreground">
+              <Clock className="size-5" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <p className="text-sm font-semibold">Stundenplan der Kinder</p>
+              <ul className="text-sm text-muted-foreground">
+                {daySchedules.map((s) => (
+                  <li
+                    key={s.id}
+                    className="flex justify-between gap-3 tabular-nums"
+                  >
+                    <span>
+                      {s.child.firstName} {s.child.lastName}
+                    </span>
+                    <span>
+                      {s.startTime}–{s.endTime}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {sickEvent && (
+        <Card className="border-rose-200 bg-rose-500/10 p-4">
+          <div className="flex items-center gap-3">
+            <div className="grid place-items-center size-10 rounded-full bg-rose-500/20 text-rose-700">
+              <Stethoscope className="size-5" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-rose-900">Krank · ganztägig</p>
+              {sickEvent.note && (
+                <p className="text-sm text-rose-900/80">{sickEvent.note}</p>
+              )}
+            </div>
+            {canDelete(sickEvent) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleDelete(sickEvent.id)}
+                disabled={busyId === sickEvent.id}
+              >
+                Löschen
+              </Button>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {workEvents.length > 0 && (
+        <div className="space-y-2">
+          {workEvents.map((ev) => {
+            const child = ev.child;
+            const dur =
+              ev.startTime && ev.endTime
+                ? formatDuration(ev.startTime, ev.endTime)
+                : "";
+            return (
+              <Card
+                key={ev.id}
+                className="p-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">
+                      {child
+                        ? `${child.firstName} ${child.lastName}`
+                        : "Arbeit"}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                      <Badge
+                        variant="secondary"
+                        className="font-mono"
+                      >
+                        {dur}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className="border-emerald-200 text-emerald-700"
+                      >
+                        Signiert
+                      </Badge>
+                      {assignedChildren.length > 1 &&
+                        workEvents.filter(
+                          (w) =>
+                            w.signatureKey === ev.signatureKey &&
+                            w.id !== ev.id,
+                        ).length > 0 && (
+                          <Badge variant="outline">Mehrere Kinder</Badge>
+                        )}
+                    </div>
+                    {ev.note && (
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {ev.note}
+                      </p>
+                    )}
+                  </div>
+                  <span className="font-mono text-sm tabular-nums text-muted-foreground">
+                    {ev.startTime}–{ev.endTime}
+                  </span>
+                  {canDelete(ev) && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDelete(ev.id)}
+                      disabled={busyId === ev.id}
+                    >
+                      Löschen
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {dayEvents.length === 0 && (
+        <Card className="flex flex-col items-center gap-3 border-dashed py-10 text-center">
+          <p className="text-sm text-muted-foreground">Keine Einträge</p>
+          {!locked && (
+            <Button onClick={onRequestNewEntry}>
+              <Plus className="size-4" /> Eintrag hinzufügen
+            </Button>
+          )}
+        </Card>
+      )}
+
+      {!locked && dayEvents.length > 0 && (
+        <Button
+          onClick={onRequestNewEntry}
+          className="fixed bottom-24 right-4 size-14 rounded-full shadow-lg sm:bottom-6"
+          aria-label="Neuer Eintrag"
+        >
+          <Plus className="size-6" />
+        </Button>
+      )}
+      {!locked && dayEvents.length === 0 && (
+        <Button
+          onClick={onRequestNewEntry}
+          className="fixed bottom-24 right-4 size-14 rounded-full shadow-lg sm:bottom-6"
+          aria-label="Neuer Eintrag"
+        >
+          <Plus className="size-6" />
+        </Button>
+      )}
+    </div>
+  );
+}

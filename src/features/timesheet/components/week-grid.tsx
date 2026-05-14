@@ -1,10 +1,9 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { cn, formatIsoDateUtc } from "@/lib/utils";
 import {
   WEEKDAYS_SHORT,
   addDays,
-  formatDateIso,
   isSameUtcDay,
   startOfWeekUtc,
   timeToMinutes,
@@ -75,7 +74,7 @@ export function WeekGrid({
           const isToday = isSameUtcDay(d, today);
           return (
             <button
-              key={formatDateIso(d)}
+              key={formatIsoDateUtc(d)}
               type="button"
               onClick={() => onSelectDay(d)}
               className={cn(
@@ -134,7 +133,7 @@ export function WeekGrid({
 
           return (
             <div
-              key={formatDateIso(d)}
+              key={formatIsoDateUtc(d)}
               className={cn("relative", i > 0 && "border-l border-border")}
             >
               {hours.map((h, j) => (

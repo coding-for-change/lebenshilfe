@@ -19,14 +19,14 @@ import { EventType, type Schedule } from "@/generated/prisma";
 import { SignaturePadDialog } from "./signature-pad-dialog";
 import { createEventAction } from "../actions";
 import {
-  formatDateIso,
   formatDuration,
   parseIsoDate,
   timeToMinutes,
   weekdayIndex,
 } from "./date-utils";
 import type { ChildOption } from "./children-filter";
-import { cn } from "@/lib/utils";
+import { childIdsForDate, type AssignmentsByWeekday } from "../weekday";
+import { cn, formatIsoDateUtc } from "@/lib/utils";
 
 type LastEntry = {
   startTime: string | null;
@@ -45,6 +45,7 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   defaultDate: Date;
   assignedChildren: ChildOption[];
+  assignmentsByWeekday: AssignmentsByWeekday;
   currentUserName: string;
   schedules: Schedule[];
   lastEntry: LastEntry | null;
@@ -65,33 +66,53 @@ export function NewEntrySheet({
   onOpenChange,
   defaultDate,
   assignedChildren,
+  assignmentsByWeekday,
   currentUserName,
   schedules,
   lastEntry,
 }: Props) {
   const [type, setType] = useState<EventType>(EventType.WORK);
-  const [date, setDate] = useState(formatDateIso(defaultDate));
+  const [date, setDate] = useState(formatIsoDateUtc(defaultDate));
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("17:00");
   const [note, setNote] = useState("");
+
+  const dayAssignedChildren = useMemo(() => {
+    const allowed = childIdsForDate(assignmentsByWeekday, parseIsoDate(date));
+    if (allowed.length === 0) return [] as ChildOption[];
+    const allowedSet = new Set(allowed);
+    return assignedChildren.filter((c) => allowedSet.has(c.id));
+  }, [date, assignmentsByWeekday, assignedChildren]);
+
   const [childIds, setChildIds] = useState<string[]>(
-    assignedChildren.length === 1 ? [assignedChildren[0].id] : [],
+    dayAssignedChildren.length === 1 ? [dayAssignedChildren[0].id] : [],
   );
   const [sigOpen, setSigOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setDate(formatDateIso(defaultDate));
+      setDate(formatIsoDateUtc(defaultDate));
       setType(EventType.WORK);
       setStartTime("08:00");
       setEndTime("17:00");
       setNote("");
-      setChildIds(
-        assignedChildren.length === 1 ? [assignedChildren[0].id] : [],
-      );
     }
-  }, [open, defaultDate, assignedChildren]);
+  }, [open, defaultDate]);
+
+  // Whenever the day's assigned children change (open, date change, or
+  // the underlying data updates), preselect the only one if applicable
+  // and otherwise clear any selections that are no longer valid for the day.
+  useEffect(() => {
+    setChildIds((prev) => {
+      const allowed = new Set(dayAssignedChildren.map((c) => c.id));
+      const filtered = prev.filter((id) => allowed.has(id));
+      if (filtered.length === 0 && dayAssignedChildren.length === 1) {
+        return [dayAssignedChildren[0].id];
+      }
+      return filtered;
+    });
+  }, [dayAssignedChildren]);
 
   const duration = useMemo(() => {
     if (!startTime || !endTime) return null;
@@ -120,7 +141,7 @@ export function NewEntrySheet({
 
     const wd = weekdayIndex(parseIsoDate(date));
     const relevantChildIds =
-      childIds.length > 0 ? childIds : assignedChildren.map((c) => c.id);
+      childIds.length > 0 ? childIds : dayAssignedChildren.map((c) => c.id);
     const daySchedules = schedules.filter(
       (s) => s.weekday === wd && relevantChildIds.includes(s.childId),
     );
@@ -155,7 +176,7 @@ export function NewEntrySheet({
     }
 
     return out;
-  }, [date, schedules, assignedChildren, childIds, lastEntry]);
+  }, [date, schedules, dayAssignedChildren, childIds, lastEntry]);
 
   const submitWithSignature = async (pngBase64: string) => {
     setSubmitting(true);
@@ -214,7 +235,7 @@ export function NewEntrySheet({
                 id="date"
                 type="date"
                 value={date}
-                max={formatDateIso(new Date())}
+                max={formatIsoDateUtc(new Date())}
                 onChange={(e) => setDate(e.target.value)}
               />
             </div>
@@ -244,22 +265,21 @@ export function NewEntrySheet({
 
             {type === EventType.WORK && (
               <>
-                {assignedChildren.length === 0 ? (
+                {dayAssignedChildren.length === 0 ? (
                   <p className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
-                    Noch keinem Kind zugewiesen — bitte an die Administration
-                    wenden.
+                    An diesem Tag ist dir kein Kind zugewiesen.
                   </p>
-                ) : assignedChildren.length === 1 ? (
+                ) : dayAssignedChildren.length === 1 ? (
                   <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm">
                     <span className="text-muted-foreground">Kind: </span>
-                    {assignedChildren[0].firstName}{" "}
-                    {assignedChildren[0].lastName}
+                    {dayAssignedChildren[0].firstName}{" "}
+                    {dayAssignedChildren[0].lastName}
                   </div>
                 ) : (
                   <div className="space-y-1.5">
                     <Label>Kinder</Label>
                     <div className="space-y-1 rounded-lg border border-border p-2">
-                      {assignedChildren.map((c) => (
+                      {dayAssignedChildren.map((c) => (
                         <label
                           key={c.id}
                           htmlFor={`child-${c.id}`}

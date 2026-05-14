@@ -27,7 +27,9 @@ export function SettingsDialog({ open, onOpenChange, name, email }: Props) {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Einstellungen</DialogTitle>
-          <DialogDescription>Angemeldet mit diesen Kontodaten.</DialogDescription>
+          <DialogDescription>
+            Angemeldet mit diesen Kontodaten.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="flex items-center gap-4 rounded-xl border border-border bg-muted/30 p-4">

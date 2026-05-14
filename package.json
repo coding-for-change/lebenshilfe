@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "dev:local": "LOCAL_IP=$(hostname -I | awk '{print $1}') && BETTER_AUTH_URL=http://$LOCAL_IP:3000 NEXT_PUBLIC_APP_URL=http://$LOCAL_IP:3000 next dev -H 0.0.0.0",
+    "dev": "printf '\\n\\033[36mTip: run `npm run dev:seed` to (re-)populate the dev DB with comprehensive test data.\\033[0m\\n\\n' && next dev",
+    "dev:local": "LOCAL_IP=$(hostname -I | awk '{print $1}') && printf '\\n\\033[36mTip: run `npm run dev:seed` to (re-)populate the dev DB with comprehensive test data.\\033[0m\\n\\n' && BETTER_AUTH_URL=http://$LOCAL_IP:3000 NEXT_PUBLIC_APP_URL=http://$LOCAL_IP:3000 next dev -H 0.0.0.0",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

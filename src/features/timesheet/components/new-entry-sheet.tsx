@@ -198,7 +198,7 @@ export function NewEntrySheet({
       >
         <SheetContent
           side="bottom"
-          className="max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:bottom-4 sm:mx-auto sm:max-h-[85dvh] sm:max-w-lg sm:rounded-2xl"
+          className="max-h-[92dvh] overflow-x-hidden overflow-y-auto rounded-t-2xl sm:inset-y-0 sm:my-auto sm:h-fit sm:mx-auto sm:max-h-[85dvh] sm:max-w-lg sm:rounded-2xl"
         >
           <SheetHeader>
             <SheetTitle>Neuer Eintrag</SheetTitle>

@@ -219,7 +219,7 @@ export function NewEntrySheet({
       >
         <SheetContent
           side="bottom"
-          className="rounded-t-2xl sm:max-w-lg sm:mx-auto"
+          className="max-h-[92dvh] overflow-x-hidden overflow-y-auto rounded-t-2xl sm:inset-y-0 sm:my-auto sm:h-fit sm:mx-auto sm:max-h-[85dvh] sm:max-w-lg sm:rounded-2xl"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <SheetHeader>

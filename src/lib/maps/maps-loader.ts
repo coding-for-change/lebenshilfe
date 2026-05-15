@@ -35,4 +35,3 @@ export function loadMapsLibrary(name: MapsLibraryName): Promise<unknown> {
   }
   return p;
 }
-

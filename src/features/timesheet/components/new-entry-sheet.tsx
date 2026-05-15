@@ -220,6 +220,7 @@ export function NewEntrySheet({
         <SheetContent
           side="bottom"
           className="rounded-t-2xl sm:max-w-lg sm:mx-auto"
+          onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <SheetHeader>
             <SheetTitle>Neuer Eintrag</SheetTitle>

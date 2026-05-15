@@ -52,11 +52,105 @@ const PENDING_INVITATION = {
   weeklyHours: 18,
 };
 
-const CHILDREN = [
-  { id: "seed-lena-fischer", firstName: "Lena", lastName: "Fischer" },
-  { id: "seed-max-huber", firstName: "Max", lastName: "Huber" },
-  { id: "seed-mia-bauer", firstName: "Mia", lastName: "Bauer" },
-  { id: "seed-paul-koch", firstName: "Paul", lastName: "Koch" },
+const KOSTENTRAEGER = [
+  {
+    id: "seed-kt-bezirk-obb",
+    name: "Bezirk Oberbayern",
+    email: "schulbegleitung@bezirk-oberbayern.example",
+    address: "Prinzregentenstraße 14, 80538 München",
+  },
+  {
+    id: "seed-kt-stadt-muenchen",
+    name: "Stadt München – Sozialreferat",
+    email: "sozialreferat@muenchen.example",
+    address: "Orleansplatz 11, 81667 München",
+  },
+  {
+    id: "seed-kt-jugendamt-fs",
+    name: "Jugendamt Landkreis Freising",
+    email: "jugendamt@kreis-fs.example",
+    address: "Landshuter Straße 31, 85356 Freising",
+  },
+];
+
+type SeedChild = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  leosOne: boolean;
+  bescheid: string | null;
+  sbIb: string | null;
+  schweigepflichtsentbindung: boolean;
+  bemerkung: string | null;
+  schoolName: string | null;
+  schoolAddress: string | null;
+  schoolLat: number | null;
+  schoolLng: number | null;
+  kostentraegerId: string | null;
+};
+
+const CHILDREN: SeedChild[] = [
+  {
+    id: "seed-lena-fischer",
+    firstName: "Lena",
+    lastName: "Fischer",
+    leosOne: true,
+    bescheid: "Bescheid des Bezirks Oberbayern, gültig bis 31.07.2026.",
+    sbIb: "SB",
+    schweigepflichtsentbindung: true,
+    bemerkung: "Ruhig, braucht klare Strukturen und feste Abläufe.",
+    schoolName: "Grundschule an der Bergmannstraße",
+    schoolAddress: "Bergmannstraße 36, 80339 München",
+    schoolLat: 48.1351,
+    schoolLng: 11.5538,
+    kostentraegerId: "seed-kt-bezirk-obb",
+  },
+  {
+    id: "seed-max-huber",
+    firstName: "Max",
+    lastName: "Huber",
+    leosOne: false,
+    bescheid: null,
+    sbIb: "IB",
+    schweigepflichtsentbindung: false,
+    bemerkung:
+      "Schweigepflichtsentbindung noch ausstehend — Eltern angeschrieben.",
+    schoolName: "Mittelschule an der Walliser Straße",
+    schoolAddress: "Walliser Straße 5, 81475 München",
+    schoolLat: 48.0928,
+    schoolLng: 11.5021,
+    kostentraegerId: "seed-kt-stadt-muenchen",
+  },
+  {
+    id: "seed-mia-bauer",
+    firstName: "Mia",
+    lastName: "Bauer",
+    leosOne: true,
+    bescheid: "Folgebescheid Stadt München vom 12.03.2026.",
+    sbIb: "SB",
+    schweigepflichtsentbindung: true,
+    bemerkung: null,
+    schoolName: "Grundschule an der Implerstraße",
+    schoolAddress: "Implerstraße 35, 81371 München",
+    schoolLat: 48.1187,
+    schoolLng: 11.5447,
+    kostentraegerId: "seed-kt-stadt-muenchen",
+  },
+  {
+    id: "seed-paul-koch",
+    firstName: "Paul",
+    lastName: "Koch",
+    leosOne: false,
+    bescheid: "Bescheid Jugendamt Freising, neue Anschlussförderung beantragt.",
+    sbIb: "IB",
+    schweigepflichtsentbindung: true,
+    bemerkung: "Therapiestunden mittwochs 11–12 Uhr außerhalb der Schule.",
+    schoolName: "Karl-Meichelbeck-Realschule",
+    schoolAddress: "General-von-Nagel-Straße 6, 85354 Freising",
+    schoolLat: 48.4047,
+    schoolLng: 11.7474,
+    kostentraegerId: "seed-kt-jugendamt-fs",
+  },
 ];
 
 const WORKSHOPS = [
@@ -171,6 +265,7 @@ async function wipeSeedData() {
   const seedEmails = [...USERS.map((u) => u.email), PENDING_INVITATION.email];
   const childIds = CHILDREN.map((c) => c.id);
   const workshopIds = WORKSHOPS.map((w) => w.id);
+  const kostentraegerIds = KOSTENTRAEGER.map((k) => k.id);
 
   await prisma.event.deleteMany({
     where: { user: { email: { in: seedEmails } } },
@@ -181,8 +276,14 @@ async function wipeSeedData() {
   await prisma.childAssignment.deleteMany({
     where: { user: { email: { in: seedEmails } } },
   });
+  await prisma.childAbsence.deleteMany({
+    where: { childId: { in: childIds } },
+  });
   await prisma.schedule.deleteMany({ where: { childId: { in: childIds } } });
   await prisma.child.deleteMany({ where: { id: { in: childIds } } });
+  await prisma.kostentraeger.deleteMany({
+    where: { id: { in: kostentraegerIds } },
+  });
   await prisma.workshopAttendance.deleteMany({
     where: { workshop: { id: { in: workshopIds } } },
   });
@@ -215,6 +316,13 @@ async function seedPendingInvitation() {
   });
 }
 
+async function seedCostBearers() {
+  console.log("Seeding Kostenträger…");
+  for (const k of KOSTENTRAEGER) {
+    await prisma.kostentraeger.create({ data: k });
+  }
+}
+
 async function seedChildrenAndSchedules() {
   console.log("Seeding children & weekly schedules…");
   for (const c of CHILDREN) {
@@ -229,6 +337,28 @@ async function seedChildrenAndSchedules() {
         },
       });
     }
+  }
+}
+
+async function seedChildAbsences() {
+  console.log("Seeding Krankheitstage for children…");
+  const absences: Array<{
+    childId: string;
+    offset: number;
+    note: string | null;
+  }> = [
+    { childId: "seed-lena-fischer", offset: -3, note: "Magen-Darm-Infekt" },
+    { childId: "seed-max-huber", offset: -1, note: null },
+    { childId: "seed-mia-bauer", offset: 2, note: "Arzttermin angekündigt" },
+    { childId: "seed-paul-koch", offset: 4, note: "Familienreise mit Attest" },
+  ];
+
+  for (const a of absences) {
+    const date = dayOffset(a.offset);
+    if (isWeekend(date)) continue;
+    await prisma.childAbsence.create({
+      data: { childId: a.childId, date, note: a.note },
+    });
   }
 }
 
@@ -269,16 +399,146 @@ async function enrichProfiles() {
 }
 
 async function assignChildren(usersByEmail: Record<string, string>) {
-  console.log("Assigning children to school assistants…");
+  console.log("Assigning children to school assistants per weekday…");
   const annaId = usersByEmail["anna.schmidt@lebenshilfe.de"];
   const benId = usersByEmail["ben.weber@lebenshilfe.de"];
   const claraId = usersByEmail["clara.becker@lebenshilfe.de"];
 
-  const assignments: Array<{ childId: string; userId: string }> = [
-    { childId: "seed-lena-fischer", userId: annaId },
-    { childId: "seed-max-huber", userId: annaId },
-    { childId: "seed-mia-bauer", userId: benId },
-    { childId: "seed-paul-koch", userId: claraId },
+  // Anna splits her week: Lena Mon/Wed/Fri, Max Tue/Thu.
+  // Ben covers Mia all five weekdays. Clara covers Paul all five weekdays.
+  // One day per pair is flagged tandem=true so the UI surfaces that variation.
+  const assignments: Array<{
+    childId: string;
+    userId: string;
+    weekday: number;
+    startTime: string;
+    endTime: string;
+    tandem: boolean;
+  }> = [
+    // Anna ↔ Lena
+    {
+      childId: "seed-lena-fischer",
+      userId: annaId,
+      weekday: 1,
+      startTime: "08:00",
+      endTime: "13:00",
+      tandem: false,
+    },
+    {
+      childId: "seed-lena-fischer",
+      userId: annaId,
+      weekday: 3,
+      startTime: "08:00",
+      endTime: "13:00",
+      tandem: true,
+    },
+    {
+      childId: "seed-lena-fischer",
+      userId: annaId,
+      weekday: 5,
+      startTime: "08:00",
+      endTime: "13:00",
+      tandem: false,
+    },
+    // Anna ↔ Max
+    {
+      childId: "seed-max-huber",
+      userId: annaId,
+      weekday: 2,
+      startTime: "08:00",
+      endTime: "12:30",
+      tandem: false,
+    },
+    {
+      childId: "seed-max-huber",
+      userId: annaId,
+      weekday: 4,
+      startTime: "08:00",
+      endTime: "12:30",
+      tandem: false,
+    },
+    // Ben ↔ Mia (full week)
+    {
+      childId: "seed-mia-bauer",
+      userId: benId,
+      weekday: 1,
+      startTime: "09:00",
+      endTime: "14:00",
+      tandem: false,
+    },
+    {
+      childId: "seed-mia-bauer",
+      userId: benId,
+      weekday: 2,
+      startTime: "09:00",
+      endTime: "14:00",
+      tandem: false,
+    },
+    {
+      childId: "seed-mia-bauer",
+      userId: benId,
+      weekday: 3,
+      startTime: "09:00",
+      endTime: "14:00",
+      tandem: false,
+    },
+    {
+      childId: "seed-mia-bauer",
+      userId: benId,
+      weekday: 4,
+      startTime: "09:00",
+      endTime: "14:00",
+      tandem: true,
+    },
+    {
+      childId: "seed-mia-bauer",
+      userId: benId,
+      weekday: 5,
+      startTime: "09:00",
+      endTime: "14:00",
+      tandem: false,
+    },
+    // Clara ↔ Paul (full week)
+    {
+      childId: "seed-paul-koch",
+      userId: claraId,
+      weekday: 1,
+      startTime: "08:00",
+      endTime: "13:00",
+      tandem: false,
+    },
+    {
+      childId: "seed-paul-koch",
+      userId: claraId,
+      weekday: 2,
+      startTime: "08:00",
+      endTime: "13:00",
+      tandem: false,
+    },
+    {
+      childId: "seed-paul-koch",
+      userId: claraId,
+      weekday: 3,
+      startTime: "08:00",
+      endTime: "13:00",
+      tandem: false,
+    },
+    {
+      childId: "seed-paul-koch",
+      userId: claraId,
+      weekday: 4,
+      startTime: "08:00",
+      endTime: "13:00",
+      tandem: false,
+    },
+    {
+      childId: "seed-paul-koch",
+      userId: claraId,
+      weekday: 5,
+      startTime: "08:00",
+      endTime: "13:00",
+      tandem: false,
+    },
   ];
 
   for (const a of assignments) {
@@ -677,8 +937,10 @@ async function main() {
   const usersByEmail = Object.fromEntries(created.map((u) => [u.email, u.id]));
 
   await seedPendingInvitation();
+  await seedCostBearers();
   await seedChildrenAndSchedules();
   await assignChildren(usersByEmail);
+  await seedChildAbsences();
   await enrichProfiles();
   await seedEvents(usersByEmail);
   await seedMonthlyReports(usersByEmail);

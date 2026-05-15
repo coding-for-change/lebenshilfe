@@ -1,0 +1,139 @@
+name: Deploy Feature Branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      email_provider:
+        description: "Email Provider"
+        required: true
+        default: "mailpit"
+        type: choice
+        options:
+          - mailpit
+          - resend
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Decrypt Secrets
+        run: |
+          if ! command -v ansible-vault &> /dev/null; then
+            pipx install ansible-core
+          fi
+          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault_pass
+
+          # Decrypt the vault file into a temporary YAML file
+          ansible-vault view .config/secrets.yml --vault-password-file .vault_pass > decrypted.yml
+
+          # Convert the YAML file to JSON using yq (pre-installed on ubuntu-latest)
+          yq -o=json decrypted.yml > decrypted.json
+
+          # Mask single-line secrets
+          echo "::add-mask::$(jq -r '.REGISTRY_USERNAME // empty' decrypted.json)"
+          echo "::add-mask::$(jq -r '.REGISTRY_PASSWORD // empty' decrypted.json)"
+          echo "::add-mask::$(jq -r '.DATABASE_URL // empty' decrypted.json)"
+          echo "::add-mask::$(jq -r '.BETTER_AUTH_SECRET // empty' decrypted.json)"
+          echo "::add-mask::$(jq -r '.RESEND_API_KEY // empty' decrypted.json)"
+          echo "::add-mask::$(jq -r '.S3_ACCESS_KEY_ID // empty' decrypted.json)"
+          echo "::add-mask::$(jq -r '.S3_SECRET_ACCESS_KEY // empty' decrypted.json)"
+          echo "::add-mask::$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY // empty' decrypted.json)"
+
+          # IMPORTANT: We purposefully DO NOT use echo "::add-mask::..." for VPS_DEPLOY_KEY.
+          # Attempting to mask a multiline string using echo causes bash to expand it into multiple lines.
+          # GitHub Actions only masks the first line (the "BEGIN OPENSSH PRIVATE KEY" header), 
+          # and then logs the remaining lines in plain text, causing the key to leak.
+          # Since the key is only written to a file later and never printed, it is safe without this command.
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t registry.infra.codingforchange.com/lebenshilfe-${{ github.ref_name }}:latest \
+            .
+
+      - name: Login to registry
+        run: |
+          jq -r '.REGISTRY_PASSWORD // empty' decrypted.json | docker login registry.infra.codingforchange.com \
+            -u "$(jq -r '.REGISTRY_USERNAME // empty' decrypted.json)" \
+            --password-stdin
+
+      - name: Push Docker image
+        run: |
+          docker push registry.infra.codingforchange.com/lebenshilfe-${{ github.ref_name }}:latest
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          jq -r '.VPS_DEPLOY_KEY // empty' decrypted.json > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H codingforchange.com >> ~/.ssh/known_hosts
+
+      - name: Generate Configs and Environment
+        run: |
+          BRANCH_NAME_SAFE=$(echo "${{ github.ref_name }}" | tr -cd 'a-zA-Z0-9-')
+          APP_PORT=$(echo "${BRANCH_NAME_SAFE}" | cksum | awk '{print $1 % 1000 + 8000}')
+          MAIL_PORT=$(echo "${BRANCH_NAME_SAFE}" | cksum | awk '{print $1 % 1000 + 9000}')
+          DB_PASSWORD=$(openssl rand -hex 12)
+
+          echo "APP_PORT=$APP_PORT" > env_vars.txt
+          echo "MAIL_PORT=$MAIL_PORT" >> env_vars.txt
+          echo "BRANCH_NAME_SAFE=$BRANCH_NAME_SAFE" >> env_vars.txt
+
+          # Generate Caddyfile
+          cat << EOF > Caddyfile
+          ${BRANCH_NAME_SAFE}.lebenshilfe.codingforchange.com {
+              reverse_proxy localhost:${APP_PORT}
+          }
+          mail-${BRANCH_NAME_SAFE}.lebenshilfe.codingforchange.com {
+              reverse_proxy localhost:${MAIL_PORT}
+          }
+          EOF
+
+          # Generate .env
+          echo "FEATURE_BRANCH=${{ github.ref_name }}" > .env
+          echo "APP_PORT=${APP_PORT}" >> .env
+          echo "MAIL_PORT=${MAIL_PORT}" >> .env
+          echo "DB_PASSWORD=${DB_PASSWORD}" >> .env
+          echo "DATABASE_URL=mysql://root:${DB_PASSWORD}@db:3306/lebenshilfe" >> .env
+          echo "BETTER_AUTH_SECRET=$(jq -r '.BETTER_AUTH_SECRET // empty' decrypted.json)" >> .env
+          echo "BETTER_AUTH_URL=https://${BRANCH_NAME_SAFE}.lebenshilfe.codingforchange.com" >> .env
+          echo "NEXT_PUBLIC_APP_URL=https://${BRANCH_NAME_SAFE}.lebenshilfe.codingforchange.com" >> .env
+
+          if [ "${{ github.event.inputs.email_provider }}" == "resend" ]; then
+            echo "RESEND_API_KEY=$(jq -r '.RESEND_API_KEY // empty' decrypted.json)" >> .env
+            echo "EMAIL_FROM=info@codingforchange.com" >> .env
+          else
+            echo "SMTP_HOST=mailpit" >> .env
+            echo "SMTP_PORT=1025" >> .env
+            echo "EMAIL_FROM=test@${BRANCH_NAME_SAFE}.local" >> .env
+          fi
+
+      - name: Deploy to VPS
+        run: |
+          SSH="ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key"
+          SCP="scp -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key"
+          SSH_TARGET="deploy-lebenshilfe@codingforchange.com"
+          BRANCH_NAME_SAFE=$(grep BRANCH_NAME_SAFE env_vars.txt | cut -d'=' -f2)
+          TARGET_DIR="/var/www/lebenshilfe-feature-${BRANCH_NAME_SAFE}"
+
+          $SSH $SSH_TARGET "mkdir -p ${TARGET_DIR}"
+
+          $SCP docker-compose.feature.yml ${SSH_TARGET}:${TARGET_DIR}/docker-compose.yml
+          $SCP Caddyfile ${SSH_TARGET}:${TARGET_DIR}/Caddyfile
+          $SCP .env ${SSH_TARGET}:${TARGET_DIR}/.env
+
+          $SSH $SSH_TARGET "cd ${TARGET_DIR} && \
+            docker compose pull && \
+            docker compose up -d"
+
+      - name: Clean up Secrets
+        if: always()
+        run: |
+          rm -f .vault_pass dump.yml decrypted.json .env Caddyfile env_vars.txt

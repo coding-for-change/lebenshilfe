@@ -55,18 +55,14 @@ export async function getAssignmentsByWeekday(
 export async function assertChildrenAssignedToUser(
   userId: string,
   childIds: string[],
+  date: Date,
 ) {
   if (childIds.length === 0) return;
-  // ChildAssignment is per-weekday since cod-14, so the same (userId, childId)
-  // pair can map to multiple rows. Compare the *distinct* childId set against
-  // the requested ids — a row count would over-count and reject valid input.
-  const requested = new Set(childIds);
-  const rows = await prisma.childAssignment.findMany({
-    where: { userId, childId: { in: [...requested] } },
-    select: { childId: true },
-    distinct: ["childId"],
+  const day = date.getDay() - 1; //0 indexed
+  const count = await prisma.childAssignment.count({
+    where: { userId, childId: { in: childIds }, weekday: day },
   });
-  if (rows.length !== requested.size) {
+  if (count !== childIds.length) {
     throw new Error("Ein Kind ist diesem Konto nicht zugewiesen.");
   }
 }
@@ -86,7 +82,9 @@ export async function getEventsForUserInRange(
 ) {
   return prisma.event.findMany({
     where: { userId, date: { gte: start, lt: endExclusive } },
-    include: { child: { select: { firstName: true, lastName: true } } },
+    include: {
+      child: { select: { id: true, firstName: true, lastName: true } },
+    },
     orderBy: [{ date: "asc" }, { startTime: "asc" }],
   });
 }

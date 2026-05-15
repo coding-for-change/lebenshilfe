@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "printf '\\n\\033[36mTip: run `npm run db:seed` to (re-)populate the dev DB with comprehensive test data.\\033[0m\\n\\n' && next dev",
+    "dev:local": "LOCAL_IP=$(node scripts/local-ip.mjs) && printf '\\n\\033[1;31m▲ Open the app at http://%s:3000 so that authentication works (localhost will fail).\\033[0m\\n' \"$LOCAL_IP\" && printf '\\033[36mTip: run `npm run db:seed` to (re-)populate the dev DB with comprehensive test data.\\033[0m\\n\\n' && BETTER_AUTH_URL=http://$LOCAL_IP:3000 NEXT_PUBLIC_APP_URL=http://$LOCAL_IP:3000 next dev -H 0.0.0.0",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -11,7 +12,7 @@
     "format:check": "prettier --check .",
     "db:migrate": "dotenv -e .env.local -- prisma migrate dev",
     "db:push": "dotenv -e .env.local -- prisma db push",
-    "db:seed": "BETTER_AUTH_URL=http://localhost:3000 dotenv -e .env.local -- npx tsx scripts/seed-admin.ts",
+    "db:seed": "docker compose up -d --wait && dotenv -e .env -- prisma migrate reset --force --skip-seed && BETTER_AUTH_URL=http://localhost:3000 dotenv -e .env -- npx tsx scripts/seed.ts",
     "prepare": "husky"
   },
   "dependencies": {

@@ -33,20 +33,20 @@ export default async function LandingPage() {
     events,
     schedules,
     lockedMonthKeys,
-    profile,
     childAbsences,
     assignmentsByWeekday,
+    profile,
   ] = await Promise.all([
     TimesheetFacade.getEventsInRange(user.id, rangeStart, rangeEnd),
     TimesheetFacade.getSchedulesForChildren(childIds),
     TimesheetFacade.listLockedMonthKeys(user.id),
-    SchoolAssistantsFacade.getByEmail(user.email),
     ChildrenFacade.listAbsencesForChildrenInRange(
       childIds,
       rangeStart,
       rangeEnd,
     ),
     TimesheetFacade.getAssignmentsByWeekday(user.id),
+    SchoolAssistantsFacade.getByEmail(user.email),
   ]);
 
   return (

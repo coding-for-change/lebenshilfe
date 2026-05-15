@@ -2,11 +2,7 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  addMonths,
-  compareMonthKey,
-  formatMonthLabel,
-} from "../lib/group";
+import { addMonths, compareMonthKey, formatMonthLabel } from "../lib/group";
 
 type Props = {
   value: string;

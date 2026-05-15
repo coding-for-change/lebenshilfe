@@ -101,4 +101,3 @@ export async function deleteAbsenceAction(id: string) {
   revalidatePath(ROUTE);
   return { success: true as const };
 }
-

@@ -226,8 +226,10 @@ export function AdminEventRow({
               <span>·</span>
               <span className="tabular-nums">
                 {edit.kind === "DELETE" ? (
-                  <>gelöscht (war {edit.prevStartTime ?? "—"}–
-                  {edit.prevEndTime ?? "—"})</>
+                  <>
+                    gelöscht (war {edit.prevStartTime ?? "—"}–
+                    {edit.prevEndTime ?? "—"})
+                  </>
                 ) : (
                   <>
                     {edit.prevStartTime ?? "—"}–{edit.prevEndTime ?? "—"} →{" "}

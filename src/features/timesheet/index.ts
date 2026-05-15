@@ -1,2 +1,2 @@
 export { TimesheetFacade } from "./facade";
-export { SchulbegleiterApp } from "./components/timesheet-shell";
+export { SchoolAssistantApp } from "./components/timesheet-shell";

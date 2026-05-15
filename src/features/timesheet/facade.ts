@@ -13,6 +13,7 @@ import {
   findEventById,
   findMonthlyReport,
   getAssignedChildren,
+  getAssignmentsByWeekday,
   getEventsForUserInMonth,
   getEventsForUserInRange,
   getSchedulesForChildren,
@@ -58,6 +59,10 @@ export const TimesheetFacade = {
     return getAssignedChildren(userId);
   },
 
+  async getAssignmentsByWeekday(userId: string) {
+    return getAssignmentsByWeekday(userId);
+  },
+
   async getSchedulesForChildren(childIds: string[]) {
     return getSchedulesForChildren(childIds);
   },
@@ -101,7 +106,7 @@ export const TimesheetFacade = {
     assertMonthNotLocked(report);
 
     if (parsed.type === "WORK") {
-      await assertChildrenAssignedToUser(userId, parsed.childIds);
+      await assertChildrenAssignedToUser(userId, parsed.childIds, date);
       const batchId = randomUUID();
       const signatureKey = `signatures/events/${userId}/${batchId}.png`;
       await uploadSignature(signatureKey, parsed.signaturePngBase64);

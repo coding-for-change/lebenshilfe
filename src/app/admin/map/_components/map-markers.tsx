@@ -12,12 +12,7 @@ type Props = {
   onActiveChange: (key: string | null) => void;
 };
 
-export function MapMarkers({
-  map,
-  schools,
-  activeKey,
-  onActiveChange,
-}: Props) {
+export function MapMarkers({ map, schools, activeKey, onActiveChange }: Props) {
   const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const infoContentRef = useRef<HTMLDivElement | null>(null);
@@ -33,9 +28,12 @@ export function MapMarkers({
     infoContentRef.current = div;
     infoRootRef.current = createRoot(div);
     infoWindowRef.current = new google.maps.InfoWindow({ content: div });
-    const closeListener = infoWindowRef.current.addListener("closeclick", () => {
-      onActiveChangeRef.current(null);
-    });
+    const closeListener = infoWindowRef.current.addListener(
+      "closeclick",
+      () => {
+        onActiveChangeRef.current(null);
+      },
+    );
     return () => {
       closeListener.remove();
       infoWindowRef.current?.close();

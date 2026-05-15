@@ -308,9 +308,7 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
               {children}
             </div>
           ) : (
-            <div className="mx-auto w-full max-w-7xl px-6 py-8">
-              {children}
-            </div>
+            <div className="mx-auto w-full max-w-7xl px-6 py-8">{children}</div>
           )}
         </SidebarInset>
 

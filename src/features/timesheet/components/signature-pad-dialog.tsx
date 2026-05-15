@@ -6,6 +6,7 @@ import SignaturePad from "signature_pad";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -31,7 +32,6 @@ export function SignaturePadDialog({
   onConfirm,
   submitting,
 }: Props) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const padRef = useRef<SignaturePad | null>(null);
   const [hasInk, setHasInk] = useState(false);
 
@@ -40,41 +40,48 @@ export function SignaturePadDialog({
     setHasInk(false);
   }, []);
 
-  useEffect(() => {
-    if (!open) return;
-    const c = canvasRef.current;
+  // Use a ref callback so we initialise exactly when the Radix Dialog mounts
+  // the canvas into the DOM, and tear down when it unmounts. We wait via rAF
+  // until offsetWidth/Height are non-zero — during the dialog open animation
+  // the canvas can be momentarily 0×0, and constructing signature_pad against
+  // a zero-dim canvas leaves it in a state where pointer events fire but
+  // strokes never render.
+  const attachCanvas = useCallback((c: HTMLCanvasElement | null) => {
     if (!c) return;
 
-    const pad = new SignaturePad(c, {
-      penColor: "#09090b",
-      minWidth: 1,
-      maxWidth: 2.4,
-    });
-    padRef.current = pad;
-
-    const resize = () => {
-      const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    let cancelled = false;
+    const init = () => {
+      if (cancelled) return;
       const cssW = c.offsetWidth;
       const cssH = c.offsetHeight;
-      if (cssW === 0 || cssH === 0) return;
+      if (cssW === 0 || cssH === 0) {
+        requestAnimationFrame(init);
+        return;
+      }
+      const ratio = Math.max(window.devicePixelRatio || 1, 1);
       c.width = cssW * ratio;
       c.height = cssH * ratio;
       c.getContext("2d")?.scale(ratio, ratio);
-      pad.clear();
-      setHasInk(false);
+
+      const pad = new SignaturePad(c, {
+        penColor: "#09090b",
+        minWidth: 1,
+        maxWidth: 2.4,
+      });
+      pad.addEventListener("beginStroke", () => setHasInk(true));
+      padRef.current = pad;
     };
-
-    resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(c);
-
-    pad.addEventListener("beginStroke", () => setHasInk(true));
+    requestAnimationFrame(init);
 
     return () => {
-      ro.disconnect();
-      pad.off();
+      cancelled = true;
+      padRef.current?.off();
       padRef.current = null;
     };
+  }, []);
+
+  useEffect(() => {
+    if (!open) setHasInk(false);
   }, [open]);
 
   const confirm = async () => {
@@ -97,17 +104,17 @@ export function SignaturePadDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
+          <DialogDescription className={cn(!subtitle && "sr-only")}>
+            {subtitle ?? `Unterschrift von ${signerLabel} erfassen.`}
+          </DialogDescription>
         </DialogHeader>
-        {subtitle && (
-          <p className="text-sm text-muted-foreground -mt-2">{subtitle}</p>
-        )}
         <p className="text-xs uppercase tracking-wider text-muted-foreground">
           {signerLabel}
         </p>
 
         <div className="relative rounded-xl border-2 border-dashed border-border bg-white">
           <canvas
-            ref={canvasRef}
+            ref={attachCanvas}
             className="block h-[220px] w-full touch-none rounded-xl"
           />
           {!hasInk && (

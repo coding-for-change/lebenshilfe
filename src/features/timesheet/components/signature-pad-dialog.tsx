@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Check, X } from "lucide-react";
 import SignaturePad from "signature_pad";
 import {
@@ -77,12 +77,9 @@ export function SignaturePadDialog({
       cancelled = true;
       padRef.current?.off();
       padRef.current = null;
+      setHasInk(false);
     };
   }, []);
-
-  useEffect(() => {
-    if (!open) setHasInk(false);
-  }, [open]);
 
   const confirm = async () => {
     const pad = padRef.current;

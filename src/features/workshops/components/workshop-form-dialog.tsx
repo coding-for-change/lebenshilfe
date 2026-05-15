@@ -19,23 +19,15 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { createWorkshopAction, updateWorkshopAction } from "../actions";
+import { createWorkshopAction } from "../actions";
 import { WorkshopSchema } from "../schemas";
-
-type WorkshopValue = {
-  id?: string;
-  name: string;
-  description: string | null;
-};
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initial?: WorkshopValue | null;
 };
 
-export function WorkshopFormDialog({ open, onOpenChange, initial }: Props) {
-  const isEdit = !!initial?.id;
+export function WorkshopFormDialog({ open, onOpenChange }: Props) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [errors, setErrors] = useState<{ name?: string; description?: string }>(
@@ -45,10 +37,10 @@ export function WorkshopFormDialog({ open, onOpenChange, initial }: Props) {
 
   useEffect(() => {
     if (!open) return;
-    setName(initial?.name ?? "");
-    setDescription(initial?.description ?? "");
+    setName("");
+    setDescription("");
     setErrors({});
-  }, [open, initial]);
+  }, [open]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -70,13 +62,8 @@ export function WorkshopFormDialog({ open, onOpenChange, initial }: Props) {
     setErrors({});
     setBusy(true);
     try {
-      if (isEdit && initial?.id) {
-        await updateWorkshopAction(initial.id, parsed.data);
-        toast.success("Workshop aktualisiert.");
-      } else {
-        await createWorkshopAction(parsed.data);
-        toast.success("Workshop angelegt.");
-      }
+      await createWorkshopAction(parsed.data);
+      toast.success("Workshop angelegt.");
       onOpenChange(false);
     } catch (error) {
       toast.error(
@@ -94,9 +81,7 @@ export function WorkshopFormDialog({ open, onOpenChange, initial }: Props) {
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            {isEdit ? "Workshop bearbeiten" : "Neuen Workshop anlegen"}
-          </DialogTitle>
+          <DialogTitle>Neuen Workshop anlegen</DialogTitle>
           <DialogDescription>
             Name und Kurzbeschreibung des Workshops.
           </DialogDescription>
@@ -156,7 +141,7 @@ export function WorkshopFormDialog({ open, onOpenChange, initial }: Props) {
               type="submit"
               disabled={busy}
             >
-              {busy ? "Wird gespeichert…" : isEdit ? "Speichern" : "Anlegen"}
+              {busy ? "Wird gespeichert…" : "Anlegen"}
             </Button>
           </DialogFooter>
         </form>

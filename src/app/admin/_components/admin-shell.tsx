@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  Baby,
   BookOpen,
   ChevronRight,
   LifeBuoy,
@@ -51,9 +52,14 @@ type AdminShellProps = {
 
 const NAV_ITEMS = [
   {
-    href: "/admin/schulbegleiter",
+    href: "/admin/school-assistants",
     label: "Schulbegleiter",
     icon: Users,
+  },
+  {
+    href: "/admin/children",
+    label: "Kinder",
+    icon: Baby,
   },
   {
     href: "/admin/workshops",
@@ -295,7 +301,7 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
         </SidebarInset>
 
         <Toaster
-          position="top-center"
+          position="bottom-right"
           richColors
         />
       </SidebarProvider>

@@ -261,35 +261,46 @@ export function SchoolAssistantWizard({
           </div>
         </DialogHeader>
 
-        <div className="max-h-[60vh] overflow-y-auto px-1">{stepBody}</div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (busy) return;
+            if (step < totalSteps - 1) handleNext();
+            else void handleSubmit();
+          }}
+          className="contents"
+        >
+          <div className="-mx-1 max-h-[60vh] overflow-y-auto px-3 py-1">
+            {stepBody}
+          </div>
 
-        <DialogFooter className="sm:justify-between">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={step === 0 ? () => onOpenChange(false) : handleBack}
-            disabled={busy}
-          >
-            {step === 0 ? "Abbrechen" : "Zurück"}
-          </Button>
-          {step < totalSteps - 1 ? (
+          <DialogFooter className="sm:justify-between">
             <Button
               type="button"
-              onClick={handleNext}
+              variant="outline"
+              onClick={step === 0 ? () => onOpenChange(false) : handleBack}
               disabled={busy}
             >
-              Weiter
+              {step === 0 ? "Abbrechen" : "Zurück"}
             </Button>
-          ) : (
-            <Button
-              type="button"
-              onClick={handleSubmit}
-              disabled={busy}
-            >
-              {busy ? "Wird gespeichert…" : "Einladung senden"}
-            </Button>
-          )}
-        </DialogFooter>
+            {step < totalSteps - 1 ? (
+              <Button
+                type="submit"
+                disabled={busy}
+              >
+                Weiter
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                loading={busy}
+                disabled={busy}
+              >
+                {busy ? "Wird gespeichert…" : "Einladung senden"}
+              </Button>
+            )}
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

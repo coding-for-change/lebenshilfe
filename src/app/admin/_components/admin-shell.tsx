@@ -4,15 +4,8 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Baby,
-  BookOpen,
-  ChevronRight,
-  LifeBuoy,
-  Send,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
+import { ChevronRight, LifeBuoy, Send } from "lucide-react";
+import { NAV_ITEMS, ADMIN_NAV_ITEMS, ALL_NAV_ITEMS } from "./nav-items";
 import {
   Sidebar,
   SidebarContent,
@@ -29,6 +22,7 @@ import {
   SidebarRail,
   SidebarSeparator,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { NavUser } from "@/components/nav-user";
@@ -38,37 +32,42 @@ type AdminShellProps = {
   children: ReactNode;
 };
 
-const NAV_ITEMS = [
-  {
-    href: "/admin/school-assistants",
-    label: "Schulbegleiter",
-    icon: Users,
-  },
-  {
-    href: "/admin/children",
-    label: "Kinder",
-    icon: Baby,
-  },
-  {
-    href: "/admin/workshops",
-    label: "Workshops",
-    icon: BookOpen,
-  },
-] as const;
-
-const ADMIN_NAV_ITEMS = [
-  {
-    href: "/admin/user-management",
-    label: "Benutzerverwaltung",
-    icon: ShieldCheck,
-  },
-] as const;
-
-const ALL_NAV_ITEMS = [...NAV_ITEMS, ...ADMIN_NAV_ITEMS] as const;
-
 function deriveBreadcrumb(pathname: string): string {
   const match = ALL_NAV_ITEMS.find((item) => pathname.startsWith(item.href));
   return match?.label ?? "Übersicht";
+}
+
+function NavLink({
+  href,
+  label,
+  Icon,
+  isActive,
+}: {
+  href: string;
+  label: string;
+  Icon: React.ComponentType<{ className?: string }>;
+  isActive: boolean;
+}) {
+  const { isMobile, setOpenMobile } = useSidebar();
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild
+        isActive={isActive}
+        tooltip={label}
+      >
+        <Link
+          href={href}
+          onClick={() => {
+            if (isMobile) setOpenMobile(false);
+          }}
+        >
+          <Icon />
+          <span>{label}</span>
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
 }
 
 export function AdminShell({ currentUser, children }: AdminShellProps) {
@@ -116,24 +115,15 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
               <SidebarGroupLabel>Verwaltung</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {NAV_ITEMS.map((item) => {
-                    const isActive = pathname.startsWith(item.href);
-                    const Icon = item.icon;
-                    return (
-                      <SidebarMenuItem key={item.href}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={isActive}
-                          tooltip={item.label}
-                        >
-                          <Link href={item.href}>
-                            <Icon />
-                            <span>{item.label}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
+                  {NAV_ITEMS.map((item) => (
+                    <NavLink
+                      key={item.href}
+                      href={item.href}
+                      label={item.label}
+                      Icon={item.icon}
+                      isActive={pathname.startsWith(item.href)}
+                    />
+                  ))}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -141,24 +131,15 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
               <SidebarGroupLabel>Admin</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {ADMIN_NAV_ITEMS.map((item) => {
-                    const isActive = pathname.startsWith(item.href);
-                    const Icon = item.icon;
-                    return (
-                      <SidebarMenuItem key={item.href}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={isActive}
-                          tooltip={item.label}
-                        >
-                          <Link href={item.href}>
-                            <Icon />
-                            <span>{item.label}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
+                  {ADMIN_NAV_ITEMS.map((item) => (
+                    <NavLink
+                      key={item.href}
+                      href={item.href}
+                      label={item.label}
+                      Icon={item.icon}
+                      isActive={pathname.startsWith(item.href)}
+                    />
+                  ))}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>

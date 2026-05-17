@@ -81,10 +81,16 @@ export function WorkshopAttendanceList({
             </label>
             {row.selected ? (
               <div className="flex flex-col gap-1 sm:w-56">
+                <label
+                  htmlFor={`ws-date-${w.id}`}
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Teilnahmedatum
+                </label>
                 <DatePicker
+                  id={`ws-date-${w.id}`}
                   value={row.attendedOn}
                   onChange={(next) => patch(w.id, { attendedOn: next })}
-                  placeholder="Teilnahmedatum"
                   ariaInvalid={!!error}
                 />
                 {error ? (

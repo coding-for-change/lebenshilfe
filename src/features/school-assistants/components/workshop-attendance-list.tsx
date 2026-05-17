@@ -80,7 +80,7 @@ export function WorkshopAttendanceList({
               </div>
             </label>
             {row.selected ? (
-              <div className="flex flex-col gap-1 sm:w-56">
+              <div className="flex w-full min-w-0 flex-col gap-1 sm:w-56 sm:shrink-0">
                 <label
                   htmlFor={`ws-date-${w.id}`}
                   className="text-xs font-medium text-muted-foreground"
@@ -89,6 +89,7 @@ export function WorkshopAttendanceList({
                 </label>
                 <DatePicker
                   id={`ws-date-${w.id}`}
+                  className="max-w-full"
                   value={row.attendedOn}
                   onChange={(next) => patch(w.id, { attendedOn: next })}
                   ariaInvalid={!!error}

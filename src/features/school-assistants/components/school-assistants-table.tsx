@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/table";
 import { FlagCell } from "@/components/flag-cell";
 import { PageSection } from "@/components/page-section";
-import { ScrollHint } from "@/components/scroll-hint";
 import { SearchableTable } from "@/components/searchable-table";
 import { SchoolAssistantRowActions } from "./school-assistant-row-actions";
 import { SchoolAssistantWizard } from "./school-assistant-wizard";
@@ -72,74 +71,72 @@ export function SchoolAssistantsTable({ profiles, workshops }: Props) {
             }
           >
             {(filtered) => (
-              <ScrollHint>
-                <Table>
-                  <TableHeader className="bg-muted/50">
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>E-Mail</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Stunden</TableHead>
-                      <TableHead>Einführungstag</TableHead>
-                      <TableHead className="text-center">Leos One</TableHead>
-                      <TableHead className="text-center">Outlook</TableHead>
-                      <TableHead className="text-center">ZV neu</TableHead>
-                      <TableHead className="w-12 text-right">Aktion</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filtered.map((p) => (
-                      <TableRow
-                        key={p.id}
-                        className="cursor-pointer"
-                        onClick={() => setOpenProfileId(p.id)}
+              <Table>
+                <TableHeader className="bg-muted/50">
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>E-Mail</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Stunden</TableHead>
+                    <TableHead>Einführungstag</TableHead>
+                    <TableHead className="text-center">Leos One</TableHead>
+                    <TableHead className="text-center">Outlook</TableHead>
+                    <TableHead className="text-center">ZV neu</TableHead>
+                    <TableHead className="w-12 text-right">Aktion</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((p) => (
+                    <TableRow
+                      key={p.id}
+                      className="cursor-pointer"
+                      onClick={() => setOpenProfileId(p.id)}
+                    >
+                      <TableCell className="font-medium">{p.name}</TableCell>
+                      <TableCell>{p.email}</TableCell>
+                      <TableCell>
+                        <StatusBadge status={p.status} />
+                      </TableCell>
+                      <TableCell>
+                        {p.weeklyHours == null
+                          ? "—"
+                          : `${Number(p.weeklyHours)} h`}
+                      </TableCell>
+                      <TableCell>
+                        {p.introductionDay
+                          ? formatDate(p.introductionDay)
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex justify-center">
+                          <FlagCell on={p.leosOne} />
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex justify-center">
+                          <FlagCell on={p.outlook} />
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex justify-center">
+                          <FlagCell on={p.zvNeuNachBescheid} />
+                        </div>
+                      </TableCell>
+                      <TableCell
+                        className="text-right"
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <TableCell className="font-medium">{p.name}</TableCell>
-                        <TableCell>{p.email}</TableCell>
-                        <TableCell>
-                          <StatusBadge status={p.status} />
-                        </TableCell>
-                        <TableCell>
-                          {p.weeklyHours == null
-                            ? "—"
-                            : `${Number(p.weeklyHours)} h`}
-                        </TableCell>
-                        <TableCell>
-                          {p.introductionDay
-                            ? formatDate(p.introductionDay)
-                            : "—"}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex justify-center">
-                            <FlagCell on={p.leosOne} />
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex justify-center">
-                            <FlagCell on={p.outlook} />
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex justify-center">
-                            <FlagCell on={p.zvNeuNachBescheid} />
-                          </div>
-                        </TableCell>
-                        <TableCell
-                          className="text-right"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <SchoolAssistantRowActions
-                            profileId={p.id}
-                            name={p.name}
-                            status={p.status}
-                            onOpenDetails={() => setOpenProfileId(p.id)}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollHint>
+                        <SchoolAssistantRowActions
+                          profileId={p.id}
+                          name={p.name}
+                          status={p.status}
+                          onOpenDetails={() => setOpenProfileId(p.id)}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </SearchableTable>
         </div>

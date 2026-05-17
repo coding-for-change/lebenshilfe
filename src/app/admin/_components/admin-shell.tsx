@@ -197,7 +197,7 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
               aria-label="Pfad"
               className="flex items-center gap-1.5 text-sm text-muted-foreground"
             >
-              <span>Verwaltung</span>
+              <Link href="/admin">Verwaltung</Link>
               <ChevronRight className="size-3.5 opacity-60" />
               <span className="font-medium text-foreground">{breadcrumb}</span>
             </nav>

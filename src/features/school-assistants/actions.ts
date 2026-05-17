@@ -42,3 +42,20 @@ export async function resendSchoolAssistantInvitationAction(profileId: string) {
   revalidatePath(ROUTE);
   return { success: true };
 }
+
+export async function listWorkEventsForUserAction(userId: string) {
+  await requireAdmin();
+  const events = await SchoolAssistantsFacade.listWorkEventsForUser(userId);
+  return events.map((e) => ({
+    id: e.id,
+    date: e.date.toISOString().slice(0, 10),
+    startTime: e.startTime,
+    endTime: e.endTime,
+    note: e.note,
+    childName: e.child
+      ? `${e.child.firstName} ${e.child.lastName}`
+      : "Unbekannt",
+    childId: e.childId,
+    deleted: e.deleted,
+  }));
+}

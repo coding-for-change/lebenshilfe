@@ -4,6 +4,7 @@ import { EventType, Prisma } from "@/generated/prisma";
 import {
   WEEKDAYS,
   emptyAssignmentsByWeekday,
+  weekStartsSundayToWeekStartsMondayDayKeyTranslation,
   type AssignmentsByWeekday,
 } from "../weekday";
 
@@ -58,7 +59,9 @@ export async function assertChildrenAssignedToUser(
   date: Date,
 ) {
   if (childIds.length === 0) return;
-  const day = date.getDay() - 1; //0 indexed
+  const day = weekStartsSundayToWeekStartsMondayDayKeyTranslation(
+    date.getDay(),
+  ); //0 indexed
   const count = await prisma.childAssignment.count({
     where: { userId, childId: { in: childIds }, weekday: day },
   });

@@ -9,6 +9,8 @@ import type {
   CreateChildInput,
   ScheduleInput,
   UpdateChildInput,
+  WorkEventInput,
+  UpdateWorkEventInput,
 } from "./schemas";
 
 const ROUTE = "/admin/children";
@@ -112,5 +114,39 @@ export async function listWorkEventsForChildAction(childId: string) {
     endTime: e.endTime,
     note: e.note,
     userName: e.user.name,
+    userId: e.userId,
+    deleted: e.deleted,
+    signed: !!e.signatureKey,
   }));
+}
+
+export async function createWorkEventAsAdminAction(input: WorkEventInput) {
+  await requireAdmin();
+  await ChildrenFacade.createWorkEventAsAdmin(input);
+  revalidatePath(ROUTE);
+  return { success: true as const };
+}
+
+export async function updateWorkEventAsAdminAction(
+  id: string,
+  input: UpdateWorkEventInput,
+) {
+  await requireAdmin();
+  await ChildrenFacade.updateWorkEventAsAdmin(id, input);
+  revalidatePath(ROUTE);
+  return { success: true as const };
+}
+
+export async function deleteWorkEventAsAdminAction(id: string) {
+  await requireAdmin();
+  await ChildrenFacade.deleteWorkEventAsAdmin(id);
+  revalidatePath(ROUTE);
+  return { success: true as const };
+}
+
+export async function restoreWorkEventAsAdminAction(id: string) {
+  await requireAdmin();
+  await ChildrenFacade.restoreWorkEventAsAdmin(id);
+  revalidatePath(ROUTE);
+  return { success: true as const };
 }

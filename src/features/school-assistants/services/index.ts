@@ -1,9 +1,23 @@
 import { prisma } from "@/lib/prisma";
-import { Prisma, SchulbegleiterStatus } from "@/generated/prisma";
+import { Prisma, SchulbegleiterStatus, EventType } from "@/generated/prisma";
 
 export type ProfileWithAttendances = Prisma.SchoolAssistantProfileGetPayload<{
   include: { attendances: { include: { workshop: true } } };
 }>;
+
+export type UserWorkEvent = Prisma.EventGetPayload<{
+  include: { child: true };
+}>;
+
+export async function listWorkEventsForUser(
+  userId: string,
+): Promise<UserWorkEvent[]> {
+  return prisma.event.findMany({
+    where: { userId, type: EventType.WORK },
+    include: { child: true },
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+  });
+}
 
 export async function listProfiles(): Promise<ProfileWithAttendances[]> {
   return prisma.schoolAssistantProfile.findMany({

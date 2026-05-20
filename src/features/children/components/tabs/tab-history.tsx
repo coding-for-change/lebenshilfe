@@ -10,6 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { EinsatznachweisExportDialog } from "@/features/kostentraeger-export";
 import { listWorkEventsForChildAction } from "../../actions";
 import { formatMonthYearLong, formatShortDateWithWeekday } from "@/lib/utils";
 import type { SerializedChild } from "../../serialize";
@@ -56,6 +57,7 @@ export function TabHistory({ child }: Props) {
     status: "loading",
     childId: child.id,
   });
+  const [exportOpen, setExportOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,24 +92,17 @@ export function TabHistory({ child }: Props) {
           </strong>
           .
         </p>
-        <TooltipProvider delayDuration={200}>
-          <div className="flex shrink-0 items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span tabIndex={0}>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled
-                  >
-                    <FileDown />
-                    PDF erstellen
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>Kommt in Kürze.</TooltipContent>
-            </Tooltip>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setExportOpen(true)}
+          >
+            <FileDown />
+            PDF erstellen
+          </Button>
+          <TooltipProvider delayDuration={200}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span tabIndex={0}>
@@ -123,8 +118,8 @@ export function TabHistory({ child }: Props) {
               </TooltipTrigger>
               <TooltipContent>Kommt in Kürze.</TooltipContent>
             </Tooltip>
-          </div>
-        </TooltipProvider>
+          </TooltipProvider>
+        </div>
       </div>
 
       {match(state)
@@ -182,6 +177,13 @@ export function TabHistory({ child }: Props) {
             Lade Historie…
           </div>
         ))}
+
+      <EinsatznachweisExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        childId={child.id}
+        childName={`${child.firstName} ${child.lastName}`}
+      />
     </div>
   );
 }

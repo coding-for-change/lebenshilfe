@@ -50,6 +50,7 @@ jobs:
           docker build \
             -t registry.infra.codingforchange.com/lebenshilfe:${{ github.sha }} \
             -t registry.infra.codingforchange.com/lebenshilfe:latest \
+            --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY // empty' decrypted.json)" \
             .
 
       # 3. Push to private registry
@@ -97,6 +98,7 @@ jobs:
             "S3_ACCESS_KEY_ID=$(jq -r '.S3_ACCESS_KEY_ID // empty' decrypted.json)" \
             "S3_SECRET_ACCESS_KEY=$(jq -r '.S3_SECRET_ACCESS_KEY // empty' decrypted.json)" \
             "S3_BUCKET=$(jq -r '.S3_BUCKET // empty' decrypted.json)" \
+            "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY // empty' decrypted.json)" \
             "BETTER_AUTH_URL=https://lebenshilfe.codingforchange.com" \
             "NEXT_PUBLIC_APP_URL=https://lebenshilfe.codingforchange.com" \
             "EMAIL_FROM=info@codingforchange.com" \

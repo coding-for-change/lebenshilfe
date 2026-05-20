@@ -2,15 +2,6 @@ name: Deploy Feature Branch
 
 on:
   workflow_dispatch:
-    inputs:
-      email_provider:
-        description: "Email Provider"
-        required: true
-        default: "mailpit"
-        type: choice
-        options:
-          - mailpit
-          - resend
 
 permissions:
   contents: read
@@ -25,16 +16,38 @@ jobs:
 
       - name: Decrypt Secrets
         run: |
-          if ! command -v ansible-vault &> /dev/null; then
+          if ! command -v ansible-playbook &> /dev/null; then
             pipx install ansible-core
           fi
           echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault_pass
 
-          # Decrypt the vault file into a temporary YAML file
-          ansible-vault view .config/secrets.yml --vault-password-file .vault_pass > decrypted.yml
+          cat << 'EOF' > dump.yml
+          - hosts: localhost
+            gather_facts: false
+            vars_files:
+              - .config/secrets.yml
+            tasks:
+              - copy:
+                  dest: decrypted.json
+                  content: >
+                    {{ {
+                      "REGISTRY_USERNAME": REGISTRY_USERNAME | default(""),
+                      "REGISTRY_PASSWORD": REGISTRY_PASSWORD | default(""),
+                      "DATABASE_URL": DATABASE_URL | default(""),
+                      "BETTER_AUTH_SECRET": BETTER_AUTH_SECRET | default(""),
+                      "RESEND_API_KEY": RESEND_API_KEY | default(""),
+                      "S3_ENDPOINT": S3_ENDPOINT | default(""),
+                      "S3_REGION": S3_REGION | default(""),
+                      "S3_ACCESS_KEY_ID": S3_ACCESS_KEY_ID | default(""),
+                      "S3_SECRET_ACCESS_KEY": S3_SECRET_ACCESS_KEY | default(""),
+                      "S3_BUCKET": S3_BUCKET | default(""),
+                      "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY": NEXT_PUBLIC_GOOGLE_MAPS_API_KEY | default(""),
+                      "VPS_DEPLOY_KEY": VPS_DEPLOY_KEY | default("")
+                    } | to_json }}
+                no_log: true
+          EOF
 
-          # Convert the YAML file to JSON using yq (pre-installed on ubuntu-latest)
-          yq -o=json decrypted.yml > decrypted.json
+          ansible-playbook dump.yml --vault-password-file .vault_pass
 
           # Mask single-line secrets
           echo "::add-mask::$(jq -r '.REGISTRY_USERNAME // empty' decrypted.json)"
@@ -52,10 +65,16 @@ jobs:
           # and then logs the remaining lines in plain text, causing the key to leak.
           # Since the key is only written to a file later and never printed, it is safe without this command.
 
+      - name: Set Safe Branch Name
+        run: |
+          BRANCH_NAME_SAFE=$(echo "${{ github.ref_name }}" | tr -cd 'a-zA-Z0-9-' | tr 'A-Z' 'a-z')
+          echo "BRANCH_NAME_SAFE=$BRANCH_NAME_SAFE" >> $GITHUB_ENV
+
       - name: Build Docker image
         run: |
           docker build \
-            -t registry.infra.codingforchange.com/lebenshilfe-${{ github.ref_name }}:latest \
+            -t registry.infra.codingforchange.com/lebenshilfe-${{ env.BRANCH_NAME_SAFE }}:latest \
+            --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY // empty' decrypted.json)" \
             .
 
       - name: Login to registry
@@ -66,7 +85,7 @@ jobs:
 
       - name: Push Docker image
         run: |
-          docker push registry.infra.codingforchange.com/lebenshilfe-${{ github.ref_name }}:latest
+          docker push registry.infra.codingforchange.com/lebenshilfe-${{ env.BRANCH_NAME_SAFE }}:latest
 
       - name: Setup SSH
         run: |
@@ -77,43 +96,36 @@ jobs:
 
       - name: Generate Configs and Environment
         run: |
-          BRANCH_NAME_SAFE=$(echo "${{ github.ref_name }}" | tr -cd 'a-zA-Z0-9-')
-          APP_PORT=$(echo "${BRANCH_NAME_SAFE}" | cksum | awk '{print $1 % 1000 + 8000}')
-          MAIL_PORT=$(echo "${BRANCH_NAME_SAFE}" | cksum | awk '{print $1 % 1000 + 9000}')
-          DB_PASSWORD=$(openssl rand -hex 12)
+          APP_PORT=$(echo "${{ env.BRANCH_NAME_SAFE }}" | cksum | awk '{print $1 % 1000 + 8000}')
+          DB_PASSWORD="feature-secret-pass"
 
           echo "APP_PORT=$APP_PORT" > env_vars.txt
-          echo "MAIL_PORT=$MAIL_PORT" >> env_vars.txt
-          echo "BRANCH_NAME_SAFE=$BRANCH_NAME_SAFE" >> env_vars.txt
+          echo "BRANCH_NAME_SAFE=${{ env.BRANCH_NAME_SAFE }}" >> env_vars.txt
 
           # Generate Caddyfile
           cat << EOF > Caddyfile
-          ${BRANCH_NAME_SAFE}.lebenshilfe.codingforchange.com {
+          ${{ env.BRANCH_NAME_SAFE }}.lebenshilfe.codingforchange.com {
               reverse_proxy localhost:${APP_PORT}
-          }
-          mail-${BRANCH_NAME_SAFE}.lebenshilfe.codingforchange.com {
-              reverse_proxy localhost:${MAIL_PORT}
           }
           EOF
 
           # Generate .env
           echo "FEATURE_BRANCH=${{ github.ref_name }}" > .env
+          echo "BRANCH_NAME_SAFE=${{ env.BRANCH_NAME_SAFE }}" >> .env
           echo "APP_PORT=${APP_PORT}" >> .env
-          echo "MAIL_PORT=${MAIL_PORT}" >> .env
           echo "DB_PASSWORD=${DB_PASSWORD}" >> .env
           echo "DATABASE_URL=mysql://root:${DB_PASSWORD}@db:3306/lebenshilfe" >> .env
           echo "BETTER_AUTH_SECRET=$(jq -r '.BETTER_AUTH_SECRET // empty' decrypted.json)" >> .env
-          echo "BETTER_AUTH_URL=https://${BRANCH_NAME_SAFE}.lebenshilfe.codingforchange.com" >> .env
-          echo "NEXT_PUBLIC_APP_URL=https://${BRANCH_NAME_SAFE}.lebenshilfe.codingforchange.com" >> .env
-
-          if [ "${{ github.event.inputs.email_provider }}" == "resend" ]; then
-            echo "RESEND_API_KEY=$(jq -r '.RESEND_API_KEY // empty' decrypted.json)" >> .env
-            echo "EMAIL_FROM=info@codingforchange.com" >> .env
-          else
-            echo "SMTP_HOST=mailpit" >> .env
-            echo "SMTP_PORT=1025" >> .env
-            echo "EMAIL_FROM=test@${BRANCH_NAME_SAFE}.local" >> .env
-          fi
+          echo "BETTER_AUTH_URL=https://${{ env.BRANCH_NAME_SAFE }}.lebenshilfe.codingforchange.com" >> .env
+          echo "NEXT_PUBLIC_APP_URL=https://${{ env.BRANCH_NAME_SAFE }}.lebenshilfe.codingforchange.com" >> .env
+          echo "RESEND_API_KEY=$(jq -r '.RESEND_API_KEY // empty' decrypted.json)" >> .env
+          echo "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY // empty' decrypted.json)" >> .env
+          echo "S3_ENDPOINT=$(jq -r '.S3_ENDPOINT // empty' decrypted.json)" >> .env
+          echo "S3_REGION=$(jq -r '.S3_REGION // empty' decrypted.json)" >> .env
+          echo "S3_ACCESS_KEY_ID=$(jq -r '.S3_ACCESS_KEY_ID // empty' decrypted.json)" >> .env
+          echo "S3_SECRET_ACCESS_KEY=$(jq -r '.S3_SECRET_ACCESS_KEY // empty' decrypted.json)" >> .env
+          echo "S3_BUCKET=$(jq -r '.S3_BUCKET // empty' decrypted.json)" >> .env
+          echo "EMAIL_FROM=info@codingforchange.com" >> .env
 
       - name: Deploy to VPS
         run: |

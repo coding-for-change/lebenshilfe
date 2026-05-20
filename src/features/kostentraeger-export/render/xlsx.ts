@@ -21,7 +21,11 @@ const THIN_BORDER: Partial<Borders> = {
 
 /** Excel sheet names: max 31 chars, no `[]:*?/\`, and must be unique. */
 function uniqueSheetName(used: Set<string>, label: string): string {
-  const base = label.replace(/[[\]:*?/\\]/g, " ").trim().slice(0, 28) || "Monat";
+  const base =
+    label
+      .replace(/[[\]:*?/\\]/g, " ")
+      .trim()
+      .slice(0, 28) || "Monat";
   let name = base;
   let suffix = 2;
   while (used.has(name)) {

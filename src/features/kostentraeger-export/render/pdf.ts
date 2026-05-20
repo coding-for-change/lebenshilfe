@@ -156,7 +156,11 @@ function drawMonthPage(
     x += column.width;
   }
 
-  const drawRow = (cells: string[], cellFont: PDFFont, fill?: ReturnType<typeof rgb>) => {
+  const drawRow = (
+    cells: string[],
+    cellFont: PDFFont,
+    fill?: ReturnType<typeof rgb>,
+  ) => {
     rowY -= ROW_HEIGHT;
     x = MARGIN;
     COLUMNS.forEach((column, index) => {

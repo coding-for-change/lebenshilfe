@@ -36,7 +36,15 @@ export const MONTHS_LONG = [
 ] as const;
 
 /** Sunday-first, matching `Date.prototype.getUTCDay()`. */
-export const WEEKDAYS_SHORT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"] as const;
+export const WEEKDAYS_SHORT = [
+  "So",
+  "Mo",
+  "Di",
+  "Mi",
+  "Do",
+  "Fr",
+  "Sa",
+] as const;
 
 /** "Mrz 26" — short month plus two-digit year, as in the Tabelle-7 template. */
 export function monthLabel(year: number, month: number): string {

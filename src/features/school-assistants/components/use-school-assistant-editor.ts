@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { useAutosave } from "@/components/use-autosave";
+import { useDetailEditor } from "@/components/use-detail-editor";
 import { updateSchoolAssistantAction } from "../actions";
 import type { UpdateSchoolAssistantInput } from "../schemas";
 import type { SerializedProfile } from "../serialize";
@@ -99,8 +99,8 @@ function diff(
   return Object.keys(patch).length > 0 ? patch : null;
 }
 
-export function useAutosaveSchoolAssistant(
-  profile: SerializedProfile,
+export function useSchoolAssistantEditor(
+  profile: SerializedProfile | null,
   workshops: WorkshopOption[],
 ) {
   const toForm = useCallback(
@@ -108,12 +108,13 @@ export function useAutosaveSchoolAssistant(
     [workshops],
   );
 
-  return useAutosave({
+  return useDetailEditor({
     entity: profile,
-    entityKey: profile.id,
+    entityKey: profile?.id,
     toForm,
     diff,
     persist: async (patch) => {
+      if (!profile) return;
       await updateSchoolAssistantAction(profile.id, patch);
     },
   });

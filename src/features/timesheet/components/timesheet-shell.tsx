@@ -36,7 +36,7 @@ import { TabDay } from "./tab-day";
 import { TabWoche } from "./tab-woche";
 import { TabMonat } from "./tab-monat";
 import { SettingsDialog } from "./settings-dialog";
-import { startOfDayUtc } from "./date-utils";
+import { startOfDayUtc } from "@/lib/dates";
 import type { ChildOption } from "./children-filter";
 import type { ChildAbsence, Event, Schedule } from "@/generated/prisma";
 import type { AssignmentsByWeekday } from "../weekday";

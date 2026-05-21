@@ -9,6 +9,7 @@ import {
   BookOpen,
   ChevronRight,
   LifeBuoy,
+  MapPin,
   Send,
   ShieldCheck,
   Users,
@@ -53,6 +54,11 @@ const NAV_ITEMS = [
     href: "/admin/workshops",
     label: "Workshops",
     icon: BookOpen,
+  },
+  {
+    href: "/admin/map",
+    label: "Karte",
+    icon: MapPin,
   },
 ] as const;
 
@@ -221,7 +227,13 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
               <span className="font-medium text-foreground">{breadcrumb}</span>
             </nav>
           </header>
-          <div className="mx-auto w-full max-w-7xl px-6 py-8">{children}</div>
+          {pathname.startsWith("/admin/map") ? (
+            <div className="relative min-h-0 flex-1 overflow-hidden rounded-b-xl">
+              {children}
+            </div>
+          ) : (
+            <div className="mx-auto w-full max-w-7xl px-6 py-8">{children}</div>
+          )}
         </SidebarInset>
 
         <Toaster

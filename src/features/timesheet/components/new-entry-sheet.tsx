@@ -23,7 +23,7 @@ import {
   parseIsoDate,
   timeToMinutes,
   weekdayIndex,
-} from "./date-utils";
+} from "@/lib/dates";
 import type { ChildOption } from "./children-filter";
 import { childIdsForDate, type AssignmentsByWeekday } from "../weekday";
 import { cn, formatIsoDateUtc } from "@/lib/utils";

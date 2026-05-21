@@ -14,12 +14,11 @@ const FALLBACK_ZOOM = 11;
 const SINGLE_SCHOOL_ZOOM = 14;
 const SEARCH_ZOOM = 15;
 
-// Hide every Point-of-Interest (restaurants, museums, etc.) and transit icons
-// so the only markers on the map are the school markers we add ourselves.
-const MAP_STYLES: google.maps.MapTypeStyle[] = [
-  { featureType: "poi", stylers: [{ visibility: "off" }] },
-  { featureType: "transit", stylers: [{ visibility: "off" }] },
-];
+// AdvancedMarkerElement requires a Map ID. With a Map ID set, inline `styles`
+// are ignored — POI/transit hiding must be configured via cloud-based map
+// styling on the corresponding Map ID. `DEMO_MAP_ID` is Google's public
+// fallback that enables advanced markers without custom styling.
+const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || "DEMO_MAP_ID";
 
 function fitToSchools(map: google.maps.Map, schools: MapSchool[]): void {
   if (schools.length === 0) {
@@ -56,13 +55,13 @@ export function MapView({
 
   useEffect(() => {
     let cancelled = false;
-    loadMapsLibrary("maps")
+    Promise.all([loadMapsLibrary("maps"), loadMapsLibrary("marker")])
       .then(() => {
         if (cancelled || !containerRef.current) return;
         const created = new google.maps.Map(containerRef.current, {
           center: MUNICH_CENTER,
           zoom: FALLBACK_ZOOM,
-          styles: MAP_STYLES,
+          mapId: MAP_ID,
           streetViewControl: false,
           mapTypeControl: false,
           fullscreenControl: false,

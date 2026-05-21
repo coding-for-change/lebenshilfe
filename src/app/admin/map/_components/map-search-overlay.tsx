@@ -26,12 +26,13 @@ function buildIndex(schools: MapSchool[]): Entry[] {
   for (const school of schools) {
     for (const child of school.children) {
       const fullName = `${child.firstName} ${child.lastName}`;
+      const assistantNames = child.assistants.map((a) => a.name).join("|");
       entries.push({
         schoolKey: school.key,
         schoolName: school.name || "Schule",
         label: fullName,
         kind: "child",
-        searchValue: `kind:${fullName}|${school.name}|${child.id}`,
+        searchValue: `kind:${fullName}|${school.name}|${child.id}|${assistantNames}`,
       });
       for (const a of child.assistants) {
         const dedupeKey = `${school.key}::${a.userId}`;

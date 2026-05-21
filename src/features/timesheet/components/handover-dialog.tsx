@@ -5,6 +5,7 @@ import { Check, ShieldCheck } from "lucide-react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -122,6 +123,11 @@ export function HandoverDialog({
                 ? "Monat freigegeben"
                 : `Freigabe — ${MONTHS_LONG[month - 1]} ${year}`}
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              {stage === "done"
+                ? `Der Monat ${MONTHS_LONG[month - 1]} ${year} wurde freigegeben.`
+                : `Übersicht und Freigabe der Einträge im ${MONTHS_LONG[month - 1]} ${year}.`}
+            </DialogDescription>
           </DialogHeader>
 
           {stage === "intro" && (

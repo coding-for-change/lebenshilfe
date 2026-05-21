@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Check, X } from "lucide-react";
+import SignaturePad from "signature_pad";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -30,95 +32,59 @@ export function SignaturePadDialog({
   onConfirm,
   submitting,
 }: Props) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const padRef = useRef<SignaturePad | null>(null);
   const [hasInk, setHasInk] = useState(false);
-  const drawingRef = useRef(false);
-  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
 
   const clear = useCallback(() => {
-    const c = canvasRef.current;
-    if (!c) return;
-    const ctx = c.getContext("2d");
-    if (!ctx) return;
-    ctx.clearRect(0, 0, c.width, c.height);
+    padRef.current?.clear();
     setHasInk(false);
   }, []);
 
-  useEffect(() => {
-    if (!open) return;
-    const c = canvasRef.current;
+  // Use a ref callback so we initialise exactly when the Radix Dialog mounts
+  // the canvas into the DOM, and tear down when it unmounts. We wait via rAF
+  // until offsetWidth/Height are non-zero — during the dialog open animation
+  // the canvas can be momentarily 0×0, and constructing signature_pad against
+  // a zero-dim canvas leaves it in a state where pointer events fire but
+  // strokes never render.
+  const attachCanvas = useCallback((c: HTMLCanvasElement | null) => {
     if (!c) return;
 
-    const resize = () => {
-      const dpr = window.devicePixelRatio || 1;
-      const cssW = c.clientWidth;
-      const cssH = c.clientHeight;
-      if (cssW === 0 || cssH === 0) return;
-      const nextW = Math.floor(cssW * dpr);
-      const nextH = Math.floor(cssH * dpr);
-      if (c.width === nextW && c.height === nextH) return;
-      c.width = nextW;
-      c.height = nextH;
-      const ctx = c.getContext("2d");
-      if (!ctx) return;
-      ctx.scale(dpr, dpr);
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.strokeStyle = "#09090b";
-      ctx.lineWidth = 2.4;
+    let cancelled = false;
+    const init = () => {
+      if (cancelled) return;
+      const cssW = c.offsetWidth;
+      const cssH = c.offsetHeight;
+      if (cssW === 0 || cssH === 0) {
+        requestAnimationFrame(init);
+        return;
+      }
+      const ratio = Math.max(window.devicePixelRatio || 1, 1);
+      c.width = cssW * ratio;
+      c.height = cssH * ratio;
+      c.getContext("2d")?.scale(ratio, ratio);
+
+      const pad = new SignaturePad(c, {
+        penColor: "#09090b",
+        minWidth: 1,
+        maxWidth: 2.4,
+      });
+      pad.addEventListener("beginStroke", () => setHasInk(true));
+      padRef.current = pad;
+    };
+    requestAnimationFrame(init);
+
+    return () => {
+      cancelled = true;
+      padRef.current?.off();
+      padRef.current = null;
       setHasInk(false);
     };
-
-    resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(c);
-    return () => ro.disconnect();
-  }, [open]);
-
-  const toLocal = (ev: React.PointerEvent<HTMLCanvasElement>) => {
-    const c = canvasRef.current!;
-    const rect = c.getBoundingClientRect();
-    const scaleX = rect.width ? c.clientWidth / rect.width : 1;
-    const scaleY = rect.height ? c.clientHeight / rect.height : 1;
-    return {
-      x: (ev.clientX - rect.left) * scaleX,
-      y: (ev.clientY - rect.top) * scaleY,
-    };
-  };
-
-  const onPointerDown = (ev: React.PointerEvent<HTMLCanvasElement>) => {
-    ev.preventDefault();
-    canvasRef.current?.setPointerCapture(ev.pointerId);
-    drawingRef.current = true;
-    lastPointRef.current = toLocal(ev);
-  };
-
-  const onPointerMove = (ev: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!drawingRef.current) return;
-    const ctx = canvasRef.current?.getContext("2d");
-    const last = lastPointRef.current;
-    if (!ctx || !last) return;
-    const p = toLocal(ev);
-    ctx.beginPath();
-    ctx.moveTo(last.x, last.y);
-    ctx.lineTo(p.x, p.y);
-    ctx.stroke();
-    lastPointRef.current = p;
-    if (!hasInk) setHasInk(true);
-  };
-
-  const onPointerUp = (ev: React.PointerEvent<HTMLCanvasElement>) => {
-    drawingRef.current = false;
-    lastPointRef.current = null;
-    try {
-      canvasRef.current?.releasePointerCapture(ev.pointerId);
-    } catch {}
-  };
+  }, []);
 
   const confirm = async () => {
-    const c = canvasRef.current;
-    if (!c || !hasInk) return;
-    const data = c.toDataURL("image/png");
+    const pad = padRef.current;
+    if (!pad || pad.isEmpty()) return;
+    const data = pad.toDataURL("image/png");
     await onConfirm(data);
   };
 
@@ -135,22 +101,18 @@ export function SignaturePadDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
+          <DialogDescription className={cn(!subtitle && "sr-only")}>
+            {subtitle ?? `Unterschrift von ${signerLabel} erfassen.`}
+          </DialogDescription>
         </DialogHeader>
-        {subtitle && (
-          <p className="text-sm text-muted-foreground -mt-2">{subtitle}</p>
-        )}
         <p className="text-xs uppercase tracking-wider text-muted-foreground">
           {signerLabel}
         </p>
 
         <div className="relative rounded-xl border-2 border-dashed border-border bg-white">
           <canvas
-            ref={canvasRef}
+            ref={attachCanvas}
             className="block h-[220px] w-full touch-none rounded-xl"
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerUp}
           />
           {!hasInk && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted-foreground/70">

@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MonthYearPicker } from "@/components/month-year-picker";
+import { FlagRow } from "@/components/flag-row";
 import { generateCostBearerExportAction } from "../actions";
 import {
   ExportRequestSchema,
@@ -73,6 +74,7 @@ export function CostBearerExportDialog({
   const [toYear, setToYear] = useState(NOW.getFullYear());
   const [scope, setScope] = useState<ExportScope>("combined");
   const [format, setFormat] = useState<ExportFormat>("pdf");
+  const [fillWithIndirect, setFillWithIndirect] = useState(true);
   const [busy, setBusy] = useState(false);
 
   async function handleExport() {
@@ -85,6 +87,7 @@ export function CostBearerExportDialog({
       scope,
       from,
       to,
+      fillWithIndirect,
     });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "Ungültige Eingabe.");
@@ -232,6 +235,14 @@ export function CostBearerExportDialog({
               </SelectContent>
             </Select>
           </Field>
+
+          <FlagRow
+            id="export-fill-indirect"
+            label="Stunden mit indirekter Leistung auffüllen"
+            description="Füllt fehlende Stunden über die Zeile „Indirekte Leistung“ bis zur genehmigten Monatssumme des Kindes auf."
+            checked={fillWithIndirect}
+            onChange={setFillWithIndirect}
+          />
         </div>
 
         <DialogFooter>

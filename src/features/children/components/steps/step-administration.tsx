@@ -91,6 +91,54 @@ export function StepAdministrationChild({
         </Field>
       </div>
 
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field>
+          <FieldLabel htmlFor="kind-approved-direct">
+            <FieldContent>
+              <span>Genehmigte direkte Leistung</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                Std. pro Monat (laut Bescheid).
+              </span>
+            </FieldContent>
+          </FieldLabel>
+          <Input
+            id="kind-approved-direct"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.5"
+            value={value.approvedDirectHours}
+            onChange={(e) => onChange({ approvedDirectHours: e.target.value })}
+            aria-invalid={!!errors.approvedDirectHours}
+          />
+          <FieldError>{errors.approvedDirectHours}</FieldError>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="kind-approved-indirect">
+            <FieldContent>
+              <span>Genehmigte indirekte Leistung</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                Std. pro Monat (laut Bescheid).
+              </span>
+            </FieldContent>
+          </FieldLabel>
+          <Input
+            id="kind-approved-indirect"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.5"
+            value={value.approvedIndirectHours}
+            onChange={(e) =>
+              onChange({ approvedIndirectHours: e.target.value })
+            }
+            aria-invalid={!!errors.approvedIndirectHours}
+          />
+          <FieldError>{errors.approvedIndirectHours}</FieldError>
+        </Field>
+      </div>
+
       <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4">
         <FlagRow
           id="kind-leos"

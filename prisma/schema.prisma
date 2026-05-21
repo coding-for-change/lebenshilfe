@@ -116,6 +116,8 @@ model Child {
   leosOne                    Boolean           @default(false)
   bescheid                   String?           @db.Text
   sbIb                       String?
+  approvedDirectHours        Decimal?          @db.Decimal(6, 2)
+  approvedIndirectHours      Decimal?          @db.Decimal(6, 2)
   schweigepflichtsentbindung Boolean           @default(false)
   bemerkung                  String?           @db.Text
   schoolName                 String?

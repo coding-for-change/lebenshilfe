@@ -5,16 +5,40 @@ export type ExportChild = {
   id: string;
   firstName: string;
   lastName: string;
+  /** Approved direct service hours per month (from the Bescheid). */
+  approvedDirectHours: number | null;
+  /** Approved indirect service hours per month (from the Bescheid). */
+  approvedIndirectHours: number | null;
 };
 
-/** Minimal child record needed for the Einsatznachweis header. */
+/** Minimal child record needed for the Einsatznachweis header and totals. */
 export async function findChildForExport(
   childId: string,
 ): Promise<ExportChild | null> {
-  return prisma.child.findUnique({
+  const child = await prisma.child.findUnique({
     where: { id: childId },
-    select: { id: true, firstName: true, lastName: true },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      approvedDirectHours: true,
+      approvedIndirectHours: true,
+    },
   });
+  if (!child) return null;
+  return {
+    id: child.id,
+    firstName: child.firstName,
+    lastName: child.lastName,
+    approvedDirectHours:
+      child.approvedDirectHours == null
+        ? null
+        : Number(child.approvedDirectHours),
+    approvedIndirectHours:
+      child.approvedIndirectHours == null
+        ? null
+        : Number(child.approvedIndirectHours),
+  };
 }
 
 export type ExportWorkEvent = Prisma.EventGetPayload<{

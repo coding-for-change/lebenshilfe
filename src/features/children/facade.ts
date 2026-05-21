@@ -40,6 +40,8 @@ function childFieldsFromCreate(input: CreateChildInput) {
     leosOne: input.leosOne ?? false,
     bescheid: input.bescheid ?? null,
     sbIb: input.sbIb ?? null,
+    approvedDirectHours: input.approvedDirectHours ?? null,
+    approvedIndirectHours: input.approvedIndirectHours ?? null,
     schweigepflichtsentbindung: input.schweigepflichtsentbindung ?? false,
     bemerkung: input.bemerkung ?? null,
     kostentraegerId: input.kostentraegerId ?? null,
@@ -58,6 +60,12 @@ function childFieldsFromUpdate(input: UpdateChildInput) {
   if (input.leosOne !== undefined) out.leosOne = input.leosOne;
   if (input.bescheid !== undefined) out.bescheid = input.bescheid;
   if (input.sbIb !== undefined) out.sbIb = input.sbIb;
+  if (input.approvedDirectHours !== undefined) {
+    out.approvedDirectHours = input.approvedDirectHours;
+  }
+  if (input.approvedIndirectHours !== undefined) {
+    out.approvedIndirectHours = input.approvedIndirectHours;
+  }
   if (input.schweigepflichtsentbindung !== undefined) {
     out.schweigepflichtsentbindung = input.schweigepflichtsentbindung;
   }

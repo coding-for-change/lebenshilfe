@@ -2,7 +2,7 @@
 
 import { useAutosave } from "@/components/use-autosave";
 import { updateChildAction } from "../../actions";
-import type { UpdateChildInput } from "../../schemas";
+import { parseHoursInput, type UpdateChildInput } from "../../schemas";
 import type { SerializedChild } from "../../serialize";
 import type { SchoolValue } from "../school-autocomplete";
 
@@ -14,6 +14,8 @@ export type GeneralFormState = {
   schweigepflichtsentbindung: boolean;
   bescheid: string;
   sbIb: string;
+  approvedDirectHours: string;
+  approvedIndirectHours: string;
   bemerkung: string;
   kostentraegerId: string | null;
 };
@@ -33,6 +35,10 @@ function fromChild(c: SerializedChild): GeneralFormState {
     schweigepflichtsentbindung: c.schweigepflichtsentbindung,
     bescheid: c.bescheid ?? "",
     sbIb: c.sbIb ?? "",
+    approvedDirectHours:
+      c.approvedDirectHours == null ? "" : String(c.approvedDirectHours),
+    approvedIndirectHours:
+      c.approvedIndirectHours == null ? "" : String(c.approvedIndirectHours),
     bemerkung: c.bemerkung ?? "",
     kostentraegerId: c.costBearer?.id ?? null,
   };
@@ -54,6 +60,12 @@ function diff(
   }
   if ((next.sbIb || null) !== (base.sbIb || null)) {
     patch.sbIb = next.sbIb || null;
+  }
+  if (next.approvedDirectHours !== base.approvedDirectHours) {
+    patch.approvedDirectHours = parseHoursInput(next.approvedDirectHours);
+  }
+  if (next.approvedIndirectHours !== base.approvedIndirectHours) {
+    patch.approvedIndirectHours = parseHoursInput(next.approvedIndirectHours);
   }
   if ((next.bemerkung || null) !== (base.bemerkung || null)) {
     patch.bemerkung = next.bemerkung || null;

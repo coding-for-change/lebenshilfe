@@ -15,6 +15,7 @@ export const ExportRequestSchema = z
     scope: z.enum(["combined", "per-assistant"]),
     from: MonthMarkerSchema,
     to: MonthMarkerSchema,
+    fillWithIndirect: z.boolean(),
   })
   .superRefine((value, ctx) => {
     const span = monthIndex(value.to) - monthIndex(value.from);

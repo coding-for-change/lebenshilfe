@@ -2,6 +2,7 @@ import {
   EMPTY_CHILD_FORM,
   BasicInfoStepSchema,
   AdministrationStepSchema,
+  parseHoursInput,
   type ChildWizardErrors,
   type ChildWizardFormState,
 } from "../schemas";
@@ -39,6 +40,8 @@ export function validateWizardStep(
       leosOne: form.leosOne,
       bescheid: form.bescheid || null,
       sbIb: form.sbIb || null,
+      approvedDirectHours: parseHoursInput(form.approvedDirectHours),
+      approvedIndirectHours: parseHoursInput(form.approvedIndirectHours),
       schweigepflichtsentbindung: form.schweigepflichtsentbindung,
       bemerkung: form.bemerkung || null,
       kostentraegerId: form.kostentraegerId,

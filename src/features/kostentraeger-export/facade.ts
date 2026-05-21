@@ -43,11 +43,17 @@ function monthsInRange(
   return result;
 }
 
-/** Builds one month sheet, listing every calendar day. */
+/**
+ * Builds one month sheet, listing every calendar day.
+ *
+ * When `fillTarget` is set, the "Indirekte Leistung" row is computed so the
+ * billed total reaches the approved monthly hours; otherwise it stays 0.
+ */
 function buildMonth(
   year: number,
   month: number,
   events: ExportWorkEvent[],
+  fillTarget: number | null,
 ): ExportMonth {
   const days: ExportDay[] = [];
   let directHours = 0;
@@ -92,6 +98,8 @@ function buildMonth(
   }
 
   directHours = roundHours(directHours);
+  const indirectHours =
+    fillTarget == null ? 0 : Math.max(0, roundHours(fillTarget - directHours));
 
   return {
     year,
@@ -99,8 +107,8 @@ function buildMonth(
     label: monthLabel(year, month),
     days,
     directHours,
-    indirectHours: 0,
-    totalHours: directHours,
+    indirectHours,
+    totalHours: roundHours(directHours + indirectHours),
   };
 }
 
@@ -120,6 +128,12 @@ export const CostBearerExportFacade = {
       throw new Error("Kind nicht gefunden.");
     }
     const childName = `${child.firstName} ${child.lastName}`.trim();
+
+    // When "auffüllen" is on, top the billed hours up to the child's approved
+    // monthly budget (direct + indirect) via the "Indirekte Leistung" row.
+    const fillTarget = request.fillWithIndirect
+      ? (child.approvedDirectHours ?? 0) + (child.approvedIndirectHours ?? 0)
+      : null;
 
     const months = monthsInRange(request.from, request.to);
     const rangeStart = utcDate(request.from.year, request.from.month, 1);
@@ -141,7 +155,7 @@ export const CostBearerExportFacade = {
           childName,
           schulbegleiterName: null,
           months: months.map((marker) =>
-            buildMonth(marker.year, marker.month, events),
+            buildMonth(marker.year, marker.month, events, fillTarget),
           ),
         },
       ];
@@ -173,7 +187,7 @@ export const CostBearerExportFacade = {
         childName,
         schulbegleiterName: assistant.name,
         months: months.map((marker) =>
-          buildMonth(marker.year, marker.month, assistant.events),
+          buildMonth(marker.year, marker.month, assistant.events, fillTarget),
         ),
       }));
   },

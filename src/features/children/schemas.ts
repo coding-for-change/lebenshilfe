@@ -14,6 +14,14 @@ const optionalText = (max: number) =>
     .nullable()
     .optional();
 
+const optionalHours = () =>
+  z
+    .number()
+    .min(0, "Stunden dürfen nicht negativ sein.")
+    .max(9999, "Stundenzahl ist zu groß.")
+    .nullable()
+    .optional();
+
 export const SchoolSchema = z
   .object({
     placeId: z.string().nullable().optional(),
@@ -54,6 +62,8 @@ const kindFieldsSchema = z.object({
   leosOne: z.boolean().default(false),
   bescheid: optionalText(5000),
   sbIb: optionalText(200),
+  approvedDirectHours: optionalHours(),
+  approvedIndirectHours: optionalHours(),
   schweigepflichtsentbindung: z.boolean().default(false),
   bemerkung: optionalText(5000),
   kostentraegerId: z
@@ -78,6 +88,8 @@ export const AdministrationStepSchema = kindFieldsSchema.pick({
   leosOne: true,
   bescheid: true,
   sbIb: true,
+  approvedDirectHours: true,
+  approvedIndirectHours: true,
   schweigepflichtsentbindung: true,
   bemerkung: true,
   kostentraegerId: true,
@@ -133,6 +145,8 @@ export type ChildWizardFormState = {
   leosOne: boolean;
   bescheid: string;
   sbIb: string;
+  approvedDirectHours: string;
+  approvedIndirectHours: string;
   schweigepflichtsentbindung: boolean;
   bemerkung: string;
   kostentraegerId: string | null;
@@ -163,7 +177,17 @@ export const EMPTY_CHILD_FORM: ChildWizardFormState = {
   leosOne: false,
   bescheid: "",
   sbIb: "",
+  approvedDirectHours: "",
+  approvedIndirectHours: "",
   schweigepflichtsentbindung: false,
   bemerkung: "",
   kostentraegerId: null,
 };
+
+/** Parses a raw hours input string to a number, or null when empty/invalid. */
+export function parseHoursInput(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (trimmed === "") return null;
+  const value = Number(trimmed);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}

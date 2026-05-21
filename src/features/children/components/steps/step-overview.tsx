@@ -43,6 +43,22 @@ export function StepOverviewChild({ value, costBearerOptions }: Props) {
           label="Bescheid"
           value={value.bescheid || "—"}
         />
+        <Row
+          label="Genehmigte direkte Leistung"
+          value={
+            value.approvedDirectHours
+              ? `${value.approvedDirectHours} Std./Monat`
+              : "—"
+          }
+        />
+        <Row
+          label="Genehmigte indirekte Leistung"
+          value={
+            value.approvedIndirectHours
+              ? `${value.approvedIndirectHours} Std./Monat`
+              : "—"
+          }
+        />
         <Flag
           label="Leos One"
           on={value.leosOne}

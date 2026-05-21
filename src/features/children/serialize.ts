@@ -38,6 +38,8 @@ export type SerializedChild = {
   leosOne: boolean;
   bescheid: string | null;
   sbIb: string | null;
+  approvedDirectHours: number | null;
+  approvedIndirectHours: number | null;
   schweigepflichtsentbindung: boolean;
   bemerkung: string | null;
   schoolName: string | null;
@@ -59,6 +61,10 @@ export function serializeChild(c: ChildWithRelations): SerializedChild {
     leosOne: c.leosOne,
     bescheid: c.bescheid,
     sbIb: c.sbIb,
+    approvedDirectHours:
+      c.approvedDirectHours == null ? null : Number(c.approvedDirectHours),
+    approvedIndirectHours:
+      c.approvedIndirectHours == null ? null : Number(c.approvedIndirectHours),
     schweigepflichtsentbindung: c.schweigepflichtsentbindung,
     bemerkung: c.bemerkung,
     schoolName: c.schoolName,

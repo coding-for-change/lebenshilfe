@@ -42,7 +42,14 @@ export function renderCsv(doc: ExportDocument): Buffer {
         day.bemerkungen,
       ]);
     }
-    row(["", "", "Indirekte Leistung", "", "", ""]);
+    row([
+      "",
+      "",
+      "Indirekte Leistung",
+      month.indirectHours > 0 ? formatHoursDe(month.indirectHours) : "",
+      "",
+      "",
+    ]);
     row(["", "", "Gesamt:", formatHoursDe(month.totalHours), "", ""]);
     lines.push("");
   }

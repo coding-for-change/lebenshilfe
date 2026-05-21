@@ -194,7 +194,17 @@ function drawMonthPage(
     );
   }
 
-  drawRow(["", "", "Indirekte Leistung", "", "", ""], font);
+  drawRow(
+    [
+      "",
+      "",
+      "Indirekte Leistung",
+      month.indirectHours > 0 ? formatHoursDe(month.indirectHours) : "",
+      "",
+      "",
+    ],
+    font,
+  );
   drawRow(["", "", "Gesamt:", formatHoursDe(month.totalHours), "", ""], bold);
 
   // Confirmation footer.

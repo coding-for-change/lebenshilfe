@@ -109,6 +109,9 @@ function writeMonthSheet(
 
   const indirectRow = worksheet.getRow(rowIndex);
   indirectRow.getCell(3).value = "Indirekte Leistung";
+  const indirectCell = indirectRow.getCell(4);
+  indirectCell.value = month.indirectHours > 0 ? month.indirectHours : null;
+  indirectCell.numFmt = "0.00";
   for (let column = 1; column <= 6; column += 1) {
     indirectRow.getCell(column).border = THIN_BORDER;
   }

@@ -1,6 +1,6 @@
 import { Workbook } from "exceljs";
 import type { Borders, Fill, Worksheet } from "exceljs";
-import type { EinsatzMonth, EinsatznachweisDoc } from "../schemas";
+import type { ExportDocument, ExportMonth } from "../schemas";
 
 const HEADER_FILL: Fill = {
   type: "pattern",
@@ -38,8 +38,8 @@ function uniqueSheetName(used: Set<string>, label: string): string {
 
 function writeMonthSheet(
   worksheet: Worksheet,
-  doc: EinsatznachweisDoc,
-  month: EinsatzMonth,
+  doc: ExportDocument,
+  month: ExportMonth,
 ): void {
   worksheet.columns = [
     { width: 6 },
@@ -137,7 +137,7 @@ function writeMonthSheet(
 }
 
 /** Renders the Einsatznachweis as an `.xlsx` workbook, one worksheet per month. */
-export async function renderXlsx(doc: EinsatznachweisDoc): Promise<Buffer> {
+export async function renderXlsx(doc: ExportDocument): Promise<Buffer> {
   const workbook = new Workbook();
   const usedNames = new Set<string>();
   for (const month of doc.months) {

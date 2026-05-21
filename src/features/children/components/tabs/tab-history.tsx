@@ -10,7 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { EinsatznachweisExportDialog } from "@/features/kostentraeger-export";
+import { CostBearerExportDialog } from "@/features/kostentraeger-export";
 import { listWorkEventsForChildAction } from "../../actions";
 import { formatMonthYearLong, formatShortDateWithWeekday } from "@/lib/utils";
 import type { SerializedChild } from "../../serialize";
@@ -47,6 +47,15 @@ function totalHours(events: WorkEvent[]) {
   return (mins / 60).toFixed(2).replace(".", ",");
 }
 
+/** Earliest calendar year present in the events, or undefined when none. */
+function earliestEventYear(events: WorkEvent[]): number | undefined {
+  if (events.length === 0) return undefined;
+  return events.reduce((earliest, event) => {
+    const year = new Date(`${event.date}T00:00:00`).getFullYear();
+    return year < earliest ? year : earliest;
+  }, Number.POSITIVE_INFINITY);
+}
+
 type LoadState =
   | { status: "loading"; childId: string }
   | { status: "loaded"; childId: string; events: WorkEvent[] }
@@ -58,6 +67,9 @@ export function TabHistory({ child }: Props) {
     childId: child.id,
   });
   const [exportOpen, setExportOpen] = useState(false);
+
+  const minYear =
+    state.status === "loaded" ? earliestEventYear(state.events) : undefined;
 
   useEffect(() => {
     let cancelled = false;
@@ -178,11 +190,12 @@ export function TabHistory({ child }: Props) {
           </div>
         ))}
 
-      <EinsatznachweisExportDialog
+      <CostBearerExportDialog
         open={exportOpen}
         onOpenChange={setExportOpen}
         childId={child.id}
         childName={`${child.firstName} ${child.lastName}`}
+        minYear={minYear}
       />
     </div>
   );

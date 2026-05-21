@@ -1,7 +1,7 @@
 "use server";
 
 import { requireAdmin } from "@/lib/auth-guards";
-import { KostentraegerExportFacade } from "./facade";
+import { CostBearerExportFacade } from "./facade";
 import { sanitizeFileName } from "./format";
 import { renderCsv } from "./render/csv";
 import { renderPdf } from "./render/pdf";
@@ -30,13 +30,13 @@ function periodFilePart(request: ExportRequest): string {
  * for `combined` scope, or one file per Schulbegleiter for `per-assistant`
  * scope. Files are base64-encoded for transport to the client.
  */
-export async function exportEinsatznachweisAction(
+export async function generateCostBearerExportAction(
   input: ExportRequest,
 ): Promise<{ files: ExportFile[] }> {
   await requireAdmin();
   const request = ExportRequestSchema.parse(input);
 
-  const documents = await KostentraegerExportFacade.build(request);
+  const documents = await CostBearerExportFacade.build(request);
   const period = periodFilePart(request);
 
   const files: ExportFile[] = [];

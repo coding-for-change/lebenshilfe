@@ -1,8 +1,8 @@
 import {
   ExportRequestSchema,
-  type EinsatzDay,
-  type EinsatzMonth,
-  type EinsatznachweisDoc,
+  type ExportDay,
+  type ExportDocument,
+  type ExportMonth,
   type ExportRequest,
 } from "./schemas";
 import {
@@ -48,8 +48,8 @@ function buildMonth(
   year: number,
   month: number,
   events: ExportWorkEvent[],
-): EinsatzMonth {
-  const days: EinsatzDay[] = [];
+): ExportMonth {
+  const days: ExportDay[] = [];
   let directHours = 0;
 
   for (let day = 1; day <= daysInMonth(year, month); day += 1) {
@@ -104,7 +104,7 @@ function buildMonth(
   };
 }
 
-export const KostentraegerExportFacade = {
+export const CostBearerExportFacade = {
   /**
    * Builds the Einsatznachweis document(s) for a child and period. Returns a
    * single document for `combined` scope, or one document per Schulbegleiter
@@ -112,7 +112,7 @@ export const KostentraegerExportFacade = {
    *
    * Free of HTTP/session context so it can be reused from scripts or CRON.
    */
-  async build(input: ExportRequest): Promise<EinsatznachweisDoc[]> {
+  async build(input: ExportRequest): Promise<ExportDocument[]> {
     const request = ExportRequestSchema.parse(input);
 
     const child = await findChildForExport(request.childId);

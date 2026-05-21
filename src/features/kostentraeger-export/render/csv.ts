@@ -1,5 +1,5 @@
 import { formatHoursDe } from "../format";
-import type { EinsatznachweisDoc } from "../schemas";
+import type { ExportDocument } from "../schemas";
 
 const SEPARATOR = ";";
 
@@ -19,7 +19,7 @@ function escapeCell(value: string): string {
  * a UTF-8 BOM so Excel (DE locale) opens it correctly. Multiple months are
  * stacked into one file.
  */
-export function renderCsv(doc: EinsatznachweisDoc): Buffer {
+export function renderCsv(doc: ExportDocument): Buffer {
   const lines: string[] = [];
   const row = (cells: string[]) =>
     lines.push(cells.map(escapeCell).join(SEPARATOR));

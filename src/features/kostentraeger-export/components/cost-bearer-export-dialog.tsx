@@ -19,8 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { exportEinsatznachweisAction } from "../actions";
-import { MONTHS_LONG } from "../format";
+import { MonthYearPicker } from "@/components/month-year-picker";
+import { generateCostBearerExportAction } from "../actions";
 import {
   ExportRequestSchema,
   FORMAT_OPTIONS,
@@ -35,13 +35,13 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   childId: string;
   childName: string;
+  /** Earliest year that has data for this child; widens the period picker. */
+  minYear?: number;
 };
 
 type PeriodMode = "single" | "range";
 
 const NOW = new Date();
-const CURRENT_YEAR = NOW.getFullYear();
-const YEAR_OPTIONS = [-3, -2, -1, 0, 1].map((offset) => CURRENT_YEAR + offset);
 
 function triggerDownload(file: ExportFile): void {
   const binary = atob(file.base64);
@@ -59,84 +59,18 @@ function triggerDownload(file: ExportFile): void {
   URL.revokeObjectURL(url);
 }
 
-function MonthYearPicker({
-  id,
-  label,
-  month,
-  year,
-  onMonthChange,
-  onYearChange,
-}: {
-  id: string;
-  label: string;
-  month: number;
-  year: number;
-  onMonthChange: (value: number) => void;
-  onYearChange: (value: number) => void;
-}) {
-  return (
-    <Field>
-      <FieldLabel htmlFor={id}>
-        <FieldContent>
-          <span>{label}</span>
-        </FieldContent>
-      </FieldLabel>
-      <div className="flex gap-2">
-        <Select
-          value={String(month)}
-          onValueChange={(value) => onMonthChange(Number(value))}
-        >
-          <SelectTrigger
-            id={id}
-            className="w-full"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MONTHS_LONG.map((name, index) => (
-              <SelectItem
-                key={name}
-                value={String(index + 1)}
-              >
-                {name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={String(year)}
-          onValueChange={(value) => onYearChange(Number(value))}
-        >
-          <SelectTrigger className="w-28">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {YEAR_OPTIONS.map((value) => (
-              <SelectItem
-                key={value}
-                value={String(value)}
-              >
-                {value}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    </Field>
-  );
-}
-
-export function EinsatznachweisExportDialog({
+export function CostBearerExportDialog({
   open,
   onOpenChange,
   childId,
   childName,
+  minYear,
 }: Props) {
   const [mode, setMode] = useState<PeriodMode>("single");
   const [fromMonth, setFromMonth] = useState(NOW.getMonth() + 1);
-  const [fromYear, setFromYear] = useState(CURRENT_YEAR);
+  const [fromYear, setFromYear] = useState(NOW.getFullYear());
   const [toMonth, setToMonth] = useState(NOW.getMonth() + 1);
-  const [toYear, setToYear] = useState(CURRENT_YEAR);
+  const [toYear, setToYear] = useState(NOW.getFullYear());
   const [scope, setScope] = useState<ExportScope>("combined");
   const [format, setFormat] = useState<ExportFormat>("pdf");
   const [busy, setBusy] = useState(false);
@@ -159,7 +93,7 @@ export function EinsatznachweisExportDialog({
 
     setBusy(true);
     try {
-      const { files } = await exportEinsatznachweisAction(parsed.data);
+      const { files } = await generateCostBearerExportAction(parsed.data);
       if (files.length === 0) {
         toast.error("Keine Einträge im gewählten Zeitraum.");
         return;
@@ -224,6 +158,7 @@ export function EinsatznachweisExportDialog({
             label={mode === "single" ? "Monat" : "Von"}
             month={fromMonth}
             year={fromYear}
+            minYear={minYear}
             onMonthChange={setFromMonth}
             onYearChange={setFromYear}
           />
@@ -234,6 +169,7 @@ export function EinsatznachweisExportDialog({
               label="Bis"
               month={toMonth}
               year={toYear}
+              minYear={minYear}
               onMonthChange={setToMonth}
               onYearChange={setToYear}
             />

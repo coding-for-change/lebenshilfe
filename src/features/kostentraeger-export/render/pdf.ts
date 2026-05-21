@@ -6,7 +6,7 @@ import {
   type PDFPage,
 } from "pdf-lib";
 import { formatHoursDe } from "../format";
-import type { EinsatzMonth, EinsatznachweisDoc } from "../schemas";
+import type { ExportDocument, ExportMonth } from "../schemas";
 
 const PAGE_WIDTH = 595.28; // A4 portrait
 const PAGE_HEIGHT = 841.89;
@@ -96,8 +96,8 @@ function drawCell(
 
 function drawMonthPage(
   pdf: PDFDocument,
-  doc: EinsatznachweisDoc,
-  month: EinsatzMonth,
+  doc: ExportDocument,
+  month: ExportMonth,
   font: PDFFont,
   bold: PDFFont,
 ): void {
@@ -223,7 +223,7 @@ function drawMonthPage(
 }
 
 /** Renders the Einsatznachweis as a PDF, one page per month. */
-export async function renderPdf(doc: EinsatznachweisDoc): Promise<Buffer> {
+export async function renderPdf(doc: ExportDocument): Promise<Buffer> {
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);

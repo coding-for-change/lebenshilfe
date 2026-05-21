@@ -31,6 +31,16 @@ export const ExportRequestSchema = z
         message: "Es können höchstens 24 Monate auf einmal exportiert werden.",
       });
     }
+
+    const now = new Date();
+    const currentMonthIndex = now.getFullYear() * 12 + now.getMonth();
+    if (monthIndex(value.to) > currentMonthIndex) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["to"],
+        message: "Der Zeitraum darf nicht in der Zukunft liegen.",
+      });
+    }
   });
 
 export type ExportRequest = z.infer<typeof ExportRequestSchema>;
@@ -51,7 +61,7 @@ export const SCOPE_OPTIONS: { value: ExportScope; label: string }[] = [
 ];
 
 /** A single calendar-day row of the Einsatznachweis table. */
-export type EinsatzDay = {
+export type ExportDay = {
   iso: string;
   dateLabel: string;
   weekday: string;
@@ -64,12 +74,12 @@ export type EinsatzDay = {
 };
 
 /** One month sheet of the Einsatznachweis. */
-export type EinsatzMonth = {
+export type ExportMonth = {
   year: number;
   month: number;
   /** "Mrz 26" */
   label: string;
-  days: EinsatzDay[];
+  days: ExportDay[];
   /** Billed direct service hours in the month. */
   directHours: number;
   /**
@@ -85,11 +95,11 @@ export type EinsatzMonth = {
  * A complete Einsatznachweis document for one child. For `per-assistant`
  * scope, one document is produced per Schulbegleiter.
  */
-export type EinsatznachweisDoc = {
+export type ExportDocument = {
   childName: string;
   /** Set for `per-assistant` documents, `null` for the combined document. */
   schulbegleiterName: string | null;
-  months: EinsatzMonth[];
+  months: ExportMonth[];
 };
 
 /** A rendered, downloadable export file. */

@@ -20,21 +20,6 @@ export const MONTHS_SHORT = [
   "Dez",
 ] as const;
 
-export const MONTHS_LONG = [
-  "Januar",
-  "Februar",
-  "März",
-  "April",
-  "Mai",
-  "Juni",
-  "Juli",
-  "August",
-  "September",
-  "Oktober",
-  "November",
-  "Dezember",
-] as const;
-
 /** Sunday-first, matching `Date.prototype.getUTCDay()`. */
 export const WEEKDAYS_SHORT = [
   "So",

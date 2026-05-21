@@ -75,6 +75,7 @@ export function CostBearerExportDialog({
   const [scope, setScope] = useState<ExportScope>("combined");
   const [format, setFormat] = useState<ExportFormat>("pdf");
   const [fillWithIndirect, setFillWithIndirect] = useState(true);
+  const [embedSignatures, setEmbedSignatures] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function handleExport() {
@@ -88,6 +89,7 @@ export function CostBearerExportDialog({
       from,
       to,
       fillWithIndirect,
+      embedSignatures,
     });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "Ungültige Eingabe.");
@@ -243,6 +245,16 @@ export function CostBearerExportDialog({
             checked={fillWithIndirect}
             onChange={setFillWithIndirect}
           />
+
+          {format === "pdf" && (
+            <FlagRow
+              id="export-embed-signatures"
+              label="Unterschriften einbetten"
+              description="Fügt je Tag die gespeicherte Unterschrift als kleine Spalte in das PDF ein."
+              checked={embedSignatures}
+              onChange={setEmbedSignatures}
+            />
+          )}
         </div>
 
         <DialogFooter>

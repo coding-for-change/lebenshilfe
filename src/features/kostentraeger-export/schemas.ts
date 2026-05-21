@@ -16,6 +16,7 @@ export const ExportRequestSchema = z
     from: MonthMarkerSchema,
     to: MonthMarkerSchema,
     fillWithIndirect: z.boolean(),
+    embedSignatures: z.boolean(),
   })
   .superRefine((value, ctx) => {
     const span = monthIndex(value.to) - monthIndex(value.from);
@@ -72,6 +73,8 @@ export type ExportDay = {
   hours: number;
   schulbegleiter: string;
   bemerkungen: string;
+  /** S3 key of the day's signature (first entry of the day), or null. */
+  signatureKey: string | null;
 };
 
 /** One month sheet of the Einsatznachweis. */

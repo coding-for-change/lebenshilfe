@@ -94,6 +94,7 @@ function buildMonth(
       hours,
       schulbegleiter: [...assistantNames].join(", "),
       bemerkungen: notes.join(" | "),
+      signatureKey: dayEvents[0]?.signatureKey ?? null,
     });
   }
 

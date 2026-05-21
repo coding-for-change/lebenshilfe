@@ -48,6 +48,7 @@ export type ExportWorkEvent = Prisma.EventGetPayload<{
     startTime: true;
     endTime: true;
     note: true;
+    signatureKey: true;
     userId: true;
     user: { select: { id: true; name: true } };
   };
@@ -74,6 +75,7 @@ export async function listWorkEventsForChildInRange(
       startTime: true,
       endTime: true,
       note: true,
+      signatureKey: true,
       userId: true,
       user: { select: { id: true, name: true } },
     },

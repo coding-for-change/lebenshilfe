@@ -1,6 +1,7 @@
 "use server";
 
 import { requireAdmin } from "@/lib/auth-guards";
+import { downloadObject } from "@/lib/storage";
 import { CostBearerExportFacade } from "./facade";
 import { sanitizeFileName } from "./format";
 import { renderCsv } from "./render/csv";
@@ -8,6 +9,7 @@ import { renderPdf } from "./render/pdf";
 import { renderXlsx } from "./render/xlsx";
 import {
   ExportRequestSchema,
+  type ExportDocument,
   type ExportFile,
   type ExportRequest,
 } from "./schemas";
@@ -25,6 +27,32 @@ function periodFilePart(request: ExportRequest): string {
   return from === to ? from : `${from}_bis_${to}`;
 }
 
+/** Fetches every referenced day signature from S3, skipping any that fail. */
+async function collectSignatures(
+  documents: ExportDocument[],
+): Promise<Map<string, Buffer>> {
+  const keys = new Set<string>();
+  for (const doc of documents) {
+    for (const month of doc.months) {
+      for (const day of month.days) {
+        if (day.signatureKey) keys.add(day.signatureKey);
+      }
+    }
+  }
+  const entries = await Promise.all(
+    [...keys].map(async (key) => {
+      try {
+        return [key, await downloadObject(key)] as const;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return new Map(
+    entries.filter((entry): entry is [string, Buffer] => entry !== null),
+  );
+}
+
 /**
  * Builds the Kostenträger-Einsatznachweis export for a child. Returns one file
  * for `combined` scope, or one file per Schulbegleiter for `per-assistant`
@@ -39,6 +67,11 @@ export async function generateCostBearerExportAction(
   const documents = await CostBearerExportFacade.build(request);
   const period = periodFilePart(request);
 
+  const signatures =
+    request.format === "pdf" && request.embedSignatures
+      ? await collectSignatures(documents)
+      : undefined;
+
   const files: ExportFile[] = [];
   for (const doc of documents) {
     let bytes: Buffer;
@@ -47,7 +80,7 @@ export async function generateCostBearerExportAction(
     } else if (request.format === "xlsx") {
       bytes = await renderXlsx(doc);
     } else {
-      bytes = await renderPdf(doc);
+      bytes = await renderPdf(doc, signatures);
     }
 
     const namePart = doc.schulbegleiterName

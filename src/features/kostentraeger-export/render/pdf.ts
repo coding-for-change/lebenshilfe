@@ -3,6 +3,7 @@ import {
   StandardFonts,
   rgb,
   type PDFFont,
+  type PDFImage,
   type PDFPage,
 } from "pdf-lib";
 import { formatHoursDe } from "../format";
@@ -16,14 +17,27 @@ const FONT_SIZE = 8;
 const HEADER_FONT_SIZE = 8.5;
 
 type Align = "left" | "right";
+type Column = { header: string; width: number; align: Align };
 
-const COLUMNS: { header: string; width: number; align: Align }[] = [
+/** Six-column layout (sums to the printable A4 width of 515.28pt). */
+const COLUMNS: Column[] = [
   { header: "Tag", width: 34, align: "left" },
   { header: "Datum", width: 56, align: "left" },
   { header: "Uhrzeit", width: 92, align: "left" },
   { header: "Std.", width: 44, align: "right" },
   { header: "SchulbegleiterIn", width: 122, align: "left" },
   { header: "Bemerkungen", width: 167.28, align: "left" },
+];
+
+/** Seven-column layout when signatures are embedded (also sums to 515.28pt). */
+const COLUMNS_WITH_SIGNATURE: Column[] = [
+  { header: "Tag", width: 30, align: "left" },
+  { header: "Datum", width: 54, align: "left" },
+  { header: "Uhrzeit", width: 82, align: "left" },
+  { header: "Std.", width: 38, align: "right" },
+  { header: "SchulbegleiterIn", width: 104, align: "left" },
+  { header: "Bemerkungen", width: 117.28, align: "left" },
+  { header: "Unterschrift", width: 90, align: "left" },
 ];
 
 const BORDER = rgb(0.6, 0.6, 0.6);
@@ -94,12 +108,37 @@ function drawCell(
   });
 }
 
+/** Draws a signature image scaled to fit inside the cell box, centred. */
+function drawSignature(
+  page: PDFPage,
+  image: PDFImage,
+  x: number,
+  y: number,
+  cellWidth: number,
+): void {
+  const scale = Math.min(
+    (cellWidth - 6) / image.width,
+    (ROW_HEIGHT - 4) / image.height,
+    1,
+  );
+  const width = image.width * scale;
+  const height = image.height * scale;
+  page.drawImage(image, {
+    x: x + (cellWidth - width) / 2,
+    y: y + (ROW_HEIGHT - height) / 2,
+    width,
+    height,
+  });
+}
+
 function drawMonthPage(
   pdf: PDFDocument,
   doc: ExportDocument,
   month: ExportMonth,
   font: PDFFont,
   bold: PDFFont,
+  columns: Column[],
+  signatures: Map<string, PDFImage>,
 ): void {
   const page = pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   let cursorY = PAGE_HEIGHT - MARGIN;
@@ -141,7 +180,7 @@ function drawMonthPage(
   // Table header.
   let rowY = cursorY - 6 - ROW_HEIGHT;
   let x = MARGIN;
-  for (const column of COLUMNS) {
+  for (const column of columns) {
     drawCell(
       page,
       x,
@@ -163,7 +202,7 @@ function drawMonthPage(
   ) => {
     rowY -= ROW_HEIGHT;
     x = MARGIN;
-    COLUMNS.forEach((column, index) => {
+    columns.forEach((column, index) => {
       drawCell(
         page,
         x,
@@ -179,6 +218,10 @@ function drawMonthPage(
     });
   };
 
+  const signatureColumn = columns.length === 7 ? columns[6] : null;
+  const signatureX =
+    MARGIN + columns.slice(0, 6).reduce((sum, column) => sum + column.width, 0);
+
   for (const day of month.days) {
     drawRow(
       [
@@ -188,10 +231,17 @@ function drawMonthPage(
         day.hours > 0 ? formatHoursDe(day.hours) : "",
         day.schulbegleiter,
         day.bemerkungen,
+        "",
       ],
       font,
       day.isWeekend ? WEEKEND : undefined,
     );
+    if (signatureColumn && day.signatureKey) {
+      const image = signatures.get(day.signatureKey);
+      if (image) {
+        drawSignature(page, image, signatureX, rowY, signatureColumn.width);
+      }
+    }
   }
 
   drawRow(
@@ -202,10 +252,14 @@ function drawMonthPage(
       month.indirectHours > 0 ? formatHoursDe(month.indirectHours) : "",
       "",
       "",
+      "",
     ],
     font,
   );
-  drawRow(["", "", "Gesamt:", formatHoursDe(month.totalHours), "", ""], bold);
+  drawRow(
+    ["", "", "Gesamt:", formatHoursDe(month.totalHours), "", "", ""],
+    bold,
+  );
 
   // Confirmation footer.
   let footerY = rowY - 32;
@@ -232,13 +286,32 @@ function drawMonthPage(
   });
 }
 
-/** Renders the Einsatznachweis as a PDF, one page per month. */
-export async function renderPdf(doc: ExportDocument): Promise<Buffer> {
+/**
+ * Renders the Einsatznachweis as a PDF, one page per month. When `signatures`
+ * is provided, an extra "Unterschrift" column shows each day's signature.
+ */
+export async function renderPdf(
+  doc: ExportDocument,
+  signatures?: Map<string, Buffer>,
+): Promise<Buffer> {
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+
+  const embedded = new Map<string, PDFImage>();
+  if (signatures) {
+    for (const [key, bytes] of signatures) {
+      try {
+        embedded.set(key, await pdf.embedPng(bytes));
+      } catch {
+        // Skip an unreadable signature rather than failing the whole export.
+      }
+    }
+  }
+  const columns = signatures ? COLUMNS_WITH_SIGNATURE : COLUMNS;
+
   for (const month of doc.months) {
-    drawMonthPage(pdf, doc, month, font, bold);
+    drawMonthPage(pdf, doc, month, font, bold, columns, embedded);
   }
   return Buffer.from(await pdf.save());
 }

@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, LifeBuoy, Send } from "lucide-react";
 import { NAV_ITEMS, ADMIN_NAV_ITEMS, ALL_NAV_ITEMS } from "./nav-items";
+import { ChevronRight, LifeBuoy, Send } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -202,7 +202,13 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
               <span className="font-medium text-foreground">{breadcrumb}</span>
             </nav>
           </header>
-          <div className="mx-auto w-full max-w-7xl px-6 py-8">{children}</div>
+          {pathname.startsWith("/admin/map") ? (
+            <div className="relative min-h-0 flex-1 overflow-hidden rounded-b-xl">
+              {children}
+            </div>
+          ) : (
+            <div className="mx-auto w-full max-w-7xl px-6 py-8">{children}</div>
+          )}
         </SidebarInset>
 
         <Toaster

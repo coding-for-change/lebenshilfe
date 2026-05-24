@@ -10,7 +10,7 @@ import {
   isSameUtcDay,
   isoWeek,
   startOfWeekUtc,
-} from "./date-utils";
+} from "@/lib/dates";
 import type { Event } from "@/generated/prisma";
 
 type Props = {

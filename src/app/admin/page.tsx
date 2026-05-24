@@ -6,7 +6,7 @@ import { ALL_NAV_ITEMS } from "./_components/nav-items";
 export default function AdminDashboard() {
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border bg-card px-6 py-6 shadow-sm sm:px-8 sm:py-8">
+      <div className="rounded-xl border bg-card px-6 py-6 shadow-none sm:px-8 sm:py-8">
         <h1 className="text-xl font-semibold sm:text-2xl">
           Willkommen im Verwaltungsbereich.
         </h1>
@@ -22,7 +22,7 @@ export default function AdminDashboard() {
             <li key={item.href}>
               <Link
                 href={item.href}
-                className="group flex items-center gap-5 rounded-xl border bg-card px-5 py-5 shadow-sm transition-all hover:border-primary/40 hover:bg-accent/50 active:scale-[0.98] active:brightness-95 sm:gap-4 sm:px-4 sm:py-4"
+                className="group flex items-center gap-5 rounded-xl border bg-card px-5 py-5 shadow-none transition-all hover:border-primary/40 hover:bg-accent/50 active:scale-[0.98] active:brightness-95 sm:gap-4 sm:px-4 sm:py-4"
               >
                 <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:size-11">
                   <Icon className="size-6 sm:size-5" />

@@ -8,7 +8,7 @@ import {
   startOfWeekUtc,
   timeToMinutes,
   weekdayIndex,
-} from "./date-utils";
+} from "@/lib/dates";
 import type { Event, Schedule } from "@/generated/prisma";
 import type { ChildOption } from "./children-filter";
 

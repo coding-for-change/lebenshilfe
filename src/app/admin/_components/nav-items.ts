@@ -1,6 +1,7 @@
 import {
   Baby,
   BookOpen,
+  Home,
   ShieldCheck,
   Users,
   type LucideIcon,
@@ -14,6 +15,12 @@ export type NavItem = {
 };
 
 export const NAV_ITEMS: readonly NavItem[] = [
+  {
+    href: "/admin",
+    label: "Übersicht",
+    description: "Zurück zur Übersicht.",
+    icon: Home,
+  },
   {
     href: "/admin/school-assistants",
     label: "Schulbegleiter",

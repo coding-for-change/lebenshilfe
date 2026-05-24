@@ -13,6 +13,9 @@ COPY . .
 # Generate Prisma client
 RUN npx prisma generate
 
+ARG NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+ENV NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+
 # Build Next.js (standalone output)
 RUN npm run build
 

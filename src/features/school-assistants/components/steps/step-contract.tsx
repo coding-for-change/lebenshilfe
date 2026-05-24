@@ -33,13 +33,15 @@ export function StepContract({ value, onChange, errors }: Props) {
           </FieldLabel>
           <Input
             id="sb-hours"
-            type="number"
+            type="text"
             inputMode="decimal"
-            min={0}
-            max={168}
-            step="0.25"
+            autoComplete="off"
+            pattern="[0-9]+([.,][0-9]+)?"
             value={value.weeklyHours}
-            onChange={(e) => onChange({ weeklyHours: e.target.value })}
+            onChange={(e) => {
+              const next = e.target.value.replace(/[^0-9.,]/g, "");
+              onChange({ weeklyHours: next });
+            }}
             placeholder="z.B. 20"
             aria-invalid={!!errors.weeklyHours}
           />

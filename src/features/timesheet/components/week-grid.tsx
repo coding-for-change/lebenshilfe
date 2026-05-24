@@ -54,6 +54,11 @@ export function WeekGrid({
     return CHILD_COLORS[(idx >= 0 ? idx : 0) % CHILD_COLORS.length];
   };
 
+  const childFirstName = (childId: string | null | undefined) => {
+    if (!childId) return "";
+    return childList.find((c) => c.id === childId)?.firstName ?? "";
+  };
+
   const totalHeight = (END_HOUR - START_HOUR) * HOUR_HEIGHT;
 
   const hours = Array.from(
@@ -153,13 +158,22 @@ export function WeekGrid({
                   {daySchedules.map((s) => {
                     const top = posFromTime(s.startTime);
                     const h = posFromTime(s.endTime) - posFromTime(s.startTime);
+                    const height = Math.max(h, 14);
+                    const name = childFirstName(s.childId);
                     return (
                       <div
                         key={s.id}
-                        className="absolute left-0.5 right-0.5 rounded-sm border border-dashed border-muted-foreground/30 bg-muted/40 text-[9px] text-muted-foreground px-1"
-                        style={{ top, height: Math.max(h, 14) }}
+                        className="absolute left-0.5 right-0.5 rounded-sm border border-dashed border-muted-foreground/30 bg-muted/40 px-1 text-[9px] leading-tight text-muted-foreground"
+                        style={{ top, height }}
                       >
-                        {s.startTime}
+                        <div className="font-mono tabular-nums">
+                          {s.startTime}
+                        </div>
+                        {name && height >= 22 ? (
+                          <div className="truncate font-medium text-foreground/70">
+                            {name}
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })}
@@ -169,23 +183,32 @@ export function WeekGrid({
                       ev.startTime && ev.endTime
                         ? posFromTime(ev.endTime) - posFromTime(ev.startTime)
                         : HOUR_HEIGHT;
+                    const height = Math.max(h, 16);
                     const width = `calc(${100 / Math.max(dayWork.length, 1)}% - 4px)`;
                     const left = `calc(${(100 / Math.max(dayWork.length, 1)) * k}% + 2px)`;
+                    const name = childFirstName(ev.childId);
                     return (
                       <div
                         key={ev.id}
                         className={cn(
-                          "absolute rounded-md border px-1 text-[10px] font-medium",
+                          "absolute rounded-md border px-1 text-[10px] font-medium leading-tight",
                           colorFor(ev.childId),
                         )}
                         style={{
                           top,
-                          height: Math.max(h, 16),
+                          height,
                           width,
                           left,
                         }}
                       >
-                        {ev.startTime}–{ev.endTime}
+                        <div className="font-mono tabular-nums">
+                          {ev.startTime}–{ev.endTime}
+                        </div>
+                        {name && height >= 26 ? (
+                          <div className="truncate text-[9px] font-semibold opacity-80">
+                            {name}
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })}

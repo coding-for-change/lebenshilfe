@@ -70,11 +70,11 @@ export function StepOverview({ value, workshops }: Props) {
         {selectedWorkshops.length === 0 ? (
           <p className="text-sm text-muted-foreground">Keine ausgewählt.</p>
         ) : (
-          <ul className="flex flex-col gap-1.5">
+          <ul className="flex flex-col gap-2 sm:gap-1.5">
             {selectedWorkshops.map((w) => (
               <li
                 key={w.workshopId}
-                className="flex items-center justify-between text-sm"
+                className="flex flex-col gap-0.5 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3"
               >
                 <span>{w.workshop?.name ?? w.workshopId}</span>
                 <span className="text-muted-foreground">

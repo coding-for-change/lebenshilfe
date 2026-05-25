@@ -5,7 +5,7 @@ ALTER TABLE `child` ALTER COLUMN `updatedAt` DROP DEFAULT;
 CREATE TABLE `child_vertretung` (
     `id` VARCHAR(191) NOT NULL,
     `childId` VARCHAR(191) NOT NULL,
-    `originalUserId` VARCHAR(191) NOT NULL,
+    `originalUserId` VARCHAR(191) NULL,
     `substituteUserId` VARCHAR(191) NOT NULL,
     `date` DATE NOT NULL,
     `startTime` VARCHAR(191) NOT NULL,
@@ -22,7 +22,7 @@ CREATE TABLE `child_vertretung` (
 ALTER TABLE `child_vertretung` ADD CONSTRAINT `child_vertretung_childId_fkey` FOREIGN KEY (`childId`) REFERENCES `child`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `child_vertretung` ADD CONSTRAINT `child_vertretung_originalUserId_fkey` FOREIGN KEY (`originalUserId`) REFERENCES `user`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `child_vertretung` ADD CONSTRAINT `child_vertretung_originalUserId_fkey` FOREIGN KEY (`originalUserId`) REFERENCES `user`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `child_vertretung` ADD CONSTRAINT `child_vertretung_substituteUserId_fkey` FOREIGN KEY (`substituteUserId`) REFERENCES `user`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

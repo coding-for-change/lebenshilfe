@@ -179,8 +179,8 @@ export function DayQuickAddSection({
                 <User className="size-4" />
                 <span className="font-medium">Zuweisung</span>
               </button>
-              {/* Vertretung only available when the child has a Stundenplan entry on this day */}
-              {daySchedules.length > 0 && (
+              {/* Vertretung only available when the child has a Zuweisung on this day */}
+              {assignments.length > 0 && (
                 <button
                   type="button"
                   onClick={() => setStep("vertretung")}

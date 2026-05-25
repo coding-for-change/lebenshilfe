@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { Plus, Stethoscope, User, UserCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -27,6 +26,7 @@ import {
 import type {
   SerializedAbsence,
   SerializedAssignment,
+  SerializedSchedule,
   SerializedVertretung,
 } from "../../serialize";
 import { formatIsoDateLocal } from "@/lib/utils";
@@ -42,6 +42,8 @@ type Props = {
   assignments: SerializedAssignment[];
   absence: SerializedAbsence | null;
   vertretungen: SerializedVertretung[];
+  /** Schedules already filtered to this weekday — used to auto-fill Vertretung times and gate the option. */
+  daySchedules: SerializedSchedule[];
   schoolAssistantOptions: SchoolAssistantOption[];
   onChanged: () => void;
 };
@@ -58,6 +60,7 @@ export function DayQuickAddSection({
   assignments,
   absence,
   vertretungen,
+  daySchedules,
   schoolAssistantOptions,
   onChanged,
 }: Props) {
@@ -176,15 +179,18 @@ export function DayQuickAddSection({
                 <User className="size-4" />
                 <span className="font-medium">Zuweisung</span>
               </button>
-              <button
-                type="button"
-                onClick={() => setStep("vertretung")}
-                className="flex items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent"
-              >
-                <span className="size-2.5 rounded-sm bg-amber-500/70" />
-                <UserCheck className="size-4" />
-                <span className="font-medium">Vertretung</span>
-              </button>
+              {/* Vertretung only available when the child has a Stundenplan entry on this day */}
+              {daySchedules.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setStep("vertretung")}
+                  className="flex items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent"
+                >
+                  <span className="size-2.5 rounded-sm bg-amber-500/70" />
+                  <UserCheck className="size-4" />
+                  <span className="font-medium">Vertretung</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setStep("absence")}
@@ -211,6 +217,7 @@ export function DayQuickAddSection({
             <DayVertretungForm
               childId={childId}
               date={date}
+              daySchedules={daySchedules}
               schoolAssistantOptions={schoolAssistantOptions}
               onSaved={() => {
                 setPopoverOpen(false);
@@ -308,8 +315,6 @@ function VertretungChip({
   const [substituteUserId, setSubstituteUserId] = useState(
     vertretung.substituteUserId,
   );
-  const [startTime, setStartTime] = useState(vertretung.startTime);
-  const [endTime, setEndTime] = useState(vertretung.endTime);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -317,11 +322,9 @@ function VertretungChip({
     setBusy(true);
     setError(null);
     try {
-      await updateVertretungAction(vertretung.id, {
-        substituteUserId,
-        startTime,
-        endTime,
-      });
+      // Only the substitute can be changed — the time is derived from the
+      // child's Stundenplan and is not editable here.
+      await updateVertretungAction(vertretung.id, { substituteUserId });
       toast.success("Vertretung aktualisiert.");
       setOpen(false);
       onChanged();
@@ -384,26 +387,10 @@ function VertretungChip({
             />
           </div>
 
-          <div className="flex gap-2">
-            <div className="flex flex-1 flex-col gap-1">
-              <Label className="text-xs text-muted-foreground">Von</Label>
-              <Input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="h-8 text-xs"
-              />
-            </div>
-            <div className="flex flex-1 flex-col gap-1">
-              <Label className="text-xs text-muted-foreground">Bis</Label>
-              <Input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="h-8 text-xs"
-              />
-            </div>
-          </div>
+          {/* Time comes from the child's Stundenplan — read-only info */}
+          <p className="text-[11px] text-muted-foreground">
+            Zeit: {vertretung.startTime}–{vertretung.endTime} (laut Stundenplan)
+          </p>
 
           {error ? (
             <div className="text-xs text-destructive">{error}</div>
@@ -524,21 +511,32 @@ function DayAssignmentForm({
 function DayVertretungForm({
   childId,
   date,
+  daySchedules,
   schoolAssistantOptions,
   onSaved,
   onBack,
 }: {
   childId: string;
   date: Date;
+  /** Schedules for this child on this weekday — the time span is derived from these. */
+  daySchedules: SerializedSchedule[];
   schoolAssistantOptions: SchoolAssistantOption[];
   onSaved: () => void;
   onBack: () => void;
 }) {
+  // Derive the Vertretung time from the Stundenplan: earliest start → latest end.
+  const scheduleStart = daySchedules.reduce(
+    (min, s) => (s.startTime < min ? s.startTime : min),
+    daySchedules[0]?.startTime ?? "00:00",
+  );
+  const scheduleEnd = daySchedules.reduce(
+    (max, s) => (s.endTime > max ? s.endTime : max),
+    daySchedules[0]?.endTime ?? "23:59",
+  );
+
   const [substituteUserId, setSubstituteUserId] = useState(
     schoolAssistantOptions[0]?.id ?? "",
   );
-  const [startTime, setStartTime] = useState("08:00");
-  const [endTime, setEndTime] = useState("14:00");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -554,8 +552,8 @@ function DayVertretungForm({
         childId,
         substituteUserId,
         date: formatIsoDateLocal(date),
-        startTime,
-        endTime,
+        startTime: scheduleStart,
+        endTime: scheduleEnd,
       });
       toast.success("Vertretung gespeichert.");
       onSaved();
@@ -582,26 +580,10 @@ function DayVertretungForm({
         />
       </div>
 
-      <div className="flex gap-2">
-        <div className="flex flex-1 flex-col gap-1">
-          <Label className="text-xs text-muted-foreground">Von</Label>
-          <Input
-            type="time"
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            className="h-8 text-xs"
-          />
-        </div>
-        <div className="flex flex-1 flex-col gap-1">
-          <Label className="text-xs text-muted-foreground">Bis</Label>
-          <Input
-            type="time"
-            value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
-            className="h-8 text-xs"
-          />
-        </div>
-      </div>
+      {/* Show the auto-derived Stundenplan time (read-only) */}
+      <p className="text-[11px] text-muted-foreground">
+        Zeit: {scheduleStart}–{scheduleEnd} (laut Stundenplan)
+      </p>
 
       {error ? <div className="text-xs text-destructive">{error}</div> : null}
       <div className="flex justify-end gap-2 pt-1">

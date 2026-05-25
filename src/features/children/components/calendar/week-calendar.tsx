@@ -306,6 +306,7 @@ export function KinderWeekCalendar({
             const dayAbsence = absencesByWeekday.get(weekday) ?? null;
             const isoDate = formatIsoDateLocal(date);
             const dayVertretungen = vertretungenByDate.get(isoDate) ?? [];
+            const daySchedules = schedules.filter((s) => s.weekday === weekday);
             return (
               <div
                 key={label}
@@ -327,6 +328,7 @@ export function KinderWeekCalendar({
                   assignments={dayAssignments}
                   absence={dayAbsence}
                   vertretungen={dayVertretungen}
+                  daySchedules={daySchedules}
                   schoolAssistantOptions={schoolAssistantOptions}
                   onChanged={onChanged}
                 />

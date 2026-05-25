@@ -4,20 +4,27 @@ import {
   CreateChildSchema,
   ScheduleSchema,
   UpdateChildSchema,
+  UpdateVertretungSchema,
+  VertretungSchema,
   type AbsenceInput,
   type AssignmentInput,
   type CreateChildInput,
   type ScheduleInput,
   type UpdateChildInput,
+  type UpdateVertretungInput,
+  type VertretungInput,
 } from "./schemas";
 import {
   createAssignment,
   createChild,
   createSchedule,
+  createVertretung,
   deleteAbsenceById,
   deleteAssignmentById,
   deleteChildById,
   deleteScheduleById,
+  deleteVertretungById,
+  updateVertretung,
   findChildById,
   listAbsencesForChild,
   listAbsencesForChildrenInRange,
@@ -26,6 +33,8 @@ import {
   listChildren,
   listSchedulesForChild,
   listSchedulesForChildren,
+  listVertretungenForUserAsOriginal,
+  listVertretungenForUserAsSubstitute,
   listWorkEventsForChild,
   updateAssignment,
   updateChild,
@@ -172,5 +181,41 @@ export const ChildrenFacade = {
 
   async listWorkEventsForChild(childId: string) {
     return listWorkEventsForChild(childId);
+  },
+
+  async createVertretung(input: VertretungInput) {
+    const parsed = VertretungSchema.parse(input);
+    return createVertretung({
+      childId: parsed.childId,
+      substituteUserId: parsed.substituteUserId,
+      date: new Date(`${parsed.date}T00:00:00.000Z`),
+      startTime: parsed.startTime,
+      endTime: parsed.endTime,
+    });
+  },
+
+  async updateVertretung(id: string, input: UpdateVertretungInput) {
+    const parsed = UpdateVertretungSchema.parse(input);
+    return updateVertretung(id, parsed);
+  },
+
+  async deleteVertretung(id: string) {
+    await deleteVertretungById(id);
+  },
+
+  async listVertretungenForUserAsSubstitute(
+    userId: string,
+    from: Date,
+    to: Date,
+  ) {
+    return listVertretungenForUserAsSubstitute(userId, from, to);
+  },
+
+  async listVertretungenForUserAsOriginal(
+    userId: string,
+    from: Date,
+    to: Date,
+  ) {
+    return listVertretungenForUserAsOriginal(userId, from, to);
   },
 };

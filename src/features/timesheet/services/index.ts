@@ -23,6 +23,26 @@ export async function getAssignedChildren(userId: string) {
     seen.add(r.child.id);
     unique.push(r.child);
   }
+
+  // Also include children for which this SB is a Vertreter in the near
+  // past/future window, so they can log work for those substitution days.
+  const now = new Date();
+  const from = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 7),
+  );
+  const to = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 30),
+  );
+  const vertretungRows = await prisma.childVertretung.findMany({
+    where: { substituteUserId: userId, date: { gte: from, lte: to } },
+    include: { child: true },
+  });
+  for (const v of vertretungRows) {
+    if (seen.has(v.child.id)) continue;
+    seen.add(v.child.id);
+    unique.push(v.child);
+  }
+
   return unique;
 }
 
@@ -58,12 +78,38 @@ export async function assertChildrenAssignedToUser(
   date: Date,
 ) {
   if (childIds.length === 0) return;
-  const day = date.getDay() - 1; //0 indexed
-  const count = await prisma.childAssignment.count({
+  const day = date.getDay() - 1; //0 indexed (Mon=0..Sat=5)
+
+  // Find which children are covered by a regular recurring assignment.
+  const regularRows = await prisma.childAssignment.findMany({
     where: { userId, childId: { in: childIds }, weekday: day },
+    select: { childId: true },
   });
-  if (count !== childIds.length) {
-    throw new Error("Ein Kind ist diesem Konto nicht zugewiesen.");
+  const coveredByAssignment = new Set(regularRows.map((r) => r.childId));
+
+  // Children not covered by a regular assignment may be covered by a
+  // Vertretung on this specific date (the user steps in as substitute).
+  const uncovered = childIds.filter((id) => !coveredByAssignment.has(id));
+  if (uncovered.length > 0) {
+    // Normalise to UTC midnight to match @db.Date semantics.
+    const dateOnly = new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+    );
+    const vertretungRows = await prisma.childVertretung.findMany({
+      where: {
+        substituteUserId: userId,
+        childId: { in: uncovered },
+        date: dateOnly,
+      },
+      select: { childId: true },
+    });
+    const coveredByVertretung = new Set(vertretungRows.map((r) => r.childId));
+    const stillUncovered = uncovered.filter(
+      (id) => !coveredByVertretung.has(id),
+    );
+    if (stillUncovered.length > 0) {
+      throw new Error("Ein Kind ist diesem Konto nicht zugewiesen.");
+    }
   }
 }
 

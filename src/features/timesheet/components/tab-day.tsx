@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Clock, Lock, Plus, Stethoscope } from "lucide-react";
+import { Clock, Lock, Plus, Stethoscope, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import { WeekStrip } from "./week-strip";
 import { deleteEventAction } from "../actions";
 import type { Event, Schedule } from "@/generated/prisma";
 import type { ChildOption } from "./children-filter";
-import type { ChildAbsenceItem } from "./timesheet-shell";
+import type { ChildAbsenceItem, VertretungDay } from "./timesheet-shell";
 
 type EventWithChild = Event & {
   child: { firstName: string; lastName: string } | null;
@@ -33,6 +33,7 @@ type Props = {
   assignedChildren: ChildOption[];
   childAbsences: ChildAbsenceItem[];
   schedules: Schedule[];
+  substituteOn?: VertretungDay[];
 };
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -47,6 +48,7 @@ export function TabDay({
   assignedChildren,
   childAbsences,
   schedules,
+  substituteOn = [],
 }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -83,6 +85,11 @@ export function TabDay({
       .filter((s): s is Schedule & { child: ChildOption } => !!s.child)
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
   }, [schedules, selectedDate, childById]);
+  const dayVertretungen = useMemo(
+    () => substituteOn.filter((v) => v.date === selectedDateIso),
+    [substituteOn, selectedDateIso],
+  );
+
   const sickEvent = dayEvents.find((e) => e.type === "SICK");
   const workEvents = dayEvents.filter((e) => e.type === "WORK");
   const monthKey = `${selectedDate.getUTCFullYear()}-${
@@ -215,6 +222,26 @@ export function TabDay({
           </div>
         </Card>
       )}
+
+      {dayVertretungen.map((v) => (
+        <Card
+          key={v.childName + v.startTime}
+          className="border-amber-200 bg-amber-500/5 p-4"
+        >
+          <div className="flex items-start gap-3">
+            <div className="grid place-items-center size-10 shrink-0 rounded-full bg-amber-500/15 text-amber-700">
+              <UserCheck className="size-5" />
+            </div>
+            <div className="flex-1 space-y-0.5">
+              <p className="font-semibold text-amber-900">Vertretung</p>
+              <p className="text-sm text-amber-900/80">{v.childName}</p>
+              <p className="font-mono text-xs text-amber-700">
+                {v.startTime}–{v.endTime}
+              </p>
+            </div>
+          </div>
+        </Card>
+      ))}
 
       {sickEvent && (
         <Card className="border-rose-200 bg-rose-500/10 p-4">

@@ -10,6 +10,13 @@ import {
 } from "./date-utils";
 import type { Event } from "@/generated/prisma";
 
+type VertretungDay = {
+  date: string; // YYYY-MM-DD
+  childName: string;
+  startTime: string;
+  endTime: string;
+};
+
 type Props = {
   year: number;
   month: number;
@@ -18,6 +25,8 @@ type Props = {
   events: Array<Pick<Event, "date" | "type" | "startTime" | "endTime">>;
   onSelectDay: (date: Date) => void;
   locked?: boolean;
+  /** Days this user is stepping in as substitute. */
+  substituteOn?: VertretungDay[];
 };
 
 export function CalendarGrid({
@@ -28,6 +37,7 @@ export function CalendarGrid({
   events,
   onSelectDay,
   locked,
+  substituteOn = [],
 }: Props) {
   const firstOfMonth = new Date(Date.UTC(year, month - 1, 1));
   const gridStart = startOfWeekUtc(firstOfMonth);
@@ -41,6 +51,9 @@ export function CalendarGrid({
     else cur.sick = true;
     byIso.set(iso, cur);
   }
+
+  const substituteByIso = new Map<string, VertretungDay>();
+  for (const v of substituteOn) substituteByIso.set(v.date, v);
 
   return (
     <div className="space-y-2">
@@ -61,6 +74,7 @@ export function CalendarGrid({
         {days.map((d) => {
           const iso = formatIsoDateUtc(d);
           const status = byIso.get(iso);
+          const substitute = substituteByIso.get(iso);
           const inMonth = d.getUTCMonth() === month - 1;
           const isToday = isSameUtcDay(d, today);
           const isSelected = isSameUtcDay(d, selectedDate);
@@ -69,6 +83,11 @@ export function CalendarGrid({
               key={iso}
               type="button"
               onClick={() => onSelectDay(d)}
+              title={
+                substitute
+                  ? `Vertretung · ${substitute.childName} · ${substitute.startTime}–${substitute.endTime}`
+                  : undefined
+              }
               className={cn(
                 "relative aspect-square overflow-hidden rounded-lg border text-xs transition-colors",
                 status?.sick
@@ -87,13 +106,22 @@ export function CalendarGrid({
               >
                 {d.getUTCDate()}
               </span>
-              {status?.work && !status.sick && (
+
+              {/* Regular work dot */}
+              {status?.work && !status.sick && !substitute && (
                 <span className="absolute bottom-1 left-1 right-1 h-1 rounded-full bg-primary" />
               )}
+
+              {/* Sick label */}
               {status?.sick && (
                 <span className="absolute bottom-1 left-1 right-1 text-[9px] font-medium uppercase tracking-wider">
                   Krank
                 </span>
+              )}
+
+              {/* Amber dot — user is stepping in as substitute */}
+              {substitute && !status?.sick && (
+                <span className="absolute bottom-1 left-1 right-1 h-1 rounded-full bg-amber-500" />
               )}
             </button>
           );

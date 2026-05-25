@@ -11,6 +11,7 @@ import {
 } from "./date-utils";
 import type { Event, Schedule } from "@/generated/prisma";
 import type { ChildOption } from "./children-filter";
+import type { VertretungDay } from "./timesheet-shell";
 
 type Props = {
   anchorDate: Date;
@@ -22,6 +23,7 @@ type Props = {
   >;
   schedules: Schedule[];
   onSelectDay: (date: Date) => void;
+  substituteOn?: VertretungDay[];
 };
 
 const START_HOUR = 7;
@@ -44,6 +46,7 @@ export function WeekGrid({
   events,
   schedules,
   onSelectDay,
+  substituteOn = [],
 }: Props) {
   const monday = startOfWeekUtc(anchorDate);
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
@@ -117,9 +120,11 @@ export function WeekGrid({
         </div>
         {days.map((d, i) => {
           const wd = weekdayIndex(d);
+          const iso = formatIsoDateUtc(d);
           const daySick = events.find(
             (e) => e.type === "SICK" && isSameUtcDay(e.date, d),
           );
+          const dayVertretungen = substituteOn.filter((v) => v.date === iso);
           const dayWork = events.filter(
             (e) =>
               e.type === "WORK" &&
@@ -150,6 +155,27 @@ export function WeekGrid({
                 </div>
               ) : (
                 <>
+                  {dayVertretungen.map((v) => {
+                    const top = posFromTime(v.startTime);
+                    const h = posFromTime(v.endTime) - posFromTime(v.startTime);
+                    return (
+                      <div
+                        key={v.childName + v.startTime}
+                        className="absolute left-0.5 right-0.5 flex flex-col overflow-hidden rounded-md border border-amber-300 bg-amber-500/20 px-1 py-0.5"
+                        style={{ top, height: Math.max(h, 20) }}
+                      >
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-amber-900">
+                          Vertretung
+                        </span>
+                        <span className="truncate text-[9px] text-amber-900/80">
+                          {v.childName}
+                        </span>
+                        <span className="font-mono text-[8px] text-amber-700">
+                          {v.startTime}–{v.endTime}
+                        </span>
+                      </div>
+                    );
+                  })}
                   {daySchedules.map((s) => {
                     const top = posFromTime(s.startTime);
                     const h = posFromTime(s.endTime) - posFromTime(s.startTime);

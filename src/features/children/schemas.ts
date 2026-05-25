@@ -116,6 +116,22 @@ export const AbsenceSchema = z.object({
 });
 export type AbsenceInput = z.infer<typeof AbsenceSchema>;
 
+export const VertretungSchema = z.object({
+  childId: z.string().min(1),
+  substituteUserId: z.string().min(1),
+  date: dateString,
+  startTime: timeString,
+  endTime: timeString,
+});
+export type VertretungInput = z.infer<typeof VertretungSchema>;
+
+export const UpdateVertretungSchema = z.object({
+  substituteUserId: z.string().min(1).optional(),
+  startTime: timeString.optional(),
+  endTime: timeString.optional(),
+});
+export type UpdateVertretungInput = z.infer<typeof UpdateVertretungSchema>;
+
 // Kinder-Wizard UI state types — kept here per AGENTS.md ("Zod schemas and TS types").
 
 export type SchoolValue = {

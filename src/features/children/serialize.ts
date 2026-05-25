@@ -24,6 +24,15 @@ export type SerializedAbsence = {
   note: string | null;
 };
 
+export type SerializedVertretung = {
+  id: string;
+  substituteUserId: string;
+  substituteUserName: string;
+  date: string; // YYYY-MM-DD
+  startTime: string;
+  endTime: string;
+};
+
 export type SerializedCostBearer = {
   id: string;
   name: string;
@@ -49,6 +58,7 @@ export type SerializedChild = {
   assignments: SerializedAssignment[];
   schedules: SerializedSchedule[];
   absences: SerializedAbsence[];
+  vertretungen: SerializedVertretung[];
 };
 
 export function serializeChild(c: ChildWithRelations): SerializedChild {
@@ -93,6 +103,14 @@ export function serializeChild(c: ChildWithRelations): SerializedChild {
       id: a.id,
       date: formatIsoDateUtc(a.date),
       note: a.note,
+    })),
+    vertretungen: c.vertretungen.map((v) => ({
+      id: v.id,
+      substituteUserId: v.substituteUserId,
+      substituteUserName: v.substituteUser.name,
+      date: formatIsoDateUtc(v.date),
+      startTime: v.startTime,
+      endTime: v.endTime,
     })),
   };
 }

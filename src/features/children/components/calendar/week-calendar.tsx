@@ -41,6 +41,7 @@ import type {
   SerializedAbsence,
   SerializedAssignment,
   SerializedSchedule,
+  SerializedVertretung,
 } from "../../serialize";
 
 type SchoolAssistantOption = { id: string; name: string };
@@ -51,6 +52,7 @@ type Props = {
   schedules: SerializedSchedule[];
   assignments: SerializedAssignment[];
   absences: SerializedAbsence[];
+  vertretungen: SerializedVertretung[];
   schoolAssistantOptions: SchoolAssistantOption[];
   onChanged: () => void;
 };
@@ -69,6 +71,7 @@ export type EventKind = "schedule" | "assignment" | "absence";
 const LEGEND_ITEMS: { label: string; swatch: string }[] = [
   { label: "Stundenplan", swatch: "bg-sky-500" },
   { label: "Zuweisung", swatch: "bg-primary/70" },
+  { label: "Vertretung", swatch: "bg-amber-500/70" },
   { label: "Krankheit", swatch: "bg-red-500/70" },
 ];
 
@@ -83,6 +86,7 @@ export function KinderWeekCalendar({
   schedules,
   assignments,
   absences,
+  vertretungen,
   schoolAssistantOptions,
   onChanged,
 }: Props) {
@@ -130,6 +134,20 @@ export function KinderWeekCalendar({
     }
     return map;
   }, [assignments]);
+
+  // Map ISO date string → vertretungen for that date (restricted to visible week).
+  const vertretungenByDate = useMemo(() => {
+    const map = new Map<string, SerializedVertretung[]>();
+    const weekFrom = weekStart;
+    const weekTo = addDays(weekStart, 6);
+    for (const v of vertretungen) {
+      const d = new Date(`${v.date}T00:00:00`);
+      if (d < weekFrom || d > weekTo) continue;
+      if (!map.has(v.date)) map.set(v.date, []);
+      map.get(v.date)!.push(v);
+    }
+    return map;
+  }, [vertretungen, weekStart]);
 
   const goPrevWeek = () => setWeekStart((w) => addDays(w, -7));
   const goNextWeek = () => setWeekStart((w) => addDays(w, 7));
@@ -286,6 +304,8 @@ export function KinderWeekCalendar({
               formatIsoDateLocal(date) === formatIsoDateLocal(new Date());
             const dayAssignments = assignmentsByWeekday.get(weekday) ?? [];
             const dayAbsence = absencesByWeekday.get(weekday) ?? null;
+            const isoDate = formatIsoDateLocal(date);
+            const dayVertretungen = vertretungenByDate.get(isoDate) ?? [];
             return (
               <div
                 key={label}
@@ -306,6 +326,7 @@ export function KinderWeekCalendar({
                   childId={childId}
                   assignments={dayAssignments}
                   absence={dayAbsence}
+                  vertretungen={dayVertretungen}
                   schoolAssistantOptions={schoolAssistantOptions}
                   onChanged={onChanged}
                 />

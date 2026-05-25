@@ -9,6 +9,13 @@ import { HandoverDialog } from "./handover-dialog";
 import { MONTHS_LONG, isSameUtcDay } from "./date-utils";
 import type { Event } from "@/generated/prisma";
 
+type VertretungDay = {
+  date: string;
+  childName: string;
+  startTime: string;
+  endTime: string;
+};
+
 type Props = {
   viewDate: Date;
   today: Date;
@@ -19,6 +26,7 @@ type Props = {
     Pick<Event, "id" | "date" | "type" | "startTime" | "endTime" | "childId">
   >;
   lockedMonths: Set<string>;
+  substituteOn?: VertretungDay[];
 };
 
 export function TabMonat({
@@ -29,6 +37,7 @@ export function TabMonat({
   onSelectDay,
   events,
   lockedMonths,
+  substituteOn = [],
 }: Props) {
   const year = viewDate.getUTCFullYear();
   const month = viewDate.getUTCMonth() + 1;
@@ -42,6 +51,16 @@ export function TabMonat({
           e.date.getUTCMonth() + 1 === month,
       ),
     [events, year, month],
+  );
+
+  // Filter Vertretung days to the current month for the calendar.
+  const monthSubstituteOn = useMemo(
+    () =>
+      substituteOn.filter((v) => {
+        const d = new Date(v.date);
+        return d.getUTCFullYear() === year && d.getUTCMonth() + 1 === month;
+      }),
+    [substituteOn, year, month],
   );
 
   const locked = lockedMonths.has(`${year}-${month}`);
@@ -104,6 +123,7 @@ export function TabMonat({
           events={monthEvents}
           onSelectDay={onSelectDay}
           locked={locked}
+          substituteOn={monthSubstituteOn}
         />
       </Card>
 

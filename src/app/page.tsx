@@ -36,6 +36,7 @@ export default async function LandingPage() {
     childAbsences,
     assignmentsByWeekday,
     profile,
+    vertretungenAsSubstitute,
   ] = await Promise.all([
     TimesheetFacade.getEventsInRange(user.id, rangeStart, rangeEnd),
     TimesheetFacade.getSchedulesForChildren(childIds),
@@ -47,6 +48,11 @@ export default async function LandingPage() {
     ),
     TimesheetFacade.getAssignmentsByWeekday(user.id),
     SchoolAssistantsFacade.getByEmail(user.email),
+    ChildrenFacade.listVertretungenForUserAsSubstitute(
+      user.id,
+      rangeStart,
+      rangeEnd,
+    ),
   ]);
 
   return (
@@ -70,6 +76,12 @@ export default async function LandingPage() {
         note: a.note,
       }))}
       assignmentsByWeekday={assignmentsByWeekday}
+      substituteOn={vertretungenAsSubstitute.map((v) => ({
+        date: v.date.toISOString().slice(0, 10),
+        childName: `${v.child.firstName} ${v.child.lastName}`,
+        startTime: v.startTime,
+        endTime: v.endTime,
+      }))}
     />
   );
 }

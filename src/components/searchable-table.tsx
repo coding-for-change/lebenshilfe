@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { ScrollHint } from "@/components/scroll-hint";
 
 type SearchableTableProps<T> = {
   rows: T[];
@@ -39,7 +40,11 @@ export function SearchableTable<T>({
           className="pl-9"
         />
       </div>
-      {filtered.length === 0 && emptyState ? emptyState : children(filtered)}
+      {filtered.length === 0 && emptyState ? (
+        emptyState
+      ) : (
+        <ScrollHint>{children(filtered)}</ScrollHint>
+      )}
     </div>
   );
 }

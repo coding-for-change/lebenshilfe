@@ -2,7 +2,7 @@
 
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { addDays, isoWeek, MONTHS_SHORT, startOfWeekUtc } from "./date-utils";
+import { addDays, isoWeek, MONTHS_SHORT, startOfWeekUtc } from "@/lib/dates";
 import { WeekGrid } from "./week-grid";
 import { ChildrenFilter, type ChildOption } from "./children-filter";
 import type { Event, Schedule } from "@/generated/prisma";

@@ -23,7 +23,7 @@ import {
   parseIsoDate,
   timeToMinutes,
   weekdayIndex,
-} from "./date-utils";
+} from "@/lib/dates";
 import type { ChildOption } from "./children-filter";
 import { childIdsForDate, type AssignmentsByWeekday } from "../weekday";
 import { cn, formatIsoDateUtc } from "@/lib/utils";
@@ -261,7 +261,13 @@ export function NewEntrySheet({
             </SheetDescription>
           </SheetHeader>
 
-          <div className="px-4 pb-6 space-y-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (canProceed && !submitting) setSigOpen(true);
+            }}
+            className="px-4 pb-6 space-y-4"
+          >
             <div className="space-y-1.5">
               <Label htmlFor="date">Datum</Label>
               <Input
@@ -434,14 +440,13 @@ export function NewEntrySheet({
                 Abbrechen
               </Button>
               <Button
-                type="button"
+                type="submit"
                 disabled={!canProceed}
-                onClick={() => setSigOpen(true)}
               >
                 Speichern & signieren
               </Button>
             </div>
-          </div>
+          </form>
         </SheetContent>
       </Sheet>
 

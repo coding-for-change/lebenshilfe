@@ -5,7 +5,7 @@ import { MapPin, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { loadGoogleMaps } from "@/lib/maps/maps-loader";
+import { loadMapsLibrary } from "@/lib/maps/maps-loader";
 import { fetchPlaceDetails, usePlaceSuggestions } from "@/lib/maps/places-api";
 import type { SchoolValue } from "../schemas";
 
@@ -37,7 +37,7 @@ export function SchoolAutocomplete({
 
   useEffect(() => {
     let cancelled = false;
-    loadGoogleMaps()
+    loadMapsLibrary("places")
       .then(() => {
         if (!cancelled) setReady(true);
       })

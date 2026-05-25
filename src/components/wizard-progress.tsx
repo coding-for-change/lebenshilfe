@@ -1,14 +1,21 @@
 import { cn } from "@/lib/utils";
 
-type Props = {
+type WizardProgressProps = {
   steps: number;
+  /** 0-indexed */
   current: number;
-  labels?: string[];
+  labels?: readonly string[];
+  className?: string;
 };
 
-export function ChildWizardProgress({ steps, current, labels }: Props) {
+export function WizardProgress({
+  steps,
+  current,
+  labels,
+  className,
+}: WizardProgressProps) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className={cn("flex flex-col gap-1.5", className)}>
       <div className="flex items-center gap-2">
         {Array.from({ length: steps }).map((_, i) => {
           const filled = i <= current;

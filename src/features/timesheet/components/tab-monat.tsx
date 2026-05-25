@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CalendarGrid } from "./calendar-grid";
 import { HandoverDialog } from "./handover-dialog";
-import { MONTHS_LONG, isSameUtcDay } from "./date-utils";
+import { MONTHS_LONG, isSameUtcDay } from "@/lib/dates";
 import type { Event } from "@/generated/prisma";
 import type { VertretungDay } from "./timesheet-shell";
 

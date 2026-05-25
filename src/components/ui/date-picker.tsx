@@ -1,18 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
-import { de } from "date-fns/locale";
 
-import { cn, formatIsoDateLocal } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
 
 type DatePickerProps = {
   /** ISO `YYYY-MM-DD`, or empty string when no date is set. */
@@ -23,73 +14,38 @@ type DatePickerProps = {
   id?: string;
   ariaInvalid?: boolean;
   className?: string;
+  min?: string;
+  max?: string;
 };
 
-function parseValue(value: string): Date | undefined {
-  if (!value) return undefined;
-  const d = new Date(`${value}T00:00:00`);
-  return Number.isNaN(d.getTime()) ? undefined : d;
-}
-
+/**
+ * Single date picker that uses the browser's native date input. On iOS/Android
+ * this surfaces the platform-native picker; on desktop browsers it offers
+ * both keyboard entry and a calendar dropdown.
+ */
 export function DatePicker({
   value,
   onChange,
-  placeholder = "Datum wählen",
+  placeholder,
   disabled,
   id,
   ariaInvalid,
   className,
+  min,
+  max,
 }: DatePickerProps) {
-  const [open, setOpen] = React.useState(false);
-  const selected = parseValue(value);
-
   return (
-    <Popover
-      open={open}
-      onOpenChange={(next) => !disabled && setOpen(next)}
-    >
-      <PopoverTrigger asChild>
-        <Button
-          id={id}
-          type="button"
-          variant="outline"
-          disabled={disabled}
-          aria-invalid={ariaInvalid}
-          className={cn(
-            "w-full justify-start text-left font-normal",
-            !selected && "text-muted-foreground",
-            className,
-          )}
-        >
-          <CalendarIcon />
-          {selected ? (
-            format(selected, "PPP", { locale: de })
-          ) : (
-            <span>{placeholder}</span>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="w-auto p-0"
-        align="start"
-      >
-        <Calendar
-          mode="single"
-          locale={de}
-          weekStartsOn={1}
-          selected={selected}
-          defaultMonth={selected}
-          onSelect={(date) => {
-            if (date) {
-              onChange(formatIsoDateLocal(date));
-              setOpen(false);
-            } else {
-              onChange("");
-            }
-          }}
-          autoFocus
-        />
-      </PopoverContent>
-    </Popover>
+    <Input
+      id={id}
+      type="date"
+      value={value}
+      placeholder={placeholder}
+      disabled={disabled}
+      aria-invalid={ariaInvalid}
+      min={min}
+      max={max}
+      onChange={(e) => onChange(e.target.value)}
+      className={cn("w-full", className)}
+    />
   );
 }

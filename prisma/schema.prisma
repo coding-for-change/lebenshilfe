@@ -42,7 +42,6 @@ model User {
   events        Event[]
   monthlyReports MonthlyReport[]
   profile       SchoolAssistantProfile?
-  vertretungenAsOriginal    ChildVertretung[] @relation("OriginalVertretung")
   vertretungenAsSubstitute  ChildVertretung[] @relation("SubstituteVertretung")
 
   @@unique([email])
@@ -159,18 +158,15 @@ model ChildAssignment {
 model ChildVertretung {
   id               String   @id @default(cuid())
   childId          String
-  originalUserId   String?
   substituteUserId String
   date             DateTime @db.Date
   startTime        String
   endTime          String
   createdAt        DateTime @default(now())
   child            Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
-  originalUser     User?    @relation("OriginalVertretung", fields: [originalUserId], references: [id], onDelete: SetNull)
   substituteUser   User     @relation("SubstituteVertretung", fields: [substituteUserId], references: [id], onDelete: Cascade)
 
-  @@index([childId, date])
-  @@index([originalUserId, date])
+  @@unique([childId, date])
   @@index([substituteUserId, date])
   @@map("child_vertretung")
 }

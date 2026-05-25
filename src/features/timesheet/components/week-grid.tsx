@@ -160,7 +160,7 @@ export function WeekGrid({
                     const h = posFromTime(v.endTime) - posFromTime(v.startTime);
                     return (
                       <div
-                        key={v.childName + v.startTime}
+                        key={v.id}
                         className="absolute left-0.5 right-0.5 flex flex-col overflow-hidden rounded-md border border-amber-300 bg-amber-500/20 px-1 py-0.5"
                         style={{ top, height: Math.max(h, 20) }}
                       >

@@ -51,6 +51,7 @@ export type ChildAbsenceItem = Pick<ChildAbsence, "childId" | "note"> & {
 };
 
 export type VertretungDay = {
+  id: string;
   date: string; // YYYY-MM-DD
   childId: string;
   childName: string;

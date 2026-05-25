@@ -27,19 +27,11 @@ import {
 import type { ChildOption } from "./children-filter";
 import { childIdsForDate, type AssignmentsByWeekday } from "../weekday";
 import { cn, formatIsoDateUtc } from "@/lib/utils";
+import type { VertretungDay } from "./timesheet-shell";
 
 type LastEntry = {
   startTime: string | null;
   endTime: string | null;
-};
-
-/** A day on which the current user acts as substitute Schulbegleiter. */
-type VertretungDay = {
-  date: string;
-  childId: string;
-  childName: string;
-  startTime: string;
-  endTime: string;
 };
 
 type QuickSlot = {

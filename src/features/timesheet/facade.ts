@@ -8,7 +8,6 @@ import {
   type UpdateEventInput,
 } from "./schemas";
 import {
-  assertChildrenAssignedToUser,
   deleteEventById,
   findEventById,
   findMonthlyReport,
@@ -106,7 +105,6 @@ export const TimesheetFacade = {
     assertMonthNotLocked(report);
 
     if (parsed.type === "WORK") {
-      await assertChildrenAssignedToUser(userId, parsed.childIds, date);
       const batchId = randomUUID();
       const signatureKey = `signatures/events/${userId}/${batchId}.png`;
       await uploadSignature(signatureKey, parsed.signaturePngBase64);

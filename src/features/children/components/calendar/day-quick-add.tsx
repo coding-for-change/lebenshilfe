@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Plus, Stethoscope, User, UserCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -252,7 +252,7 @@ function DayChip({
   strikethrough,
   onDelete,
 }: {
-  variant: "assignment" | "absence" | "vertretung";
+  variant: "assignment" | "absence";
   label: string;
   title?: string;
   tandem?: boolean;
@@ -263,9 +263,7 @@ function DayChip({
     ? "bg-muted/40 text-muted-foreground/60 border-muted-foreground/20"
     : variant === "assignment"
       ? "bg-primary/15 text-foreground border-primary/30"
-      : variant === "vertretung"
-        ? "bg-amber-500/15 text-amber-900 dark:text-amber-200 border-amber-500/30"
-        : "bg-red-500/15 text-red-900 dark:text-red-200 border-red-500/30";
+      : "bg-red-500/15 text-red-900 dark:text-red-200 border-red-500/30";
 
   return (
     <div
@@ -317,6 +315,15 @@ function VertretungChip({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Re-sync local state when the popover opens so a re-open after an external
+  // refresh always shows the current value, not the stale initialisation.
+  useEffect(() => {
+    if (open) {
+      setSubstituteUserId(vertretung.substituteUserId);
+      setError(null);
+    }
+  }, [open, vertretung.substituteUserId]);
 
   async function handleSave() {
     setBusy(true);

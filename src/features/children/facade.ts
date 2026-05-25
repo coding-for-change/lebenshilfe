@@ -26,6 +26,8 @@ import {
   deleteVertretungById,
   updateVertretung,
   findChildById,
+  getAssignmentCoverage,
+  getVertretungCoverage,
   listAbsencesForChild,
   listAbsencesForChildrenInRange,
   listAssignmentsForChild,
@@ -33,9 +35,9 @@ import {
   listChildren,
   listSchedulesForChild,
   listSchedulesForChildren,
-  listVertretungenForUserAsOriginal,
   listVertretungenForUserAsSubstitute,
   listWorkEventsForChild,
+  syncVertretungTimesForChildWeekday,
   updateAssignment,
   updateChild,
   updateSchedule,
@@ -140,14 +142,20 @@ export const ChildrenFacade = {
 
   async createSchedule(input: ScheduleInput) {
     const parsed = ScheduleSchema.parse(input);
-    return createSchedule(parsed);
+    const created = await createSchedule(parsed);
+    // Keep future Vertretungen in sync with the new Stundenplan time.
+    await syncVertretungTimesForChildWeekday(created.childId, created.weekday);
+    return created;
   },
 
   async updateSchedule(
     id: string,
     input: Partial<Omit<ScheduleInput, "childId">>,
   ) {
-    return updateSchedule(id, input);
+    const updated = await updateSchedule(id, input);
+    // Keep future Vertretungen in sync with the updated Stundenplan time.
+    await syncVertretungTimesForChildWeekday(updated.childId, updated.weekday);
+    return updated;
   },
 
   async deleteSchedule(id: string) {
@@ -211,11 +219,47 @@ export const ChildrenFacade = {
     return listVertretungenForUserAsSubstitute(userId, from, to);
   },
 
-  async listVertretungenForUserAsOriginal(
+  /**
+   * Cross-feature access guard: verifies that every childId in the list is
+   * either regularly assigned to userId on that weekday OR covered by a
+   * Vertretung for that specific date. Throws if any child is uncovered.
+   *
+   * Called from the create-timesheet-event use case so that this validation
+   * stays within the children domain and off the timesheet service layer.
+   */
+  async assertChildrenAccessForUser(
     userId: string,
-    from: Date,
-    to: Date,
+    childIds: string[],
+    date: Date,
   ) {
-    return listVertretungenForUserAsOriginal(userId, from, to);
+    if (childIds.length === 0) return;
+
+    // Mon=0..Sun=6, matching Schedule.weekday convention.
+    const weekday = (date.getUTCDay() + 6) % 7;
+    const coveredByAssignment = await getAssignmentCoverage(
+      userId,
+      childIds,
+      weekday,
+    );
+
+    const uncovered = childIds.filter((id) => !coveredByAssignment.has(id));
+    if (uncovered.length === 0) return;
+
+    // Normalise to UTC midnight to match @db.Date semantics.
+    const dateOnly = new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+    );
+    const coveredByVertretung = await getVertretungCoverage(
+      userId,
+      uncovered,
+      dateOnly,
+    );
+
+    const stillUncovered = uncovered.filter(
+      (id) => !coveredByVertretung.has(id),
+    );
+    if (stillUncovered.length > 0) {
+      throw new Error("Ein Kind ist diesem Konto nicht zugewiesen.");
+    }
   },
 };

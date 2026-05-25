@@ -225,7 +225,7 @@ export function TabDay({
 
       {dayVertretungen.map((v) => (
         <Card
-          key={v.childName + v.startTime}
+          key={v.id}
           className="border-amber-200 bg-amber-500/5 p-4"
         >
           <div className="flex items-start gap-3">

@@ -8,13 +8,7 @@ import { CalendarGrid } from "./calendar-grid";
 import { HandoverDialog } from "./handover-dialog";
 import { MONTHS_LONG, isSameUtcDay } from "./date-utils";
 import type { Event } from "@/generated/prisma";
-
-type VertretungDay = {
-  date: string;
-  childName: string;
-  startTime: string;
-  endTime: string;
-};
+import type { VertretungDay } from "./timesheet-shell";
 
 type Props = {
   viewDate: Date;

@@ -118,9 +118,10 @@ export function KinderWeekCalendar({
     const weekFrom = weekStart;
     const weekTo = addDays(weekStart, 6);
     for (const ab of absences) {
-      const d = new Date(`${ab.date}T00:00:00`);
+      // Parse YYYY-MM-DD as UTC midnight (date-only ISO strings are UTC in JS).
+      const d = new Date(ab.date);
       if (d < weekFrom || d > weekTo) continue;
-      const wd = (d.getDay() + 6) % 7;
+      const wd = (d.getUTCDay() + 6) % 7;
       map.set(wd, ab);
     }
     return map;
@@ -141,7 +142,8 @@ export function KinderWeekCalendar({
     const weekFrom = weekStart;
     const weekTo = addDays(weekStart, 6);
     for (const v of vertretungen) {
-      const d = new Date(`${v.date}T00:00:00`);
+      // Parse YYYY-MM-DD as UTC midnight (date-only ISO strings are UTC in JS).
+      const d = new Date(v.date);
       if (d < weekFrom || d > weekTo) continue;
       if (!map.has(v.date)) map.set(v.date, []);
       map.get(v.date)!.push(v);

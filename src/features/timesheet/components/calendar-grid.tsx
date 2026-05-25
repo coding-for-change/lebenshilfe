@@ -9,13 +9,7 @@ import {
   startOfWeekUtc,
 } from "./date-utils";
 import type { Event } from "@/generated/prisma";
-
-type VertretungDay = {
-  date: string; // YYYY-MM-DD
-  childName: string;
-  startTime: string;
-  endTime: string;
-};
+import type { VertretungDay } from "./timesheet-shell";
 
 type Props = {
   year: number;

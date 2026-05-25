@@ -52,6 +52,7 @@ export type ChildAbsenceItem = Pick<ChildAbsence, "childId" | "note"> & {
 
 export type VertretungDay = {
   date: string; // YYYY-MM-DD
+  childId: string;
   childName: string;
   startTime: string;
   endTime: string;
@@ -353,6 +354,7 @@ export function SchoolAssistantApp({
           assignmentsByWeekday={assignmentsByWeekday}
           currentUserName={currentUser.name}
           schedules={schedules}
+          substituteOn={substituteOn}
           lastEntry={
             lastWorkEntry
               ? {

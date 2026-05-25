@@ -78,6 +78,7 @@ export default async function LandingPage() {
       assignmentsByWeekday={assignmentsByWeekday}
       substituteOn={vertretungenAsSubstitute.map((v) => ({
         date: v.date.toISOString().slice(0, 10),
+        childId: v.childId,
         childName: `${v.child.firstName} ${v.child.lastName}`,
         startTime: v.startTime,
         endTime: v.endTime,

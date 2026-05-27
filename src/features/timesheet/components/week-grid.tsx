@@ -51,6 +51,8 @@ export function WeekGrid({
   const monday = startOfWeekUtc(anchorDate);
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
 
+  const substituteChildIds = new Set(substituteOn.map((v) => v.childId));
+
   const colorFor = (childId: string | null | undefined) => {
     if (!childId) return "bg-rose-500/15 border-rose-400 text-rose-950";
     const idx = childList.findIndex((c) => c.id === childId);
@@ -138,7 +140,10 @@ export function WeekGrid({
                 (e.childId && selectedChildIds.includes(e.childId))),
           );
           const daySchedules = schedules.filter(
-            (s) => s.weekday === wd && selectedChildIds.includes(s.childId),
+            (s) =>
+              s.weekday === wd &&
+              selectedChildIds.includes(s.childId) &&
+              !substituteChildIds.has(s.childId),
           );
 
           return (
@@ -162,22 +167,23 @@ export function WeekGrid({
                 <>
                   {dayVertretungen.map((v) => {
                     const top = posFromTime(v.startTime);
-                    const h = posFromTime(v.endTime) - posFromTime(v.startTime);
+                    const blockH =
+                      posFromTime(v.endTime) - posFromTime(v.startTime);
+                    const height = Math.max(blockH, 16);
                     return (
                       <div
                         key={v.id}
-                        className="absolute left-0.5 right-0.5 flex flex-col overflow-hidden rounded-md border border-amber-300 bg-amber-500/20 px-1 py-0.5"
-                        style={{ top, height: Math.max(h, 20) }}
+                        className="absolute left-0.5 right-0.5 rounded-md border border-amber-400 bg-amber-500/25 px-1 text-[10px] font-medium leading-tight text-amber-950"
+                        style={{ top, height }}
                       >
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-amber-900">
-                          Vertretung
-                        </span>
-                        <span className="truncate text-[9px] text-amber-900/80">
-                          {v.childName}
-                        </span>
-                        <span className="font-mono text-[8px] text-amber-700">
+                        <div className="font-mono tabular-nums">
                           {v.startTime}–{v.endTime}
-                        </span>
+                        </div>
+                        {height >= 26 ? (
+                          <div className="truncate text-[9px] font-semibold opacity-80">
+                            {v.childName}
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })}

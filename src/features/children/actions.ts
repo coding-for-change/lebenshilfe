@@ -119,24 +119,25 @@ export async function listWorkEventsForChildAction(childId: string) {
 
 export async function createVertretungAction(input: VertretungInput) {
   await requireAdmin();
-  const created = await ChildrenFacade.createVertretung(input);
-  revalidatePath(ROUTE);
-  return { success: true as const, vertretung: { id: created.id } };
-}
-
-export async function updateVertretungAction(
-  id: string,
-  input: UpdateVertretungInput,
-) {
-  await requireAdmin();
-  await ChildrenFacade.updateVertretung(id, input);
+  await ChildrenFacade.createVertretung(input);
   revalidatePath(ROUTE);
   return { success: true as const };
 }
 
-export async function deleteVertretungAction(id: string) {
+export async function updateVertretungAction(
+  childId: string,
+  date: string,
+  input: UpdateVertretungInput,
+) {
   await requireAdmin();
-  await ChildrenFacade.deleteVertretung(id);
+  await ChildrenFacade.updateVertretung(childId, date, input);
+  revalidatePath(ROUTE);
+  return { success: true as const };
+}
+
+export async function deleteVertretungAction(childId: string, date: string) {
+  await requireAdmin();
+  await ChildrenFacade.deleteVertretung(childId, date);
   revalidatePath(ROUTE);
   return { success: true as const };
 }

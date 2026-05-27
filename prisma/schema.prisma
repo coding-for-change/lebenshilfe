@@ -166,7 +166,9 @@ model ChildVertretung {
   child            Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
   substituteUser   User     @relation("SubstituteVertretung", fields: [substituteUserId], references: [id], onDelete: Cascade)
 
-  @@unique([childId, date])
+  /// Multiple rows per (childId, date) are intentional — one per time block,
+  /// mirroring how ChildAssignment models multiple blocks per (childId, weekday).
+  @@index([childId, date])
   @@index([substituteUserId, date])
   @@map("child_vertretung")
 }

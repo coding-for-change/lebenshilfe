@@ -18,13 +18,13 @@ import {
   createAssignment,
   createChild,
   createSchedule,
-  createVertretung,
+  createVertretungBlocks,
   deleteAbsenceById,
   deleteAssignmentById,
   deleteChildById,
   deleteScheduleById,
-  deleteVertretungById,
-  updateVertretung,
+  deleteVertretungByChildAndDate,
+  updateVertretungSubstituteForDate,
   findChildById,
   getAssignmentCoverage,
   getVertretungCoverage,
@@ -37,7 +37,7 @@ import {
   listSchedulesForChildren,
   listVertretungenForUserAsSubstitute,
   listWorkEventsForChild,
-  syncVertretungTimesForChildWeekday,
+  syncVertretungBlocksForChildWeekday,
   updateAssignment,
   updateChild,
   updateSchedule,
@@ -143,8 +143,7 @@ export const ChildrenFacade = {
   async createSchedule(input: ScheduleInput) {
     const parsed = ScheduleSchema.parse(input);
     const created = await createSchedule(parsed);
-    // Keep future Vertretungen in sync with the new Stundenplan time.
-    await syncVertretungTimesForChildWeekday(created.childId, created.weekday);
+    await syncVertretungBlocksForChildWeekday(created.childId, created.weekday);
     return created;
   },
 
@@ -153,13 +152,13 @@ export const ChildrenFacade = {
     input: Partial<Omit<ScheduleInput, "childId">>,
   ) {
     const updated = await updateSchedule(id, input);
-    // Keep future Vertretungen in sync with the updated Stundenplan time.
-    await syncVertretungTimesForChildWeekday(updated.childId, updated.weekday);
+    await syncVertretungBlocksForChildWeekday(updated.childId, updated.weekday);
     return updated;
   },
 
   async deleteSchedule(id: string) {
-    await deleteScheduleById(id);
+    const deleted = await deleteScheduleById(id);
+    await syncVertretungBlocksForChildWeekday(deleted.childId, deleted.weekday);
   },
 
   async listAbsences(childId: string) {
@@ -193,22 +192,50 @@ export const ChildrenFacade = {
 
   async createVertretung(input: VertretungInput) {
     const parsed = VertretungSchema.parse(input);
-    return createVertretung({
+    const date = new Date(`${parsed.date}T00:00:00.000Z`);
+    // Mon=0..Sun=6, matching Schedule.weekday convention.
+    const weekday = (date.getUTCDay() + 6) % 7;
+
+    // Copy each Stundenplan block for this child+weekday exactly as-is.
+    // The Schedule (Stundenplan) is the source of truth for WHEN the
+    // Schulbegleiter works — the Zuweisung only records WHO.
+    const allSchedules = await listSchedulesForChild(parsed.childId);
+    const dayBlocks = allSchedules
+      .filter((s) => s.weekday === weekday)
+      .map((s) => ({ startTime: s.startTime, endTime: s.endTime }));
+
+    // Fallback: if no schedule rows exist, create a single whole-day block.
+    const timeBlocks =
+      dayBlocks.length > 0
+        ? dayBlocks
+        : [{ startTime: "00:00", endTime: "23:59" }];
+
+    await createVertretungBlocks({
       childId: parsed.childId,
       substituteUserId: parsed.substituteUserId,
-      date: new Date(`${parsed.date}T00:00:00.000Z`),
-      startTime: parsed.startTime,
-      endTime: parsed.endTime,
+      date,
+      timeBlocks,
     });
   },
 
-  async updateVertretung(id: string, input: UpdateVertretungInput) {
+  async updateVertretung(
+    childId: string,
+    date: string,
+    input: UpdateVertretungInput,
+  ) {
     const parsed = UpdateVertretungSchema.parse(input);
-    return updateVertretung(id, parsed);
+    await updateVertretungSubstituteForDate(
+      childId,
+      new Date(`${date}T00:00:00.000Z`),
+      parsed.substituteUserId,
+    );
   },
 
-  async deleteVertretung(id: string) {
-    await deleteVertretungById(id);
+  async deleteVertretung(childId: string, date: string) {
+    await deleteVertretungByChildAndDate(
+      childId,
+      new Date(`${date}T00:00:00.000Z`),
+    );
   },
 
   async listVertretungenForUserAsSubstitute(

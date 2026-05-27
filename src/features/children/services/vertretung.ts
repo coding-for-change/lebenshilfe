@@ -20,89 +20,93 @@ export async function listVertretungenForUserAsSubstitute(
   });
 }
 
-export async function createVertretung(data: {
+export async function createVertretungBlocks(data: {
   childId: string;
   substituteUserId: string;
   date: Date;
-  startTime: string;
-  endTime: string;
+  timeBlocks: { startTime: string; endTime: string }[];
 }) {
-  return prisma.childVertretung.create({ data });
+  await prisma.childVertretung.createMany({
+    data: data.timeBlocks.map((block) => ({
+      childId: data.childId,
+      substituteUserId: data.substituteUserId,
+      date: data.date,
+      startTime: block.startTime,
+      endTime: block.endTime,
+    })),
+  });
 }
 
-export async function updateVertretung(
-  id: string,
-  data: Partial<{
-    substituteUserId: string;
-    startTime: string;
-    endTime: string;
-  }>,
+export async function updateVertretungSubstituteForDate(
+  childId: string,
+  date: Date,
+  substituteUserId: string,
 ) {
-  return prisma.childVertretung.update({ where: { id }, data });
+  await prisma.childVertretung.updateMany({
+    where: { childId, date },
+    data: { substituteUserId },
+  });
 }
 
-export async function deleteVertretungById(id: string) {
-  await prisma.childVertretung.delete({ where: { id } });
+export async function deleteVertretungByChildAndDate(
+  childId: string,
+  date: Date,
+) {
+  await prisma.childVertretung.deleteMany({ where: { childId, date } });
 }
 
-/**
- * After a Schedule is created or updated, re-compute the min/max time span
- * for that child+weekday and apply it to all future Vertretungen on matching
- * dates. If no schedules remain for that weekday (delete case), nothing is
- * changed — the existing snapshot is preserved.
- *
- * weekday uses Mon=0..Sun=6, matching the app's Schedule.weekday convention.
- */
-export async function syncVertretungTimesForChildWeekday(
+export async function syncVertretungBlocksForChildWeekday(
   childId: string,
   weekday: number,
 ) {
   const schedules = await prisma.schedule.findMany({
     where: { childId, weekday },
     select: { startTime: true, endTime: true },
-  });
-  if (schedules.length === 0) return; // schedule deleted — keep existing snapshot
-
-  const newStart = schedules.reduce(
-    (min, s) => (s.startTime < min ? s.startTime : min),
-    schedules[0].startTime,
-  );
-  const newEnd = schedules.reduce(
-    (max, s) => (s.endTime > max ? s.endTime : max),
-    schedules[0].endTime,
-  );
-
-  const today = new Date(
-    Date.UTC(
-      new Date().getUTCFullYear(),
-      new Date().getUTCMonth(),
-      new Date().getUTCDate(),
-    ),
-  );
-
-  // Fetch all future Vertretungen for this child, then filter to the matching
-  // weekday in JS (Prisma / MySQL cannot filter @db.Date by weekday natively).
-  const future = await prisma.childVertretung.findMany({
-    where: { childId, date: { gte: today } },
-    select: { id: true, date: true },
+    orderBy: { startTime: "asc" },
   });
 
-  // Schedule weekday: Mon=0..Sun=6. JS Date.getUTCDay(): Sun=0..Sat=6.
-  const matching = future.filter(
-    (v) => (v.date.getUTCDay() + 6) % 7 === weekday,
-  );
-  if (matching.length === 0) return;
-
-  await prisma.childVertretung.updateMany({
-    where: { id: { in: matching.map((v) => v.id) } },
-    data: { startTime: newStart, endTime: newEnd },
+  const allRows = await prisma.childVertretung.findMany({
+    where: { childId },
+    select: { date: true, substituteUserId: true },
   });
+
+  const byDate = new Map<string, { date: Date; substituteUserId: string }>();
+  for (const row of allRows) {
+    const wd = (row.date.getUTCDay() + 6) % 7;
+    if (wd !== weekday) continue;
+    const key = row.date.toISOString();
+    if (!byDate.has(key)) {
+      byDate.set(key, {
+        date: row.date,
+        substituteUserId: row.substituteUserId,
+      });
+    }
+  }
+
+  if (byDate.size === 0) return;
+
+  const entries = Array.from(byDate.values());
+  const dates = entries.map((e) => e.date);
+
+  await prisma.childVertretung.deleteMany({
+    where: { childId, date: { in: dates } },
+  });
+
+  if (schedules.length > 0) {
+    await prisma.childVertretung.createMany({
+      data: entries.flatMap((entry) =>
+        schedules.map((s) => ({
+          childId,
+          substituteUserId: entry.substituteUserId,
+          date: entry.date,
+          startTime: s.startTime,
+          endTime: s.endTime,
+        })),
+      ),
+    });
+  }
 }
 
-/**
- * Returns the set of childIds from childVertretung where the given user
- * is the substitute on the exact date. Used for access validation.
- */
 export async function getVertretungCoverage(
   substituteUserId: string,
   childIds: string[],

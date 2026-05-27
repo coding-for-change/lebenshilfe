@@ -76,19 +76,65 @@ export function TabDay({
       .filter((a): a is ChildAbsenceItem & { child: ChildOption } => !!a.child);
   }, [childAbsences, selectedDateIso, childById]);
 
+  const substituteChildIds = useMemo(
+    () => new Set(substituteOn.map((v) => v.childId)),
+    [substituteOn],
+  );
+
   const daySchedules = useMemo(() => {
-    // Convert UTC weekday (0=Sun..6=Sat) to Mon=0..Sun=6.
     const weekday = (selectedDate.getUTCDay() + 6) % 7;
+    const todaySubstituteChildIds = new Set(
+      substituteOn
+        .filter((v) => v.date === selectedDateIso)
+        .map((v) => v.childId),
+    );
     return schedules
-      .filter((s) => s.weekday === weekday)
+      .filter((s) => {
+        if (s.weekday !== weekday) return false;
+        if (substituteChildIds.has(s.childId)) {
+          return todaySubstituteChildIds.has(s.childId);
+        }
+        return true;
+      })
       .map((s) => ({ ...s, child: childById.get(s.childId) }))
       .filter((s): s is Schedule & { child: ChildOption } => !!s.child)
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
-  }, [schedules, selectedDate, childById]);
-  const dayVertretungen = useMemo(
-    () => substituteOn.filter((v) => v.date === selectedDateIso),
-    [substituteOn, selectedDateIso],
-  );
+  }, [
+    schedules,
+    selectedDate,
+    selectedDateIso,
+    childById,
+    substituteChildIds,
+    substituteOn,
+  ]);
+
+  const dayVertretungenGrouped = useMemo(() => {
+    const blocks = substituteOn.filter((v) => v.date === selectedDateIso);
+    const map = new Map<
+      string,
+      {
+        childId: string;
+        childName: string;
+        timeBlocks: { startTime: string; endTime: string }[];
+      }
+    >();
+    for (const v of blocks) {
+      if (!map.has(v.childId)) {
+        map.set(v.childId, {
+          childId: v.childId,
+          childName: v.childName,
+          timeBlocks: [],
+        });
+      }
+      map
+        .get(v.childId)!
+        .timeBlocks.push({ startTime: v.startTime, endTime: v.endTime });
+    }
+    for (const entry of map.values()) {
+      entry.timeBlocks.sort((a, b) => a.startTime.localeCompare(b.startTime));
+    }
+    return Array.from(map.values());
+  }, [substituteOn, selectedDateIso]);
 
   const sickEvent = dayEvents.find((e) => e.type === "SICK");
   const workEvents = dayEvents.filter((e) => e.type === "WORK");
@@ -223,9 +269,9 @@ export function TabDay({
         </Card>
       )}
 
-      {dayVertretungen.map((v) => (
+      {dayVertretungenGrouped.map((g) => (
         <Card
-          key={v.id}
+          key={g.childId}
           className="border-amber-200 bg-amber-500/5 p-4"
         >
           <div className="flex items-start gap-3">
@@ -234,9 +280,11 @@ export function TabDay({
             </div>
             <div className="flex-1 space-y-0.5">
               <p className="font-semibold text-amber-900">Vertretung</p>
-              <p className="text-sm text-amber-900/80">{v.childName}</p>
+              <p className="text-sm text-amber-900/80">{g.childName}</p>
               <p className="font-mono text-xs text-amber-700">
-                {v.startTime}–{v.endTime}
+                {g.timeBlocks
+                  .map((b) => `${b.startTime}–${b.endTime}`)
+                  .join(", ")}
               </p>
             </div>
           </div>

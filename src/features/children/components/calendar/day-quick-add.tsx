@@ -42,7 +42,7 @@ type Props = {
   assignments: SerializedAssignment[];
   absence: SerializedAbsence | null;
   vertretungen: SerializedVertretung[];
-  /** Schedules already filtered to this weekday — used to auto-fill Vertretung times and gate the option. */
+  /** Schedules filtered to this weekday — used to preview Vertretung times. */
   daySchedules: SerializedSchedule[];
   schoolAssistantOptions: SchoolAssistantOption[];
   onChanged: () => void;
@@ -95,9 +95,9 @@ export function DayQuickAddSection({
     }
   }
 
-  async function handleDeleteVertretung(id: string) {
+  async function handleDeleteVertretung(childId: string, date: string) {
     try {
-      await deleteVertretungAction(id);
+      await deleteVertretungAction(childId, date);
       toast.success("Vertretung entfernt.");
       onChanged();
     } catch (err) {
@@ -136,16 +136,24 @@ export function DayQuickAddSection({
         />
       ))}
 
-      {/* Vertretung chips — shown below the (crossed-out) original */}
-      {vertretungen.map((v) => (
+      {/* Vertretung chip — one grouped chip for all time blocks of this day */}
+      {vertretungen.length > 0 && (
         <VertretungChip
-          key={v.id}
-          vertretung={v}
+          childId={childId}
+          date={formatIsoDateLocal(date)}
+          substituteUserId={vertretungen[0].substituteUserId}
+          substituteUserName={vertretungen[0].substituteUserName}
+          timeBlocks={vertretungen.map((v) => ({
+            startTime: v.startTime,
+            endTime: v.endTime,
+          }))}
           schoolAssistantOptions={schoolAssistantOptions}
-          onDelete={() => handleDeleteVertretung(v.id)}
+          onDelete={() =>
+            handleDeleteVertretung(childId, formatIsoDateLocal(date))
+          }
           onChanged={onChanged}
         />
-      ))}
+      )}
 
       <Popover
         open={popoverOpen}
@@ -299,19 +307,27 @@ function DayChip({
 }
 
 function VertretungChip({
-  vertretung,
+  childId,
+  date,
+  substituteUserId: initialSubstituteUserId,
+  substituteUserName,
+  timeBlocks,
   schoolAssistantOptions,
   onDelete,
   onChanged,
 }: {
-  vertretung: SerializedVertretung;
+  childId: string;
+  date: string;
+  substituteUserId: string;
+  substituteUserName: string;
+  timeBlocks: { startTime: string; endTime: string }[];
   schoolAssistantOptions: SchoolAssistantOption[];
   onDelete: () => void;
   onChanged: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [substituteUserId, setSubstituteUserId] = useState(
-    vertretung.substituteUserId,
+    initialSubstituteUserId,
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -320,18 +336,16 @@ function VertretungChip({
   // refresh always shows the current value, not the stale initialisation.
   useEffect(() => {
     if (open) {
-      setSubstituteUserId(vertretung.substituteUserId);
+      setSubstituteUserId(initialSubstituteUserId);
       setError(null);
     }
-  }, [open, vertretung.substituteUserId]);
+  }, [open, initialSubstituteUserId]);
 
   async function handleSave() {
     setBusy(true);
     setError(null);
     try {
-      // Only the substitute can be changed — the time is derived from the
-      // child's Stundenplan and is not editable here.
-      await updateVertretungAction(vertretung.id, { substituteUserId });
+      await updateVertretungAction(childId, date, { substituteUserId });
       toast.success("Vertretung aktualisiert.");
       setOpen(false);
       onChanged();
@@ -343,6 +357,11 @@ function VertretungChip({
       setBusy(false);
     }
   }
+
+  // Format all time blocks as a comma-separated string, e.g. "08:00–10:00, 13:00–15:00"
+  const timeDisplay = timeBlocks
+    .map((b) => `${b.startTime}–${b.endTime}`)
+    .join(", ");
 
   return (
     <Popover
@@ -361,7 +380,7 @@ function VertretungChip({
             className="min-w-0 flex-1 truncate text-left"
             onClick={() => setOpen(true)}
           >
-            {vertretung.substituteUserName}
+            {substituteUserName}
           </button>
         </PopoverAnchor>
         <button
@@ -394,9 +413,9 @@ function VertretungChip({
             />
           </div>
 
-          {/* Time comes from the child's Stundenplan — read-only info */}
+          {/* Times mirror the Stundenplan — read-only */}
           <p className="text-[11px] text-muted-foreground">
-            Zeit: {vertretung.startTime}–{vertretung.endTime} (laut Stundenplan)
+            Zeit: {timeDisplay} (laut Stundenplan)
           </p>
 
           {error ? (
@@ -525,21 +544,21 @@ function DayVertretungForm({
 }: {
   childId: string;
   date: Date;
-  /** Schedules for this child on this weekday — the time span is derived from these. */
+  /** Schedule rows for this child on this weekday — preview of the times that will be copied. */
   daySchedules: SerializedSchedule[];
   schoolAssistantOptions: SchoolAssistantOption[];
   onSaved: () => void;
   onBack: () => void;
 }) {
-  // Derive the Vertretung time from the Stundenplan: earliest start → latest end.
-  const scheduleStart = daySchedules.reduce(
-    (min, s) => (s.startTime < min ? s.startTime : min),
-    daySchedules[0]?.startTime ?? "00:00",
-  );
-  const scheduleEnd = daySchedules.reduce(
-    (max, s) => (s.endTime > max ? s.endTime : max),
-    daySchedules[0]?.endTime ?? "23:59",
-  );
+  // Show each Stundenplan block that the server will copy into the Vertretung.
+  const timeDisplay =
+    daySchedules.length > 0
+      ? daySchedules
+          .slice()
+          .sort((a, b) => a.startTime.localeCompare(b.startTime))
+          .map((s) => `${s.startTime}–${s.endTime}`)
+          .join(", ")
+      : "00:00–23:59";
 
   const [substituteUserId, setSubstituteUserId] = useState(
     schoolAssistantOptions[0]?.id ?? "",
@@ -559,8 +578,6 @@ function DayVertretungForm({
         childId,
         substituteUserId,
         date: formatIsoDateLocal(date),
-        startTime: scheduleStart,
-        endTime: scheduleEnd,
       });
       toast.success("Vertretung gespeichert.");
       onSaved();
@@ -587,9 +604,9 @@ function DayVertretungForm({
         />
       </div>
 
-      {/* Show the auto-derived Stundenplan time (read-only) */}
+      {/* Read-only preview of the Stundenplan times that will be copied */}
       <p className="text-[11px] text-muted-foreground">
-        Zeit: {scheduleStart}–{scheduleEnd} (laut Stundenplan)
+        Zeit: {timeDisplay} (laut Stundenplan)
       </p>
 
       {error ? <div className="text-xs text-destructive">{error}</div> : null}

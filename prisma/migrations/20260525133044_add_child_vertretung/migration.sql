@@ -11,7 +11,7 @@ CREATE TABLE `child_vertretung` (
     `endTime` VARCHAR(191) NOT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
-    UNIQUE INDEX `child_vertretung_childId_date_key`(`childId`, `date`),
+    INDEX `child_vertretung_childId_date_idx`(`childId`, `date`),
     INDEX `child_vertretung_substituteUserId_date_idx`(`substituteUserId`, `date`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

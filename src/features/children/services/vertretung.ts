@@ -65,6 +65,8 @@ export async function syncVertretungBlocksForChildWeekday(
     orderBy: { startTime: "asc" },
   });
 
+  if (schedules.length === 0) return;
+
   const allRows = await prisma.childVertretung.findMany({
     where: { childId },
     select: { date: true, substituteUserId: true },
@@ -92,19 +94,17 @@ export async function syncVertretungBlocksForChildWeekday(
     where: { childId, date: { in: dates } },
   });
 
-  if (schedules.length > 0) {
-    await prisma.childVertretung.createMany({
-      data: entries.flatMap((entry) =>
-        schedules.map((s) => ({
-          childId,
-          substituteUserId: entry.substituteUserId,
-          date: entry.date,
-          startTime: s.startTime,
-          endTime: s.endTime,
-        })),
-      ),
-    });
-  }
+  await prisma.childVertretung.createMany({
+    data: entries.flatMap((entry) =>
+      schedules.map((s) => ({
+        childId,
+        substituteUserId: entry.substituteUserId,
+        date: entry.date,
+        startTime: s.startTime,
+        endTime: s.endTime,
+      })),
+    ),
+  });
 }
 
 export async function getVertretungCoverage(

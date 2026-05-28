@@ -50,9 +50,6 @@ type Props = {
 
 type Step = "choose" | "assignment" | "absence" | "vertretung";
 
-// Per-day cell shown beneath the date number: chips for existing
-// assignments, vertretungen, and absence, plus a dashed "+" button that
-// opens a popover to create a new whole-day entry for this day.
 export function DayQuickAddSection({
   weekday,
   date,
@@ -107,13 +104,10 @@ export function DayQuickAddSection({
     }
   }
 
-  // On a day with Vertretungen, hide the regular Zuweisung chips —
-  // the Vertretung replaces the assignment for that specific date.
   const hasVertretung = vertretungen.length > 0;
 
   return (
     <div className="flex w-full min-w-0 flex-col items-stretch gap-1">
-      {/* Absence chip */}
       {absence ? (
         <DayChip
           variant="absence"
@@ -123,7 +117,6 @@ export function DayQuickAddSection({
         />
       ) : null}
 
-      {/* Regular Zuweisung chips — shown with strikethrough when a Vertretung is active */}
       {assignments.map((a) => (
         <DayChip
           key={a.id}
@@ -136,7 +129,6 @@ export function DayQuickAddSection({
         />
       ))}
 
-      {/* Vertretung chip — one grouped chip for all time blocks of this day */}
       {vertretungen.length > 0 && (
         <VertretungChip
           childId={childId}
@@ -187,8 +179,7 @@ export function DayQuickAddSection({
                 <User className="size-4" />
                 <span className="font-medium">Zuweisung</span>
               </button>
-              {/* Vertretung only available when there is a Zuweisung and no Vertretung yet */}
-              {assignments.length > 0 && vertretungen.length === 0 && (
+              {vertretungen.length === 0 && (
                 <button
                   type="button"
                   onClick={() => setStep("vertretung")}
@@ -332,8 +323,6 @@ function VertretungChip({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Re-sync local state when the popover opens so a re-open after an external
-  // refresh always shows the current value, not the stale initialisation.
   useEffect(() => {
     if (open) {
       setSubstituteUserId(initialSubstituteUserId);
@@ -358,7 +347,6 @@ function VertretungChip({
     }
   }
 
-  // Format all time blocks as a comma-separated string, e.g. "08:00–10:00, 13:00–15:00"
   const timeDisplay = timeBlocks
     .map((b) => `${b.startTime}–${b.endTime}`)
     .join(", ");
@@ -413,7 +401,6 @@ function VertretungChip({
             />
           </div>
 
-          {/* Times mirror the Stundenplan — read-only */}
           <p className="text-[11px] text-muted-foreground">
             Zeit: {timeDisplay} (laut Stundenplan)
           </p>
@@ -544,13 +531,11 @@ function DayVertretungForm({
 }: {
   childId: string;
   date: Date;
-  /** Schedule rows for this child on this weekday — preview of the times that will be copied. */
   daySchedules: SerializedSchedule[];
   schoolAssistantOptions: SchoolAssistantOption[];
   onSaved: () => void;
   onBack: () => void;
 }) {
-  // Show each Stundenplan block that the server will copy into the Vertretung.
   const timeDisplay =
     daySchedules.length > 0
       ? daySchedules
@@ -604,7 +589,6 @@ function DayVertretungForm({
         />
       </div>
 
-      {/* Read-only preview of the Stundenplan times that will be copied */}
       <p className="text-[11px] text-muted-foreground">
         Zeit: {timeDisplay} (laut Stundenplan)
       </p>

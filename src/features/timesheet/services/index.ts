@@ -4,6 +4,7 @@ import { EventType, Prisma } from "@/generated/prisma";
 import {
   WEEKDAYS,
   emptyAssignmentsByWeekday,
+  weekStartsSundayToWeekStartsMondayDayKeyTranslation,
   type AssignmentsByWeekday,
 } from "../weekday";
 
@@ -58,7 +59,9 @@ export async function assertChildrenAssignedToUser(
   date: Date,
 ) {
   if (childIds.length === 0) return;
-  const day = date.getDay() - 1; //0 indexed
+  const day = weekStartsSundayToWeekStartsMondayDayKeyTranslation(
+    date.getDay(),
+  ); //0 indexed
   const count = await prisma.childAssignment.count({
     where: { userId, childId: { in: childIds }, weekday: day },
   });
@@ -81,7 +84,7 @@ export async function getEventsForUserInRange(
   endExclusive: Date,
 ) {
   return prisma.event.findMany({
-    where: { userId, date: { gte: start, lt: endExclusive } },
+    where: { userId, deleted: false, date: { gte: start, lt: endExclusive } },
     include: {
       child: { select: { id: true, firstName: true, lastName: true } },
     },
@@ -144,6 +147,23 @@ export async function insertSickEvent(args: {
 
 export async function findEventById(id: string) {
   return prisma.event.findUnique({ where: { id } });
+}
+
+export async function signWorkEvents(
+  userId: string,
+  eventIds: string[],
+  signatureKey: string,
+) {
+  return prisma.event.updateMany({
+    where: {
+      id: { in: eventIds },
+      userId,
+      type: EventType.WORK,
+      signatureKey: null,
+      deleted: false,
+    },
+    data: { signatureKey },
+  });
 }
 
 export async function updateEventFields(

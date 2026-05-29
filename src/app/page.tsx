@@ -33,20 +33,20 @@ export default async function LandingPage() {
     events,
     schedules,
     lockedMonthKeys,
+    profile,
     childAbsences,
     assignmentsByWeekday,
-    profile,
   ] = await Promise.all([
     TimesheetFacade.getEventsInRange(user.id, rangeStart, rangeEnd),
     TimesheetFacade.getSchedulesForChildren(childIds),
     TimesheetFacade.listLockedMonthKeys(user.id),
+    SchoolAssistantsFacade.getByEmail(user.email),
     ChildrenFacade.listAbsencesForChildrenInRange(
       childIds,
       rangeStart,
       rangeEnd,
     ),
     TimesheetFacade.getAssignmentsByWeekday(user.id),
-    SchoolAssistantsFacade.getByEmail(user.email),
   ]);
 
   return (
@@ -61,7 +61,12 @@ export default async function LandingPage() {
         firstName: c.firstName,
         lastName: c.lastName,
       }))}
-      events={events}
+      events={events.map((e) => ({
+        ...e,
+        child: e.child
+          ? { firstName: e.child.firstName, lastName: e.child.lastName }
+          : null,
+      }))}
       schedules={schedules}
       lockedMonthKeys={lockedMonthKeys}
       childAbsences={childAbsences.map((a) => ({

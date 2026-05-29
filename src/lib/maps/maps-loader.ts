@@ -2,20 +2,36 @@
 
 import { importLibrary, setOptions } from "@googlemaps/js-api-loader";
 
-let loaderPromise: Promise<unknown> | null = null;
+type MapsLibraryName = "places" | "maps" | "marker";
 
-// Loads the Google Maps Places library exactly once per browser session.
-// Returns a rejected promise on the server or when the API key is missing.
-export function loadGoogleMaps(): Promise<unknown> {
+let initialized = false;
+const cache = new Map<MapsLibraryName, Promise<unknown>>();
+
+function ensureInitialized(): void {
+  if (initialized) return;
   if (typeof window === "undefined") {
-    return Promise.reject(new Error("ssr"));
+    throw new Error("ssr");
   }
-  if (loaderPromise) return loaderPromise;
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   if (!apiKey) {
-    return Promise.reject(new Error("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY missing"));
+    throw new Error("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY missing");
   }
-  setOptions({ key: apiKey, v: "weekly", libraries: ["places"] });
-  loaderPromise = importLibrary("places");
-  return loaderPromise;
+  setOptions({ key: apiKey, v: "weekly" });
+  initialized = true;
+}
+
+// Lazily loads a Google Maps JS library and memoizes the result so each
+// library is fetched at most once per browser session.
+export function loadMapsLibrary(name: MapsLibraryName): Promise<unknown> {
+  try {
+    ensureInitialized();
+  } catch (e) {
+    return Promise.reject(e);
+  }
+  let p = cache.get(name);
+  if (!p) {
+    p = importLibrary(name);
+    cache.set(name, p);
+  }
+  return p;
 }

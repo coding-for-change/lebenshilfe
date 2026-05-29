@@ -175,3 +175,22 @@ export const EMPTY_CHILD_FORM: ChildWizardFormState = {
   bemerkung: "",
   kostentraegerId: null,
 };
+
+export const WorkEventSchema = z.object({
+  childId: z.string().min(1),
+  userId: z.string().min(1),
+  date: dateString,
+  startTime: timeString,
+  endTime: timeString,
+  note: optionalText(2000),
+});
+export type WorkEventInput = z.infer<typeof WorkEventSchema>;
+
+export const UpdateWorkEventSchema = z.object({
+  userId: z.string().min(1).optional(),
+  date: dateString.optional(),
+  startTime: timeString.optional(),
+  endTime: timeString.optional(),
+  note: optionalText(2000),
+});
+export type UpdateWorkEventInput = z.infer<typeof UpdateWorkEventSchema>;

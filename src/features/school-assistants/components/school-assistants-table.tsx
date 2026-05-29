@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -37,9 +38,22 @@ export function SchoolAssistantsTable({ profiles, workshops }: Props) {
       <PageSection
         title="Schulbegleiter"
         action={
-          <Button onClick={() => setWizardOpen(true)}>
-            + Neuen Schulbegleiter anlegen
-          </Button>
+          <>
+            <Button
+              onClick={() => setWizardOpen(true)}
+              size="icon"
+              className="sm:hidden"
+              aria-label="Neuen Schulbegleiter anlegen"
+            >
+              <Plus />
+            </Button>
+            <Button
+              onClick={() => setWizardOpen(true)}
+              className="hidden sm:inline-flex"
+            >
+              <Plus /> Neuen Schulbegleiter anlegen
+            </Button>
+          </>
         }
       >
         <div className="p-4">

@@ -24,6 +24,14 @@ export type SerializedAbsence = {
   note: string | null;
 };
 
+export type SerializedWorkEvent = {
+  id: string;
+  date: string; // YYYY-MM-DD
+  startTime: string | null;
+  endTime: string | null;
+  userName: string;
+};
+
 export type SerializedCostBearer = {
   id: string;
   name: string;

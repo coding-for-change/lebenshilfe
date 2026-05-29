@@ -92,3 +92,15 @@ export async function restoreWorkEventAsAdmin(id: string) {
     data: { deleted: false },
   });
 }
+
+export async function listWorkEventsForChildInRange(
+  childId: string,
+  from: Date,
+  to: Date,
+): Promise<ChildWorkEvent[]> {
+  return prisma.event.findMany({
+    where: { childId, type: EventType.WORK, date: { gte: from, lte: to } },
+    include: { user: true },
+    orderBy: { date: "asc" },
+  });
+}

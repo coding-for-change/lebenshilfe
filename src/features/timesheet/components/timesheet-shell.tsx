@@ -29,13 +29,14 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/sonner";
+import { NavUser } from "@/components/nav-user";
 import { BottomTabBar, type TabId } from "./bottom-tab-bar";
 import { NewEntrySheet } from "./new-entry-sheet";
 import { TabDay } from "./tab-day";
 import { TabWoche } from "./tab-woche";
 import { TabMonat } from "./tab-monat";
 import { SettingsDialog } from "./settings-dialog";
-import { startOfDayUtc } from "./date-utils";
+import { startOfDayUtc } from "@/lib/dates";
 import type { ChildOption } from "./children-filter";
 import type { ChildAbsence, Event, Schedule } from "@/generated/prisma";
 import type { AssignmentsByWeekday } from "../weekday";
@@ -285,32 +286,10 @@ export function SchoolAssistantApp({
             </SidebarGroup>
           </SidebarContent>
           <SidebarFooter>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  size="lg"
-                  onClick={() => setSettingsOpen(true)}
-                  tooltip={currentUser.name}
-                >
-                  <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-sidebar-accent text-xs font-semibold text-sidebar-accent-foreground">
-                    {currentUser.name
-                      .split(" ")
-                      .map((p) => p[0])
-                      .slice(0, 2)
-                      .join("")
-                      .toUpperCase()}
-                  </div>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">
-                      {currentUser.name}
-                    </span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {currentUser.email}
-                    </span>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
+            <NavUser
+              user={currentUser}
+              onOpenSettings={() => setSettingsOpen(true)}
+            />
           </SidebarFooter>
           <SidebarRail />
         </Sidebar>

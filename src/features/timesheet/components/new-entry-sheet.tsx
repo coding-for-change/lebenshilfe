@@ -23,7 +23,7 @@ import {
   parseIsoDate,
   timeToMinutes,
   weekdayIndex,
-} from "./date-utils";
+} from "@/lib/dates";
 import type { ChildOption } from "./children-filter";
 import { childIdsForDate, type AssignmentsByWeekday } from "../weekday";
 import { cn, formatIsoDateUtc } from "@/lib/utils";
@@ -219,7 +219,8 @@ export function NewEntrySheet({
       >
         <SheetContent
           side="bottom"
-          className="rounded-t-2xl sm:max-w-lg sm:mx-auto"
+          className="max-h-[92dvh] overflow-x-hidden overflow-y-auto rounded-t-2xl sm:inset-y-0 sm:my-auto sm:h-fit sm:mx-auto sm:max-h-[85dvh] sm:max-w-lg sm:rounded-2xl"
+          onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <SheetHeader>
             <SheetTitle>Neuer Eintrag</SheetTitle>
@@ -228,7 +229,13 @@ export function NewEntrySheet({
             </SheetDescription>
           </SheetHeader>
 
-          <div className="px-4 pb-6 space-y-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (canProceed && !submitting) setSigOpen(true);
+            }}
+            className="px-4 pb-6 space-y-4"
+          >
             <div className="space-y-1.5">
               <Label htmlFor="date">Datum</Label>
               <Input
@@ -385,14 +392,13 @@ export function NewEntrySheet({
                 Abbrechen
               </Button>
               <Button
-                type="button"
+                type="submit"
                 disabled={!canProceed}
-                onClick={() => setSigOpen(true)}
               >
                 Speichern & signieren
               </Button>
             </div>
-          </div>
+          </form>
         </SheetContent>
       </Sheet>
 

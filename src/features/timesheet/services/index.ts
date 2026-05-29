@@ -85,7 +85,9 @@ export async function getEventsForUserInRange(
 ) {
   return prisma.event.findMany({
     where: { userId, date: { gte: start, lt: endExclusive } },
-    include: { child: true },
+    include: {
+      child: { select: { id: true, firstName: true, lastName: true } },
+    },
     orderBy: [{ date: "asc" }, { startTime: "asc" }],
   });
 }

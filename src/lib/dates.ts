@@ -102,6 +102,18 @@ export function parseIsoDate(s: string): Date {
   return new Date(Date.UTC(y, m - 1, d));
 }
 
+// Today's calendar date as YYYY-MM-DD evaluated in Europe/Berlin. Matters on
+// the server: `new Date()` is UTC, which drifts off the operator's wall clock
+// in the late evening (Berlin "today" rolls over before UTC does).
+export function todayIsoBerlin(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Berlin",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 /** "HH:MM" → minutes since midnight. */
 export function timeToMinutes(t: string): number {
   const [h, m] = t.split(":").map(Number);
@@ -125,8 +137,4 @@ export function relativeLabel(date: Date, today: Date): string {
   if (diff === 1) return "Morgen";
   if (diff < 0) return `${Math.abs(diff)} Tage zurück`;
   return `${diff} Tage voraus`;
-}
-
-export function initials(firstName: string, lastName: string): string {
-  return `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase();
 }

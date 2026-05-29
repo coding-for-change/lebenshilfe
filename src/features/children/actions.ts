@@ -150,3 +150,24 @@ export async function restoreWorkEventAsAdminAction(id: string) {
   revalidatePath(ROUTE);
   return { success: true as const };
 }
+
+export async function listWorkEventsForChildInRangeAction(
+  childId: string,
+  weekStart: string,
+) {
+  await requireAdmin();
+  const from = new Date(`${weekStart}T00:00:00.000Z`);
+  const to = new Date(from.getTime() + 6 * 24 * 60 * 60 * 1000);
+  const events = await ChildrenFacade.listWorkEventsForChildInRange(
+    childId,
+    from,
+    to,
+  );
+  return events.map((e) => ({
+    id: e.id,
+    date: e.date.toISOString().slice(0, 10),
+    startTime: e.startTime,
+    endTime: e.endTime,
+    userName: e.user.name,
+  }));
+}

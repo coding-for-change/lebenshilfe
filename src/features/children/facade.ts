@@ -31,6 +31,7 @@ import {
   listSchedulesForChild,
   listSchedulesForChildren,
   listWorkEventsForChild,
+  listWorkEventsForChildInRange,
   updateAssignment,
   updateChild,
   updateSchedule,
@@ -198,5 +199,9 @@ export const ChildrenFacade = {
 
   async restoreWorkEventAsAdmin(id: string) {
     return restoreWorkEventAsAdmin(id);
+  },
+
+  async listWorkEventsForChildInRange(childId: string, from: Date, to: Date) {
+    return listWorkEventsForChildInRange(childId, from, to);
   },
 };

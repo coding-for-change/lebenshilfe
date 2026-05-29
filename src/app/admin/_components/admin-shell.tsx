@@ -3,18 +3,9 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import {
-  Baby,
-  BookOpen,
-  ChevronRight,
-  LifeBuoy,
-  LogOut,
-  MoreVertical,
-  Send,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
+import { usePathname } from "next/navigation";
+import { NAV_ITEMS, ADMIN_NAV_ITEMS, ALL_NAV_ITEMS } from "./nav-items";
+import { ChevronRight, LifeBuoy, Send } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -34,116 +25,48 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/sonner";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { authClient } from "@/lib/auth-client";
-import { getInitials } from "@/lib/utils";
+import { NavUser } from "@/components/nav-user";
 
 type AdminShellProps = {
   currentUser: { id: string; name: string; email: string };
   children: ReactNode;
 };
 
-const NAV_ITEMS = [
-  {
-    href: "/admin/school-assistants",
-    label: "Schulbegleiter",
-    icon: Users,
-  },
-  {
-    href: "/admin/children",
-    label: "Kinder",
-    icon: Baby,
-  },
-  {
-    href: "/admin/workshops",
-    label: "Workshops",
-    icon: BookOpen,
-  },
-] as const;
-
-const ADMIN_NAV_ITEMS = [
-  {
-    href: "/admin/user-management",
-    label: "Benutzerverwaltung",
-    icon: ShieldCheck,
-  },
-] as const;
-
-const ALL_NAV_ITEMS = [...NAV_ITEMS, ...ADMIN_NAV_ITEMS] as const;
-
 function deriveBreadcrumb(pathname: string): string {
   const match = ALL_NAV_ITEMS.find((item) => pathname.startsWith(item.href));
   return match?.label ?? "Übersicht";
 }
 
-function NavUser({ user }: { user: { name: string; email: string } }) {
-  const router = useRouter();
-  const { isMobile } = useSidebar();
-  const initials = getInitials(user.name);
-
-  async function handleSignOut() {
-    await authClient.signOut();
-    router.push("/login");
-    router.refresh();
-  }
-
+function NavLink({
+  href,
+  label,
+  Icon,
+  isActive,
+}: {
+  href: string;
+  label: string;
+  Icon: React.ComponentType<{ className?: string }>;
+  isActive: boolean;
+}) {
+  const { isMobile, setOpenMobile } = useSidebar();
   return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              tooltip={user.name}
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
-              <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-sidebar-accent text-xs font-semibold text-sidebar-accent-foreground">
-                {initials}
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {user.email}
-                </span>
-              </div>
-              <MoreVertical className="ml-auto size-4" />
-            </SidebarMenuButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-            side={isMobile ? "bottom" : "right"}
-            align="end"
-            sideOffset={4}
-          >
-            <DropdownMenuLabel className="p-0 font-normal">
-              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-sidebar-accent text-xs font-semibold text-sidebar-accent-foreground">
-                  {initials}
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user.name}</span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    {user.email}
-                  </span>
-                </div>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={handleSignOut}>
-              <LogOut />
-              Abmelden
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </SidebarMenuItem>
-    </SidebarMenu>
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild
+        isActive={isActive}
+        tooltip={label}
+      >
+        <Link
+          href={href}
+          onClick={() => {
+            if (isMobile) setOpenMobile(false);
+          }}
+        >
+          <Icon />
+          <span>{label}</span>
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }
 
@@ -192,24 +115,15 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
               <SidebarGroupLabel>Verwaltung</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {NAV_ITEMS.map((item) => {
-                    const isActive = pathname.startsWith(item.href);
-                    const Icon = item.icon;
-                    return (
-                      <SidebarMenuItem key={item.href}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={isActive}
-                          tooltip={item.label}
-                        >
-                          <Link href={item.href}>
-                            <Icon />
-                            <span>{item.label}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
+                  {NAV_ITEMS.map((item) => (
+                    <NavLink
+                      key={item.href}
+                      href={item.href}
+                      label={item.label}
+                      Icon={item.icon}
+                      isActive={pathname.startsWith(item.href)}
+                    />
+                  ))}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -217,24 +131,15 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
               <SidebarGroupLabel>Admin</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {ADMIN_NAV_ITEMS.map((item) => {
-                    const isActive = pathname.startsWith(item.href);
-                    const Icon = item.icon;
-                    return (
-                      <SidebarMenuItem key={item.href}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={isActive}
-                          tooltip={item.label}
-                        >
-                          <Link href={item.href}>
-                            <Icon />
-                            <span>{item.label}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
+                  {ADMIN_NAV_ITEMS.map((item) => (
+                    <NavLink
+                      key={item.href}
+                      href={item.href}
+                      label={item.label}
+                      Icon={item.icon}
+                      isActive={pathname.startsWith(item.href)}
+                    />
+                  ))}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -292,12 +197,18 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
               aria-label="Pfad"
               className="flex items-center gap-1.5 text-sm text-muted-foreground"
             >
-              <span>Verwaltung</span>
+              <Link href="/admin">Verwaltung</Link>
               <ChevronRight className="size-3.5 opacity-60" />
               <span className="font-medium text-foreground">{breadcrumb}</span>
             </nav>
           </header>
-          <div className="mx-auto w-full max-w-7xl px-6 py-8">{children}</div>
+          {pathname.startsWith("/admin/map") ? (
+            <div className="relative min-h-0 flex-1 overflow-hidden rounded-b-xl">
+              {children}
+            </div>
+          ) : (
+            <div className="mx-auto w-full max-w-7xl px-6 py-8">{children}</div>
+          )}
         </SidebarInset>
 
         <Toaster

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -29,11 +29,13 @@ import {
 import { formatIsoDateLocal } from "@/lib/utils";
 import { EventCreateForm } from "./event-create-dialog";
 import { EventBlock } from "./event-block";
+import { ScheduleEinsatzBlock } from "./schedule-einsatz-block";
 import { DayQuickAddSection } from "./day-quick-add";
 import {
   deleteAbsenceAction,
   deleteAssignmentAction,
   deleteScheduleAction,
+  listWorkEventsForChildInRangeAction,
   updateAssignmentAction,
   updateScheduleAction,
 } from "../../actions";
@@ -42,6 +44,7 @@ import type {
   SerializedAssignment,
   SerializedSchedule,
   SerializedVertretung,
+  SerializedWorkEvent,
 } from "../../serialize";
 
 type SchoolAssistantOption = { id: string; name: string };
@@ -65,14 +68,12 @@ type DragState = {
 
 export type EventKind = "schedule" | "assignment" | "absence";
 
-// Static legend in the toolbar — the segmented kind-picker is gone now that
-// only Stundenplan is created via drag in the hour grid; Zuweisung +
-// Krankheit are added per day from the header's "+" button.
 const LEGEND_ITEMS: { label: string; swatch: string }[] = [
   { label: "Stundenplan", swatch: "bg-sky-500" },
   { label: "Zuweisung", swatch: "bg-primary/70" },
   { label: "Vertretung", swatch: "bg-amber-500/70" },
   { label: "Krankheit", swatch: "bg-red-500/70" },
+  { label: "Einsatz überschreitet", swatch: "bg-red-500" },
 ];
 
 const HOURS = Array.from(
@@ -93,9 +94,26 @@ export function KinderWeekCalendar({
   const [weekStart, setWeekStart] = useState<Date>(() =>
     startOfWeekMonday(new Date()),
   );
+  const [workEvents, setWorkEvents] = useState<SerializedWorkEvent[]>([]);
   const [drag, setDrag] = useState<DragState>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const weekStartIso = formatIsoDateLocal(weekStart);
+    listWorkEventsForChildInRangeAction(childId, weekStartIso)
+      .then(setWorkEvents)
+      .catch(() => setWorkEvents([]));
+  }, [childId, weekStart]);
+
+  const workEventsByDate = useMemo(() => {
+    const map = new Map<string, SerializedWorkEvent[]>();
+    for (const e of workEvents) {
+      if (!map.has(e.date)) map.set(e.date, []);
+      map.get(e.date)!.push(e);
+    }
+    return map;
+  }, [workEvents]);
 
   // Hour grid is schedules only — assignments and absences are whole-day
   // and live in the day-header chips, not the time grid.
@@ -356,6 +374,8 @@ export function KinderWeekCalendar({
 
           {DAY_LABELS_DE.map((label, weekday) => {
             const dayStacked = stacked.filter((e) => e.weekday === weekday);
+            const dateIso = formatIsoDateLocal(addDays(weekStart, weekday));
+            const dayEinsaetze = workEventsByDate.get(dateIso) ?? [];
             return (
               <div
                 key={label}
@@ -374,17 +394,28 @@ export function KinderWeekCalendar({
                   />
                 ))}
 
-                {/* Schedules only — assignment + absence live in the day header. */}
-                {dayStacked.map((ev) => (
-                  <EventBlock
-                    key={`${ev.layer}-${ev.id}`}
-                    ev={ev}
-                    col={ev.col}
-                    cols={ev.cols}
-                    onDelete={() => handleDelete(ev.layer, ev.id)}
-                    onMove={(s, e) => handleMove(ev, s, e)}
-                  />
-                ))}
+                {dayStacked.map((ev) =>
+                  ev.layer === "schedule" && dayEinsaetze.length > 0 ? (
+                    <ScheduleEinsatzBlock
+                      key={`schedule-einsatz-${ev.id}`}
+                      ev={ev}
+                      col={ev.col}
+                      cols={ev.cols}
+                      einsaetze={dayEinsaetze}
+                      onDelete={() => handleDelete(ev.layer, ev.id)}
+                      onMove={(s, e) => handleMove(ev, s, e)}
+                    />
+                  ) : (
+                    <EventBlock
+                      key={`${ev.layer}-${ev.id}`}
+                      ev={ev}
+                      col={ev.col}
+                      cols={ev.cols}
+                      onDelete={() => handleDelete(ev.layer, ev.id)}
+                      onMove={(s, e) => handleMove(ev, s, e)}
+                    />
+                  ),
+                )}
 
                 {dragSelection && dragSelection.weekday === weekday ? (
                   <Popover

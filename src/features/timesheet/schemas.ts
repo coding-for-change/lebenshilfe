@@ -93,3 +93,12 @@ export const SubmitMonthlyReportSchema = z.object({
 export type SubmitMonthlyReportInput = z.infer<
   typeof SubmitMonthlyReportSchema
 >;
+
+// A Schulbegleiter confirms admin-created/edited work entries by re-signing
+// them. One signature applies to all listed (still-unconfirmed) entries.
+export const ConfirmWorkEventsSchema = z.object({
+  eventIds: z.array(z.string().min(1)).min(1, "Keine Einträge ausgewählt."),
+  signaturePngBase64: signatureSchema,
+});
+
+export type ConfirmWorkEventsInput = z.infer<typeof ConfirmWorkEventsSchema>;

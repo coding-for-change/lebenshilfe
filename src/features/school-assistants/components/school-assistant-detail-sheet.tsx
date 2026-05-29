@@ -1,16 +1,24 @@
 "use client";
 
-import { DatePicker } from "@/components/ui/date-picker";
+import { useState } from "react";
 import { DetailSheet } from "@/components/detail-sheet";
+import { UnsavedChangesDialog } from "@/components/unsaved-changes-dialog";
+import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { FlagRow } from "@/components/flag-row";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { SerializedProfile } from "../serialize";
 import { StatusBadge } from "./status-badge";
-import { useAutosaveSchoolAssistant } from "./use-autosave-school-assistant";
+import {
+  useSchoolAssistantEditor,
+  type DetailFormState,
+} from "./use-school-assistant-editor";
 import { WorkshopAttendanceList } from "./workshop-attendance-list";
 import type { WorkshopOption } from "./wizard-types";
+
+const FORM_ID = "school-assistant-detail-form";
 
 type Props = {
   profile: SerializedProfile | null;
@@ -25,43 +33,93 @@ export function SchoolAssistantDetailSheet({
   onOpenChange,
   workshops,
 }: Props) {
+  const editor = useSchoolAssistantEditor(profile, workshops);
+  const [askSave, setAskSave] = useState(false);
+
+  // Closing with unsaved edits asks first; otherwise it just closes.
+  function requestClose() {
+    if (editor.dirty) setAskSave(true);
+    else onOpenChange(false);
+  }
+
   return (
-    <DetailSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      title={profile?.name ?? ""}
-      description={
-        profile ? (
-          <span className="flex items-center gap-2">
-            <span>{profile.email}</span>
-            <span>·</span>
-            <StatusBadge status={profile.status} />
-          </span>
-        ) : null
-      }
-    >
-      {profile ? (
-        <DetailBody
-          key={profile.id}
-          profile={profile}
-          workshops={workshops}
-        />
-      ) : null}
-    </DetailSheet>
+    <>
+      <DetailSheet
+        open={open}
+        onOpenChange={(next) => {
+          if (!next) requestClose();
+        }}
+        title={profile?.name ?? ""}
+        description={
+          profile ? (
+            <span className="flex items-center gap-2">
+              <span>{profile.email}</span>
+              <span>·</span>
+              <StatusBadge status={profile.status} />
+            </span>
+          ) : null
+        }
+        footer={
+          profile ? (
+            <Button
+              type="submit"
+              form={FORM_ID}
+              disabled={!editor.dirty || editor.saving}
+            >
+              {editor.saving ? "Speichern…" : "Speichern"}
+            </Button>
+          ) : null
+        }
+      >
+        {profile && editor.form ? (
+          <SchoolAssistantFields
+            key={profile.id}
+            form={editor.form}
+            update={editor.update}
+            onSubmit={editor.save}
+            workshops={workshops}
+          />
+        ) : null}
+      </DetailSheet>
+
+      <UnsavedChangesDialog
+        open={askSave}
+        onOpenChange={setAskSave}
+        onSave={async () => {
+          if (await editor.save()) {
+            setAskSave(false);
+            onOpenChange(false);
+          }
+        }}
+        onDiscard={() => {
+          setAskSave(false);
+          onOpenChange(false);
+        }}
+      />
+    </>
   );
 }
 
-function DetailBody({
-  profile,
+function SchoolAssistantFields({
+  form,
+  update,
+  onSubmit,
   workshops,
 }: {
-  profile: SerializedProfile;
+  form: DetailFormState;
+  update: (patch: Partial<DetailFormState>) => void;
+  onSubmit: () => void;
   workshops: WorkshopOption[];
 }) {
-  const { form, update } = useAutosaveSchoolAssistant(profile, workshops);
-
   return (
-    <div className="flex flex-col gap-5">
+    <form
+      id={FORM_ID}
+      className="flex flex-col gap-5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+    >
       <Field>
         <FieldLabel htmlFor="sb-det-name">
           <FieldContent>
@@ -161,6 +219,6 @@ function DetailBody({
           onChange={(rows) => update({ workshops: rows })}
         />
       </div>
-    </div>
+    </form>
   );
 }

@@ -1,8 +1,10 @@
 import { randomUUID } from "crypto";
 import {
+  ConfirmWorkEventsSchema,
   CreateEventSchema,
   SubmitMonthlyReportSchema,
   UpdateEventSchema,
+  type ConfirmWorkEventsInput,
   type CreateEventInput,
   type SubmitMonthlyReportInput,
   type UpdateEventInput,
@@ -20,6 +22,7 @@ import {
   insertSickEvent,
   insertWorkEvents,
   listMonthlyReportsForUser,
+  signWorkEvents,
   updateEventFields,
   uploadSignature,
 } from "./services";
@@ -200,5 +203,19 @@ export const TimesheetFacade = {
       supervisorName: parsed.supervisorName,
       supervisorSignatureKey: key,
     });
+  },
+
+  // The Schulbegleiter confirms admin-created/edited entries with a fresh
+  // signature. One signature is stored and attached to every confirmed entry.
+  async confirmWorkEvents(userId: string, input: ConfirmWorkEventsInput) {
+    const parsed = ConfirmWorkEventsSchema.parse(input);
+    const signatureKey = `signatures/events/${userId}/confirm-${randomUUID()}.png`;
+    await uploadSignature(signatureKey, parsed.signaturePngBase64);
+    const { count } = await signWorkEvents(
+      userId,
+      parsed.eventIds,
+      signatureKey,
+    );
+    return { confirmedCount: count };
   },
 };

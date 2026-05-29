@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, MoreVertical, Send, Trash2 } from "lucide-react";
+import { MoreVertical, Pencil, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -77,8 +77,8 @@ export function SchoolAssistantRowActions({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={onOpenDetails}>
-            <Eye />
-            Details öffnen
+            <Pencil />
+            Details bearbeiten
           </DropdownMenuItem>
           <DropdownMenuItem
             disabled={!canResend || resending}

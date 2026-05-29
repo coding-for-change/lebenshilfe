@@ -36,6 +36,7 @@ import { TabDay } from "./tab-day";
 import { TabWoche } from "./tab-woche";
 import { TabMonat } from "./tab-monat";
 import { SettingsDialog } from "./settings-dialog";
+import { ConfirmChangesDialog } from "./confirm-changes-dialog";
 import { startOfDayUtc } from "@/lib/dates";
 import type { ChildOption } from "./children-filter";
 import type { ChildAbsence, Event, Schedule } from "@/generated/prisma";
@@ -113,6 +114,7 @@ export function SchoolAssistantApp({
     assignedChildren.map((c) => c.id),
   );
   const [newEntryOpen, setNewEntryOpen] = useState(false);
+  const [confirmDismissed, setConfirmDismissed] = useState(false);
 
   const lockedMonths = useMemo(
     () => new Set(lockedMonthKeys),
@@ -144,6 +146,14 @@ export function SchoolAssistantApp({
     );
     return sorted[0];
   }, [events]);
+
+  // Work entries an admin created or edited on the Schulbegleiter's behalf are
+  // stored without a signatureKey. They await the Schulbegleiter's confirming
+  // signature (soft-deleted originals are already filtered server-side).
+  const unconfirmedWorkEvents = useMemo(
+    () => events.filter((e) => e.type === "WORK" && !e.signatureKey),
+    [events],
+  );
 
   const greeting = useMemo(() => greet(currentUser.name), [currentUser.name]);
 
@@ -371,6 +381,21 @@ export function SchoolAssistantApp({
           onOpenChange={setSettingsOpen}
           name={currentUser.name}
           email={currentUser.email}
+        />
+
+        <ConfirmChangesDialog
+          open={unconfirmedWorkEvents.length > 0 && !confirmDismissed}
+          onLater={() => setConfirmDismissed(true)}
+          onConfirmed={() => setConfirmDismissed(true)}
+          events={unconfirmedWorkEvents.map((e) => ({
+            id: e.id,
+            date: e.date,
+            startTime: e.startTime,
+            endTime: e.endTime,
+            note: e.note,
+            child: e.child,
+          }))}
+          signerLabel={currentUser.name}
         />
 
         <Toaster

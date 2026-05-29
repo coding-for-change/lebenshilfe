@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, MoreVertical, Trash2 } from "lucide-react";
+import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,8 +49,8 @@ export function ChildRowActions({ childId, childName, onOpenDetails }: Props) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={onOpenDetails}>
-            <Eye />
-            Details öffnen
+            <Pencil />
+            Details bearbeiten
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem

@@ -13,6 +13,7 @@ import {
   linkUserToProfileByEmail,
   listProfiles,
   updateProfilePartial,
+  listWorkEventsForUser,
 } from "./services";
 
 function toFields(input: CreateSchoolAssistantInput) {
@@ -123,5 +124,9 @@ export const SchoolAssistantsFacade = {
 
   async linkUserToProfile(userId: string, email: string) {
     return linkUserToProfileByEmail(userId, email);
+  },
+
+  async listWorkEventsForUser(userId: string) {
+    return listWorkEventsForUser(userId);
   },
 };

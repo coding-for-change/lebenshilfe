@@ -11,8 +11,12 @@ import {
   type CreateChildInput,
   type ScheduleInput,
   type UpdateChildInput,
+  WorkEventSchema,
+  UpdateWorkEventSchema,
   type UpdateVertretungInput,
   type VertretungInput,
+  type WorkEventInput,
+  type UpdateWorkEventInput,
 } from "./schemas";
 import {
   createAssignment,
@@ -38,10 +42,15 @@ import {
   listVertretungenForUserAsSubstitute,
   listWorkEventsForChild,
   syncVertretungBlocksForChildWeekday,
+  listWorkEventsForChildInRange,
   updateAssignment,
   updateChild,
   updateSchedule,
   upsertAbsence,
+  createWorkEventAsAdmin,
+  updateWorkEventAsAdmin,
+  deleteWorkEventAsAdmin,
+  restoreWorkEventAsAdmin,
 } from "./services";
 
 function childFieldsFromCreate(input: CreateChildInput) {
@@ -288,5 +297,27 @@ export const ChildrenFacade = {
     if (stillUncovered.length > 0) {
       throw new Error("Ein Kind ist diesem Konto nicht zugewiesen.");
     }
+  },
+
+  async createWorkEventAsAdmin(input: WorkEventInput) {
+    const parsed = WorkEventSchema.parse(input);
+    return createWorkEventAsAdmin(parsed);
+  },
+
+  async updateWorkEventAsAdmin(id: string, input: UpdateWorkEventInput) {
+    const parsed = UpdateWorkEventSchema.parse(input);
+    return updateWorkEventAsAdmin(id, parsed);
+  },
+
+  async deleteWorkEventAsAdmin(id: string) {
+    return deleteWorkEventAsAdmin(id);
+  },
+
+  async restoreWorkEventAsAdmin(id: string) {
+    return restoreWorkEventAsAdmin(id);
+  },
+
+  async listWorkEventsForChildInRange(childId: string, from: Date, to: Date) {
+    return listWorkEventsForChildInRange(childId, from, to);
   },
 };

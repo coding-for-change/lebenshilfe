@@ -16,6 +16,8 @@ type Props = {
   description?: React.ReactNode;
   children: React.ReactNode;
   bodyClassName?: string;
+  /** Pinned action bar below the scrollable body (e.g. Bearbeiten/Speichern). */
+  footer?: React.ReactNode;
 };
 
 export function DetailSheet({
@@ -25,6 +27,7 @@ export function DetailSheet({
   description,
   children,
   bodyClassName,
+  footer,
 }: Props) {
   return (
     <Sheet
@@ -51,6 +54,11 @@ export function DetailSheet({
         >
           {children}
         </div>
+        {footer ? (
+          <div className="flex items-center justify-end gap-2 border-t p-4">
+            {footer}
+          </div>
+        ) : null}
       </SheetContent>
     </Sheet>
   );

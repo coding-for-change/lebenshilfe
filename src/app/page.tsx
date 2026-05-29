@@ -61,7 +61,12 @@ export default async function LandingPage() {
         firstName: c.firstName,
         lastName: c.lastName,
       }))}
-      events={events}
+      events={events.map((e) => ({
+        ...e,
+        child: e.child
+          ? { firstName: e.child.firstName, lastName: e.child.lastName }
+          : null,
+      }))}
       schedules={schedules}
       lockedMonthKeys={lockedMonthKeys}
       childAbsences={childAbsences.map((a) => ({

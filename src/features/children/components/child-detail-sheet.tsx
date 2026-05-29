@@ -68,7 +68,10 @@ export function ChildDetailSheet({
               />
             </TabsContent>
             <TabsContent value="history">
-              <TabHistory child={child} />
+              <TabHistory
+                child={child}
+                schoolAssistantOptions={schoolAssistantOptions}
+              />
             </TabsContent>
             <TabsContent value="calendar">
               <TabCalendar

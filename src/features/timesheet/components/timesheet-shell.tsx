@@ -51,6 +51,15 @@ export type ChildAbsenceItem = Pick<ChildAbsence, "childId" | "note"> & {
   date: string;
 };
 
+export type VertretungDay = {
+  id: string;
+  date: string; // YYYY-MM-DD
+  childId: string;
+  childName: string;
+  startTime: string;
+  endTime: string;
+};
+
 type Props = {
   currentUser: { id: string; name: string; email: string };
   assignedChildren: ChildOption[];
@@ -59,6 +68,8 @@ type Props = {
   lockedMonthKeys: string[];
   childAbsences: ChildAbsenceItem[];
   assignmentsByWeekday: AssignmentsByWeekday;
+  /** Days this user steps in as substitute Schulbegleiter. */
+  substituteOn?: VertretungDay[];
 };
 
 const NAV_ITEMS: Array<{
@@ -89,6 +100,7 @@ export function SchoolAssistantApp({
   lockedMonthKeys,
   childAbsences,
   assignmentsByWeekday,
+  substituteOn = [],
 }: Props) {
   const today = useMemo(() => startOfDayUtc(new Date()), []);
   const [activeTab, setActiveTab] = useState<Exclude<TabId, "mehr">>("tag");
@@ -161,6 +173,7 @@ export function SchoolAssistantApp({
             assignedChildren={assignedChildren}
             childAbsences={childAbsences}
             schedules={schedules}
+            substituteOn={substituteOn}
           />
         );
       case "woche":
@@ -176,6 +189,7 @@ export function SchoolAssistantApp({
             onSelectedChildIdsChange={setSelectedChildIds}
             events={events}
             schedules={schedules}
+            substituteOn={substituteOn}
           />
         );
       case "monat":
@@ -188,6 +202,7 @@ export function SchoolAssistantApp({
             onSelectDay={jumpToDay}
             events={events}
             lockedMonths={lockedMonths}
+            substituteOn={substituteOn}
           />
         );
     }
@@ -350,6 +365,7 @@ export function SchoolAssistantApp({
           assignmentsByWeekday={assignmentsByWeekday}
           currentUserName={currentUser.name}
           schedules={schedules}
+          substituteOn={substituteOn}
           lastEntry={
             lastWorkEntry
               ? {

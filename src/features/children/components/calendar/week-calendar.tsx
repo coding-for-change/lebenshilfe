@@ -43,6 +43,7 @@ import type {
   SerializedAbsence,
   SerializedAssignment,
   SerializedSchedule,
+  SerializedVertretung,
   SerializedWorkEvent,
 } from "../../serialize";
 
@@ -54,6 +55,7 @@ type Props = {
   schedules: SerializedSchedule[];
   assignments: SerializedAssignment[];
   absences: SerializedAbsence[];
+  vertretungen: SerializedVertretung[];
   schoolAssistantOptions: SchoolAssistantOption[];
   onChanged: () => void;
 };
@@ -69,6 +71,7 @@ export type EventKind = "schedule" | "assignment" | "absence";
 const LEGEND_ITEMS: { label: string; swatch: string }[] = [
   { label: "Stundenplan", swatch: "bg-sky-500" },
   { label: "Zuweisung", swatch: "bg-primary/70" },
+  { label: "Vertretung", swatch: "bg-amber-500/70" },
   { label: "Krankheit", swatch: "bg-red-500/70" },
   { label: "Einsatz überschreitet", swatch: "bg-red-500" },
 ];
@@ -84,6 +87,7 @@ export function KinderWeekCalendar({
   schedules,
   assignments,
   absences,
+  vertretungen,
   schoolAssistantOptions,
   onChanged,
 }: Props) {
@@ -127,14 +131,16 @@ export function KinderWeekCalendar({
   }, [schedules]);
 
   // Map absence date → entry, restricted to the visible week.
+  // Use ISO string comparison (YYYY-MM-DD) to avoid local-vs-UTC timezone
+  // issues: addDays uses raw ms (local midnight), but stored dates are UTC.
   const absencesByWeekday = useMemo(() => {
     const map = new Map<number, SerializedAbsence>();
-    const weekFrom = weekStart;
-    const weekTo = addDays(weekStart, 6);
+    const isoFrom = formatIsoDateLocal(weekStart);
+    const isoTo = formatIsoDateLocal(addDays(weekStart, 6));
     for (const ab of absences) {
-      const d = new Date(`${ab.date}T00:00:00`);
-      if (d < weekFrom || d > weekTo) continue;
-      const wd = (d.getDay() + 6) % 7;
+      if (ab.date < isoFrom || ab.date > isoTo) continue;
+      // Parse as UTC to get the correct weekday.
+      const wd = (new Date(ab.date).getUTCDay() + 6) % 7;
       map.set(wd, ab);
     }
     return map;
@@ -148,6 +154,21 @@ export function KinderWeekCalendar({
     }
     return map;
   }, [assignments]);
+
+  // Map ISO date string → vertretungen for that date (restricted to visible week).
+  // Use ISO string comparison (YYYY-MM-DD) to avoid local-vs-UTC timezone
+  // issues: addDays uses raw ms (local midnight), but stored dates are UTC.
+  const vertretungenByDate = useMemo(() => {
+    const map = new Map<string, SerializedVertretung[]>();
+    const isoFrom = formatIsoDateLocal(weekStart);
+    const isoTo = formatIsoDateLocal(addDays(weekStart, 6));
+    for (const v of vertretungen) {
+      if (v.date < isoFrom || v.date > isoTo) continue;
+      if (!map.has(v.date)) map.set(v.date, []);
+      map.get(v.date)!.push(v);
+    }
+    return map;
+  }, [vertretungen, weekStart]);
 
   const goPrevWeek = () => setWeekStart((w) => addDays(w, -7));
   const goNextWeek = () => setWeekStart((w) => addDays(w, 7));
@@ -304,6 +325,9 @@ export function KinderWeekCalendar({
               formatIsoDateLocal(date) === formatIsoDateLocal(new Date());
             const dayAssignments = assignmentsByWeekday.get(weekday) ?? [];
             const dayAbsence = absencesByWeekday.get(weekday) ?? null;
+            const isoDate = formatIsoDateLocal(date);
+            const dayVertretungen = vertretungenByDate.get(isoDate) ?? [];
+            const daySchedules = schedules.filter((s) => s.weekday === weekday);
             return (
               <div
                 key={label}
@@ -324,6 +348,8 @@ export function KinderWeekCalendar({
                   childId={childId}
                   assignments={dayAssignments}
                   absence={dayAbsence}
+                  vertretungen={dayVertretungen}
+                  daySchedules={daySchedules}
                   schoolAssistantOptions={schoolAssistantOptions}
                   onChanged={onChanged}
                 />

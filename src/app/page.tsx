@@ -4,6 +4,7 @@ import { isAdmin } from "@/lib/roles";
 import { TimesheetFacade, SchoolAssistantApp } from "@/features/timesheet";
 import { SchoolAssistantsFacade } from "@/features/school-assistants";
 import { ChildrenFacade } from "@/features/children";
+import { getAssignedChildrenForUser } from "@/use-cases/get-assigned-children";
 
 export default async function LandingPage() {
   const session = await getSession();
@@ -26,7 +27,11 @@ export default async function LandingPage() {
     Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 2, 1),
   );
 
-  const assignedChildren = await TimesheetFacade.listAssignedChildren(user.id);
+  const assignedChildren = await getAssignedChildrenForUser(
+    user.id,
+    rangeStart,
+    rangeEnd,
+  );
   const childIds = assignedChildren.map((c) => c.id);
 
   const [
@@ -36,6 +41,7 @@ export default async function LandingPage() {
     profile,
     childAbsences,
     assignmentsByWeekday,
+    vertretungenAsSubstitute,
   ] = await Promise.all([
     TimesheetFacade.getEventsInRange(user.id, rangeStart, rangeEnd),
     TimesheetFacade.getSchedulesForChildren(childIds),
@@ -47,6 +53,11 @@ export default async function LandingPage() {
       rangeEnd,
     ),
     TimesheetFacade.getAssignmentsByWeekday(user.id),
+    ChildrenFacade.listVertretungenForUserAsSubstitute(
+      user.id,
+      rangeStart,
+      rangeEnd,
+    ),
   ]);
 
   return (
@@ -56,17 +67,8 @@ export default async function LandingPage() {
         name: profile?.name ?? "",
         email: user.email,
       }}
-      assignedChildren={assignedChildren.map((c) => ({
-        id: c.id,
-        firstName: c.firstName,
-        lastName: c.lastName,
-      }))}
-      events={events.map((e) => ({
-        ...e,
-        child: e.child
-          ? { firstName: e.child.firstName, lastName: e.child.lastName }
-          : null,
-      }))}
+      assignedChildren={assignedChildren}
+      events={events}
       schedules={schedules}
       lockedMonthKeys={lockedMonthKeys}
       childAbsences={childAbsences.map((a) => ({
@@ -75,6 +77,14 @@ export default async function LandingPage() {
         note: a.note,
       }))}
       assignmentsByWeekday={assignmentsByWeekday}
+      substituteOn={vertretungenAsSubstitute.map((v) => ({
+        id: v.id,
+        date: v.date.toISOString().slice(0, 10),
+        childId: v.childId,
+        childName: `${v.child.firstName} ${v.child.lastName}`,
+        startTime: v.startTime,
+        endTime: v.endTime,
+      }))}
     />
   );
 }

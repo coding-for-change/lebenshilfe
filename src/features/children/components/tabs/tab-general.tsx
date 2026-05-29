@@ -10,24 +10,34 @@ import {
 } from "@/features/cost-bearers";
 import { SchoolAutocomplete } from "../school-autocomplete";
 import { SchoolPreview } from "../school-preview";
-import type { SerializedChild } from "../../serialize";
-import { useAutosaveGeneral } from "./use-autosave-general";
+import type { GeneralFormState } from "./use-general-editor";
 
 type Props = {
-  child: SerializedChild;
+  form: GeneralFormState;
+  update: (patch: Partial<GeneralFormState>) => void;
+  onSubmit: () => void;
+  formId: string;
   costBearerOptions: CostBearerOption[];
   onCostBearerCreated: (created: CostBearerOption) => void;
 };
 
 export function TabGeneral({
-  child,
+  form,
+  update,
+  onSubmit,
+  formId,
   costBearerOptions,
   onCostBearerCreated,
 }: Props) {
-  const { form, update } = useAutosaveGeneral(child);
-
   return (
-    <div className="flex flex-col gap-5">
+    <form
+      id={formId}
+      className="flex flex-col gap-5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+    >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field>
           <FieldLabel htmlFor="det-first">
@@ -145,6 +155,6 @@ export function TabGeneral({
           rows={4}
         />
       </Field>
-    </div>
+    </form>
   );
 }

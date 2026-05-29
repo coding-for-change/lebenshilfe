@@ -50,19 +50,27 @@ export const SchoolSchema = z
 
 export type SchoolInput = z.infer<typeof SchoolSchema>;
 
+// Canonical child fields — WITHOUT `.default()`. Defaults survive `.partial()`
+// in Zod, so keeping them here would let a partial update overwrite untouched
+// boolean columns. Defaults live only on the create-specific schema below.
 const kindFieldsSchema = z.object({
-  leosOne: z.boolean().default(false),
+  leosOne: z.boolean(),
   bescheid: optionalText(5000),
   sbIb: optionalText(200),
-  schweigepflichtsentbindung: z.boolean().default(false),
+  schweigepflichtsentbindung: z.boolean(),
   bemerkung: optionalText(5000),
-  kostentraegerId: z
-    .string()
-    .min(1)
-    .nullable()
-    .optional()
-    .transform((v) => (v === "" ? null : (v ?? null))),
+  // No trailing `.transform()`: a transform placed after `.optional()` runs
+  // on the `undefined` of an absent field and would coerce it to `null`,
+  // clearing the Kostenträger on every partial update. `childFieldsFromCreate`
+  // already maps a missing value to `null` for the create path.
+  kostentraegerId: z.string().min(1).nullable().optional(),
   school: SchoolSchema.optional(),
+});
+
+// Create accepts omitted booleans by falling back to defaults.
+const kindFieldsCreateSchema = kindFieldsSchema.extend({
+  leosOne: z.boolean().default(false),
+  schweigepflichtsentbindung: z.boolean().default(false),
 });
 
 const stammdatenSchema = z.object({
@@ -74,7 +82,7 @@ export const BasicInfoStepSchema = stammdatenSchema.merge(
   z.object({ school: SchoolSchema.optional() }),
 );
 
-export const AdministrationStepSchema = kindFieldsSchema.pick({
+export const AdministrationStepSchema = kindFieldsCreateSchema.pick({
   leosOne: true,
   bescheid: true,
   sbIb: true,
@@ -83,7 +91,7 @@ export const AdministrationStepSchema = kindFieldsSchema.pick({
   kostentraegerId: true,
 });
 
-export const CreateChildSchema = stammdatenSchema.merge(kindFieldsSchema);
+export const CreateChildSchema = stammdatenSchema.merge(kindFieldsCreateSchema);
 export type CreateChildInput = z.infer<typeof CreateChildSchema>;
 
 export const UpdateChildSchema = stammdatenSchema

@@ -84,7 +84,7 @@ export async function getEventsForUserInRange(
   endExclusive: Date,
 ) {
   return prisma.event.findMany({
-    where: { userId, date: { gte: start, lt: endExclusive } },
+    where: { userId, deleted: false, date: { gte: start, lt: endExclusive } },
     include: {
       child: { select: { id: true, firstName: true, lastName: true } },
     },
@@ -147,6 +147,23 @@ export async function insertSickEvent(args: {
 
 export async function findEventById(id: string) {
   return prisma.event.findUnique({ where: { id } });
+}
+
+export async function signWorkEvents(
+  userId: string,
+  eventIds: string[],
+  signatureKey: string,
+) {
+  return prisma.event.updateMany({
+    where: {
+      id: { in: eventIds },
+      userId,
+      type: EventType.WORK,
+      signatureKey: null,
+      deleted: false,
+    },
+    data: { signatureKey },
+  });
 }
 
 export async function updateEventFields(

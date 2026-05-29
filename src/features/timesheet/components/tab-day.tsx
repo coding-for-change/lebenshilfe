@@ -269,13 +269,23 @@ export function TabDay({
                       >
                         {dur}
                       </Badge>
-                      <Badge
-                        variant="outline"
-                        className="border-emerald-200 text-emerald-700"
-                      >
-                        Signiert
-                      </Badge>
-                      {assignedChildren.length > 1 &&
+                      {ev.signatureKey ? (
+                        <Badge
+                          variant="outline"
+                          className="border-emerald-200 text-emerald-700"
+                        >
+                          Signiert
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-200 text-amber-700"
+                        >
+                          Bestätigung ausstehend
+                        </Badge>
+                      )}
+                      {ev.signatureKey &&
+                        assignedChildren.length > 1 &&
                         workEvents.filter(
                           (w) =>
                             w.signatureKey === ev.signatureKey &&

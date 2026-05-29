@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth-guards";
 import { TimesheetFacade } from "./facade";
 import type {
+  ConfirmWorkEventsInput,
   CreateEventInput,
   SubmitMonthlyReportInput,
   UpdateEventInput,
@@ -37,4 +38,11 @@ export async function submitMonthlyReportAction(
   const { id: userId } = await requireAuth();
   await TimesheetFacade.submitMonthlyReport(userId, input);
   revalidatePath("/");
+}
+
+export async function confirmWorkEventsAction(input: ConfirmWorkEventsInput) {
+  const { id: userId } = await requireAuth();
+  const result = await TimesheetFacade.confirmWorkEvents(userId, input);
+  revalidatePath("/");
+  return result;
 }

@@ -52,12 +52,14 @@ export function clampHours(h: number): number {
   return Math.max(START_HOUR, Math.min(END_HOUR, h));
 }
 
-export type EventLayer = "schedule" | "assignment" | "absence";
+export type EventLayer = "schedule" | "assignment" | "absence" | "event";
+export type EventKind = "work" | "substitute" | "indirect";
 
 export type CalendarEvent = {
   layer: EventLayer;
   // Schedule + Assignment are weekly recurring → weekday only.
-  // Absence is date-specific.
+  // Absence + Event are date-specific (still rendered on a single weekday column
+  // when the calendar's week happens to contain that date).
   weekday: number; // 0..6 (Mon..Sun)
   startHour: number; // for full-day absences: START_HOUR
   endHour: number; // for full-day absences: END_HOUR
@@ -68,6 +70,9 @@ export type CalendarEvent = {
   sublabel?: string;
   // Assignment-only
   tandem?: boolean;
+  // Event-only: distinguishes regular work, substitute (Einspringen) and
+  // indirect (Lehrergespräch/Workshop) entries so EventBlock can color them.
+  kind?: EventKind;
 };
 
 export function germanWeekRangeLabel(weekStart: Date) {

@@ -161,9 +161,19 @@ export function TabHistory({ child }: Props) {
                       <span className="font-medium">
                         {formatShortDateWithWeekday(r.date)}
                       </span>
-                      <span className="text-muted-foreground">
-                        {r.userName}
-                        {r.note ? <> · {r.note}</> : null}
+                      <span className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
+                        {r.isSubstitute ? (
+                          <span className="rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-red-700 dark:text-red-300">
+                            Einspringen
+                          </span>
+                        ) : null}
+                        {r.type === "INDIRECT" ? (
+                          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700 dark:text-amber-300">
+                            Indirekt
+                          </span>
+                        ) : null}
+                        <span>{r.userName}</span>
+                        {r.note ? <span>· {r.note}</span> : null}
                       </span>
                       <span className="tabular-nums">
                         {r.startTime ?? "—"} – {r.endTime ?? "—"}

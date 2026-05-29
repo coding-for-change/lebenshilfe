@@ -107,6 +107,7 @@ export async function insertWorkEvents(args: {
   endTime: string;
   note?: string | null;
   signatureKey: string;
+  isSubstitute?: boolean;
 }) {
   return prisma.event.createMany({
     data: args.childIds.map((childId) => ({
@@ -118,6 +119,7 @@ export async function insertWorkEvents(args: {
       endTime: args.endTime,
       note: args.note ?? null,
       signatureKey: args.signatureKey,
+      isSubstitute: args.isSubstitute ?? false,
     })),
   });
 }
@@ -139,6 +141,77 @@ export async function insertSickEvent(args: {
       note: args.note ?? null,
       signatureKey: args.signatureKey,
     },
+  });
+}
+
+export async function insertIndirectEvent(args: {
+  userId: string;
+  childId: string;
+  date: Date;
+  startTime: string;
+  endTime: string;
+  note: string;
+  signatureKey: string;
+}) {
+  return prisma.event.create({
+    data: {
+      userId: args.userId,
+      childId: args.childId,
+      type: EventType.INDIRECT,
+      date: args.date,
+      startTime: args.startTime,
+      endTime: args.endTime,
+      note: args.note,
+      signatureKey: args.signatureKey,
+    },
+  });
+}
+
+export async function assertChildExists(childId: string) {
+  const child = await prisma.child.findUnique({
+    where: { id: childId },
+    select: { id: true },
+  });
+  if (!child) {
+    throw new Error("Kind nicht gefunden.");
+  }
+}
+
+// Restricts the search to children that have (now or previously) been
+// assigned to this Schulbegleiter — a user must never be able to look up the
+// names of children outside their own caseload.
+export async function searchChildrenByName(
+  userId: string,
+  query: string,
+  limit = 10,
+) {
+  const trimmed = query.trim();
+  if (trimmed.length < 1) return [];
+  return prisma.child.findMany({
+    where: {
+      assignments: { some: { userId } },
+      OR: [
+        { firstName: { contains: trimmed } },
+        { lastName: { contains: trimmed } },
+      ],
+    },
+    select: { id: true, firstName: true, lastName: true },
+    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    take: limit,
+  });
+}
+
+export async function getEventsForChildInRange(
+  childId: string,
+  start: Date,
+  endExclusive: Date,
+) {
+  return prisma.event.findMany({
+    where: { childId, date: { gte: start, lt: endExclusive } },
+    include: {
+      user: { select: { id: true, name: true } },
+    },
+    orderBy: [{ date: "asc" }, { startTime: "asc" }],
   });
 }
 

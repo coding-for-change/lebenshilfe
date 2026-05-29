@@ -8,6 +8,7 @@ import {
   type UpdateEventInput,
 } from "./schemas";
 import {
+  assertChildExists,
   assertChildrenAssignedToUser,
   deleteEventById,
   findEventById,
@@ -17,10 +18,12 @@ import {
   getEventsForUserInMonth,
   getEventsForUserInRange,
   getSchedulesForChildren,
+  insertIndirectEvent,
   insertMonthlyReport,
   insertSickEvent,
   insertWorkEvents,
   listMonthlyReportsForUser,
+  searchChildrenByName,
   updateEventFields,
   uploadSignature,
 } from "./services";
@@ -106,7 +109,12 @@ export const TimesheetFacade = {
     assertMonthNotLocked(report);
 
     if (parsed.type === "WORK") {
-      await assertChildrenAssignedToUser(userId, parsed.childIds, date);
+      const variant = parsed.workVariant ?? "OWN";
+      if (variant === "SUBSTITUTE") {
+        await assertChildExists(parsed.childIds[0]);
+      } else {
+        await assertChildrenAssignedToUser(userId, parsed.childIds, date);
+      }
       const batchId = randomUUID();
       const signatureKey = `signatures/events/${userId}/${batchId}.png`;
       await uploadSignature(signatureKey, parsed.signaturePngBase64);
@@ -118,8 +126,27 @@ export const TimesheetFacade = {
         endTime: parsed.endTime!,
         note: parsed.note ?? null,
         signatureKey,
+        isSubstitute: variant === "SUBSTITUTE",
       });
       return { createdCount: parsed.childIds.length, signatureKey };
+    }
+
+    if (parsed.type === "INDIRECT") {
+      const childId = parsed.childIds[0];
+      await assertChildExists(childId);
+      const eventId = randomUUID();
+      const signatureKey = `signatures/events/${userId}/${eventId}.png`;
+      await uploadSignature(signatureKey, parsed.signaturePngBase64);
+      await insertIndirectEvent({
+        userId,
+        childId,
+        date,
+        startTime: parsed.startTime!,
+        endTime: parsed.endTime!,
+        note: parsed.note!,
+        signatureKey,
+      });
+      return { createdCount: 1, signatureKey };
     }
 
     const eventId = randomUUID();
@@ -132,6 +159,10 @@ export const TimesheetFacade = {
       signatureKey,
     });
     return { createdCount: 1, signatureKey };
+  },
+
+  async searchChildren(userId: string, query: string) {
+    return searchChildrenByName(userId, query);
   },
 
   async updateEvent(userId: string, eventId: string, input: UpdateEventInput) {

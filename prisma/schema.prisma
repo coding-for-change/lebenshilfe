@@ -17,6 +17,7 @@ enum Role {
 enum EventType {
   WORK
   SICK
+  INDIRECT
 }
 
 enum SchulbegleiterStatus {
@@ -200,6 +201,7 @@ model Event {
   startTime    String?
   endTime      String?
   note         String?   @db.Text
+  isSubstitute Boolean   @default(false)
   signatureKey String
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -207,6 +209,7 @@ model Event {
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
+  @@index([childId, date])
   @@map("event")
 }
 

@@ -24,6 +24,39 @@ export type SerializedAbsence = {
   note: string | null;
 };
 
+export type SerializedChildEvent = {
+  id: string;
+  date: string; // YYYY-MM-DD
+  startTime: string | null;
+  endTime: string | null;
+  type: "WORK" | "SICK" | "INDIRECT";
+  isSubstitute: boolean;
+  note: string | null;
+  userName: string;
+};
+
+export function serializeChildEvent(e: {
+  id: string;
+  date: Date;
+  startTime: string | null;
+  endTime: string | null;
+  type: "WORK" | "SICK" | "INDIRECT";
+  isSubstitute: boolean;
+  note: string | null;
+  user: { name: string };
+}): SerializedChildEvent {
+  return {
+    id: e.id,
+    date: formatIsoDateUtc(e.date),
+    startTime: e.startTime,
+    endTime: e.endTime,
+    type: e.type,
+    isSubstitute: e.isSubstitute,
+    note: e.note,
+    userName: e.user.name,
+  };
+}
+
 export type SerializedCostBearer = {
   id: string;
   name: string;

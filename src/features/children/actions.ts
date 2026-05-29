@@ -111,6 +111,8 @@ export async function listWorkEventsForChildAction(childId: string) {
     startTime: e.startTime,
     endTime: e.endTime,
     note: e.note,
+    type: e.type as "WORK" | "SICK" | "INDIRECT",
+    isSubstitute: e.isSubstitute,
     userName: e.user.name,
   }));
 }

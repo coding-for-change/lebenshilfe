@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ import {
   deleteAbsenceAction,
   deleteAssignmentAction,
   deleteScheduleAction,
+  listWorkEventsForChildAction,
   updateAssignmentAction,
   updateScheduleAction,
 } from "../../actions";
@@ -42,6 +43,10 @@ import type {
   SerializedAssignment,
   SerializedSchedule,
 } from "../../serialize";
+
+type ChildEventRow = Awaited<
+  ReturnType<typeof listWorkEventsForChildAction>
+>[number];
 
 type SchoolAssistantOption = { id: string; name: string };
 
@@ -65,11 +70,16 @@ export type EventKind = "schedule" | "assignment" | "absence";
 
 // Static legend in the toolbar — the segmented kind-picker is gone now that
 // only Stundenplan is created via drag in the hour grid; Zuweisung +
-// Krankheit are added per day from the header's "+" button.
+// Krankheit are added per day from the header's "+" button. Termine/Events
+// (work / einspringen / indirekt) are read-only here and originate from the
+// Schulbegleiter timesheet flow.
 const LEGEND_ITEMS: { label: string; swatch: string }[] = [
   { label: "Stundenplan", swatch: "bg-sky-500" },
   { label: "Zuweisung", swatch: "bg-primary/70" },
   { label: "Krankheit", swatch: "bg-red-500/70" },
+  { label: "Arbeit", swatch: "bg-emerald-500/70" },
+  { label: "Einspringen", swatch: "bg-red-500 ring-1 ring-red-700" },
+  { label: "Indirekt", swatch: "bg-amber-500/70" },
 ];
 
 const HOURS = Array.from(
@@ -92,9 +102,27 @@ export function KinderWeekCalendar({
   const [drag, setDrag] = useState<DragState>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
+  const [childEvents, setChildEvents] = useState<ChildEventRow[]>([]);
 
-  // Hour grid is schedules only — assignments and absences are whole-day
-  // and live in the day-header chips, not the time grid.
+  // Termine/Events for this child are fetched once per childId and refreshed
+  // whenever `onChanged` is called from outside (after edits). The hour grid
+  // filters them by the visible week below.
+  useEffect(() => {
+    let cancelled = false;
+    listWorkEventsForChildAction(childId)
+      .then((rows) => {
+        if (!cancelled) setChildEvents(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setChildEvents([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [childId]);
+
+  // Hour grid stacks schedules (recurring weekly) with Termine that fall
+  // within the visible week. Assignments and absences remain in day chips.
   const stacked = useMemo(() => {
     const stackable: CalendarEvent[] = schedules.map((s) => ({
       layer: "schedule",
@@ -105,8 +133,39 @@ export function KinderWeekCalendar({
       label: "Stundenplan",
       sublabel: `${s.startTime}–${s.endTime}`,
     }));
+
+    const weekFrom = weekStart;
+    const weekTo = addDays(weekStart, 7);
+    for (const ev of childEvents) {
+      if (!ev.startTime || !ev.endTime) continue; // skip full-day SICK; not relevant here
+      const d = new Date(`${ev.date}T00:00:00`);
+      if (d < weekFrom || d >= weekTo) continue;
+      const wd = (d.getDay() + 6) % 7;
+      const kind = ev.isSubstitute
+        ? "substitute"
+        : ev.type === "INDIRECT"
+          ? "indirect"
+          : "work";
+      const label =
+        kind === "substitute"
+          ? "Einspringen"
+          : kind === "indirect"
+            ? "Indirekt"
+            : "Arbeit";
+      stackable.push({
+        layer: "event",
+        kind,
+        weekday: wd,
+        startHour: clampHours(parseTime(ev.startTime)),
+        endHour: clampHours(parseTime(ev.endTime)),
+        id: ev.id,
+        label,
+        sublabel: ev.note ? `${ev.userName} · ${ev.note}` : ev.userName,
+      });
+    }
+
     return packEvents(stackable);
-  }, [schedules]);
+  }, [schedules, childEvents, weekStart]);
 
   // Map absence date → entry, restricted to the visible week.
   const absencesByWeekday = useMemo(() => {
@@ -178,6 +237,7 @@ export function KinderWeekCalendar({
   );
 
   async function handleDelete(layer: CalendarEvent["layer"], id: string) {
+    if (layer === "event") return;
     try {
       if (layer === "assignment") await deleteAssignmentAction(id);
       else if (layer === "schedule") await deleteScheduleAction(id);

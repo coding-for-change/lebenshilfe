@@ -37,7 +37,7 @@ export function CalendarGrid({
   for (const ev of events) {
     const iso = formatIsoDateUtc(ev.date);
     const cur = byIso.get(iso) ?? { work: false, sick: false };
-    if (ev.type === "WORK") cur.work = true;
+    if (ev.type === "WORK" || ev.type === "INDIRECT") cur.work = true;
     else cur.sick = true;
     byIso.set(iso, cur);
   }

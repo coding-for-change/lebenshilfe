@@ -38,3 +38,8 @@ export async function submitMonthlyReportAction(
   await TimesheetFacade.submitMonthlyReport(userId, input);
   revalidatePath("/");
 }
+
+export async function searchChildrenForSubstituteAction(query: string) {
+  const { id: userId } = await requireAuth();
+  return TimesheetFacade.searchChildren(userId, query);
+}

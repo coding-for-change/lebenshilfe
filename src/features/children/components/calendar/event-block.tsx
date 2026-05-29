@@ -30,7 +30,7 @@ export function EventBlock({ ev, col, cols, onDelete, onMove }: Props) {
   // Visual offset (in fractional hours) while a drag-to-move is in progress.
   const [dragOffset, setDragOffset] = useState<number | null>(null);
 
-  const draggable = ev.layer !== "absence";
+  const draggable = ev.layer !== "absence" && ev.layer !== "event";
   const top = (ev.startHour - START_HOUR) * HOUR_HEIGHT;
   const height = Math.max(20, (ev.endHour - ev.startHour) * HOUR_HEIGHT);
   const visualTopOffset = (dragOffset ?? 0) * HOUR_HEIGHT;
@@ -61,6 +61,17 @@ export function EventBlock({ ev, col, cols, onDelete, onMove }: Props) {
     if (ev.tandem) {
       layerClasses += " ring-1 ring-primary";
     }
+  } else if (ev.layer === "event") {
+    if (ev.kind === "substitute") {
+      layerClasses =
+        "z-30 bg-red-500/20 border border-red-500/60 text-red-900 ring-1 ring-red-500 dark:text-red-200";
+    } else if (ev.kind === "indirect") {
+      layerClasses =
+        "z-30 bg-amber-500/20 border border-amber-500/60 text-amber-900 dark:text-amber-200";
+    } else {
+      layerClasses =
+        "z-30 bg-emerald-500/20 border border-emerald-500/60 text-emerald-900 dark:text-emerald-200";
+    }
   } else {
     // Absence: full-width backdrop, override the column slot.
     style.left = `${SIDE_INSET}px`;
@@ -79,6 +90,9 @@ export function EventBlock({ ev, col, cols, onDelete, onMove }: Props) {
     if (e.button !== 0) return;
     // Stop the calendar grid from starting a drag-to-create on the same press.
     e.stopPropagation();
+
+    // Termine (Schulbegleiter-Events) sind read-only — kein Popover, kein Drag.
+    if (ev.layer === "event") return;
 
     if (!draggable) {
       // Click on absence: open popover; don't drag.
@@ -165,17 +179,19 @@ export function EventBlock({ ev, col, cols, onDelete, onMove }: Props) {
               <div className="text-xs text-muted-foreground">{ev.sublabel}</div>
             ) : null}
           </div>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={(e) => {
-              e.preventDefault();
-              onDelete();
-            }}
-          >
-            <Trash2 />
-            Löschen
-          </Button>
+          {ev.layer !== "event" && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={(e) => {
+                e.preventDefault();
+                onDelete();
+              }}
+            >
+              <Trash2 />
+              Löschen
+            </Button>
+          )}
         </div>
       </PopoverContent>
     </Popover>

@@ -84,7 +84,9 @@ export function TabDay({
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
   }, [schedules, selectedDate, childById]);
   const sickEvent = dayEvents.find((e) => e.type === "SICK");
-  const workEvents = dayEvents.filter((e) => e.type === "WORK");
+  const workEvents = dayEvents.filter(
+    (e) => e.type === "WORK" || e.type === "INDIRECT",
+  );
   const monthKey = `${selectedDate.getUTCFullYear()}-${
     selectedDate.getUTCMonth() + 1
   }`;
@@ -250,6 +252,15 @@ export function TabDay({
               ev.startTime && ev.endTime
                 ? formatDuration(ev.startTime, ev.endTime)
                 : "";
+            const isIndirect = ev.type === "INDIRECT";
+            const isSubstitute = ev.isSubstitute;
+            const title = isIndirect
+              ? child
+                ? `Indirekt — ${child.firstName} ${child.lastName}`
+                : "Indirekte Leistung"
+              : child
+                ? `${child.firstName} ${child.lastName}`
+                : "Arbeit";
             return (
               <Card
                 key={ev.id}
@@ -257,18 +268,24 @@ export function TabDay({
               >
                 <div className="flex items-center gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">
-                      {child
-                        ? `${child.firstName} ${child.lastName}`
-                        : "Arbeit"}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                    <p className="font-medium truncate">{title}</p>
+                    <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted-foreground">
                       <Badge
                         variant="secondary"
                         className="font-mono"
                       >
                         {dur}
                       </Badge>
+                      {isSubstitute && (
+                        <Badge className="bg-red-500/15 text-red-700 border-red-500/30 dark:text-red-300">
+                          Einspringen
+                        </Badge>
+                      )}
+                      {isIndirect && (
+                        <Badge className="bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-300">
+                          Indirekt
+                        </Badge>
+                      )}
                       <Badge
                         variant="outline"
                         className="border-emerald-200 text-emerald-700"

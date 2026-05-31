@@ -51,6 +51,14 @@ export type ChildAbsenceItem = Pick<ChildAbsence, "childId" | "note"> & {
   date: string;
 };
 
+// A school holiday range mapped onto an assigned child (its school is closed).
+export type ChildSchoolHolidayItem = {
+  childId: string;
+  name: string | null;
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+};
+
 type Props = {
   currentUser: { id: string; name: string; email: string };
   assignedChildren: ChildOption[];
@@ -59,6 +67,7 @@ type Props = {
   lockedMonthKeys: string[];
   childAbsences: ChildAbsenceItem[];
   assignmentsByWeekday: AssignmentsByWeekday;
+  childSchoolHolidays: ChildSchoolHolidayItem[];
 };
 
 const NAV_ITEMS: Array<{
@@ -89,6 +98,7 @@ export function SchoolAssistantApp({
   lockedMonthKeys,
   childAbsences,
   assignmentsByWeekday,
+  childSchoolHolidays,
 }: Props) {
   const today = useMemo(() => startOfDayUtc(new Date()), []);
   const [activeTab, setActiveTab] = useState<Exclude<TabId, "mehr">>("tag");
@@ -161,6 +171,7 @@ export function SchoolAssistantApp({
             assignedChildren={assignedChildren}
             childAbsences={childAbsences}
             schedules={schedules}
+            childSchoolHolidays={childSchoolHolidays}
           />
         );
       case "woche":

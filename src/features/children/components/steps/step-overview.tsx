@@ -2,15 +2,22 @@
 
 import { Check, Minus } from "lucide-react";
 import type { CostBearerOption } from "@/features/cost-bearers";
+import type { SchoolOption } from "@/features/schools";
 import type { ChildWizardFormState } from "../../schemas";
 
 type Props = {
   value: ChildWizardFormState;
   costBearerOptions: CostBearerOption[];
+  schoolOptions: SchoolOption[];
 };
 
-export function StepOverviewChild({ value, costBearerOptions }: Props) {
+export function StepOverviewChild({
+  value,
+  costBearerOptions,
+  schoolOptions,
+}: Props) {
   const kt = costBearerOptions.find((o) => o.id === value.kostentraegerId);
+  const school = schoolOptions.find((o) => o.id === value.schoolId);
   return (
     <div className="flex flex-col gap-4 text-sm">
       <Section title="Stammdaten">
@@ -20,13 +27,7 @@ export function StepOverviewChild({ value, costBearerOptions }: Props) {
         />
         <Row
           label="Schule"
-          value={
-            value.school.name
-              ? `${value.school.name}${
-                  value.school.address ? ` — ${value.school.address}` : ""
-                }`
-              : "—"
-          }
+          value={school?.name ?? "—"}
         />
       </Section>
 

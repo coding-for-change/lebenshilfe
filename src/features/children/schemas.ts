@@ -14,42 +14,6 @@ const optionalText = (max: number) =>
     .nullable()
     .optional();
 
-export const SchoolSchema = z
-  .object({
-    placeId: z.string().nullable().optional(),
-    name: z.string().nullable().optional(),
-    address: z.string().nullable().optional(),
-    lat: z.number().nullable().optional(),
-    lng: z.number().nullable().optional(),
-  })
-  .superRefine((val, ctx) => {
-    const anySet = !!(
-      val.placeId ||
-      val.name ||
-      val.address ||
-      val.lat ||
-      val.lng
-    );
-    if (anySet) {
-      if (!val.name) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["name"],
-          message: "Schulname fehlt.",
-        });
-      }
-      if (!val.address) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["address"],
-          message: "Schuladresse fehlt.",
-        });
-      }
-    }
-  });
-
-export type SchoolInput = z.infer<typeof SchoolSchema>;
-
 // Canonical child fields — WITHOUT `.default()`. Defaults survive `.partial()`
 // in Zod, so keeping them here would let a partial update overwrite untouched
 // boolean columns. Defaults live only on the create-specific schema below.
@@ -64,7 +28,7 @@ const kindFieldsSchema = z.object({
   // clearing the Kostenträger on every partial update. `childFieldsFromCreate`
   // already maps a missing value to `null` for the create path.
   kostentraegerId: z.string().min(1).nullable().optional(),
-  school: SchoolSchema.optional(),
+  schoolId: z.string().min(1).nullable().optional(),
 });
 
 // Create accepts omitted booleans by falling back to defaults.
@@ -78,9 +42,7 @@ const stammdatenSchema = z.object({
   lastName: z.string().trim().min(1, "Nachname fehlt.").max(100),
 });
 
-export const BasicInfoStepSchema = stammdatenSchema.merge(
-  z.object({ school: SchoolSchema.optional() }),
-);
+export const BasicInfoStepSchema = stammdatenSchema;
 
 export const AdministrationStepSchema = kindFieldsCreateSchema.pick({
   leosOne: true,
@@ -126,18 +88,10 @@ export type AbsenceInput = z.infer<typeof AbsenceSchema>;
 
 // Kinder-Wizard UI state types — kept here per AGENTS.md ("Zod schemas and TS types").
 
-export type SchoolValue = {
-  placeId: string | null;
-  name: string | null;
-  address: string | null;
-  lat: number | null;
-  lng: number | null;
-};
-
 export type ChildWizardFormState = {
   firstName: string;
   lastName: string;
-  school: SchoolValue;
+  schoolId: string | null;
   leosOne: boolean;
   bescheid: string;
   sbIb: string;
@@ -146,10 +100,8 @@ export type ChildWizardFormState = {
   kostentraegerId: string | null;
 };
 
-type ScalarFields = Exclude<keyof ChildWizardFormState, "school">;
-
 export type ChildWizardErrors = Partial<
-  Record<ScalarFields | "school", string>
+  Record<keyof ChildWizardFormState, string>
 >;
 
 export const CHILD_STEP_LABELS = [
@@ -161,13 +113,7 @@ export const CHILD_STEP_LABELS = [
 export const EMPTY_CHILD_FORM: ChildWizardFormState = {
   firstName: "",
   lastName: "",
-  school: {
-    placeId: null,
-    name: null,
-    address: null,
-    lat: null,
-    lng: null,
-  },
+  schoolId: null,
   leosOne: false,
   bescheid: "",
   sbIb: "",

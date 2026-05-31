@@ -7,17 +7,24 @@ import {
   FieldError,
   FieldLabel,
 } from "@/components/ui/field";
-import { SchoolAutocomplete } from "../school-autocomplete";
-import { SchoolPreview } from "../school-preview";
+import { SchoolSelect, type SchoolOption } from "@/features/schools";
 import type { ChildWizardErrors, ChildWizardFormState } from "../../schemas";
 
 type Props = {
   value: ChildWizardFormState;
   onChange: (next: Partial<ChildWizardFormState>) => void;
   errors: ChildWizardErrors;
+  schoolOptions: SchoolOption[];
+  onSchoolCreated: (created: SchoolOption) => void;
 };
 
-export function StepBasicInfoChild({ value, onChange, errors }: Props) {
+export function StepBasicInfoChild({
+  value,
+  onChange,
+  errors,
+  schoolOptions,
+  onSchoolCreated,
+}: Props) {
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -59,21 +66,19 @@ export function StepBasicInfoChild({ value, onChange, errors }: Props) {
           <FieldContent>
             <span>Schule</span>
             <span className="text-xs font-normal text-muted-foreground">
-              Suche per Google Maps. Standort-Vorschau erscheint unten.
+              Aus den angelegten Schulen wählen oder neu anlegen.
             </span>
           </FieldContent>
         </FieldLabel>
-        <SchoolAutocomplete
+        <SchoolSelect
           id="kind-school"
-          value={value.school}
-          onChange={(next) => onChange({ school: next })}
-          ariaInvalid={!!errors.school}
+          options={schoolOptions}
+          value={value.schoolId}
+          onChange={(id) => onChange({ schoolId: id })}
+          onCreated={onSchoolCreated}
+          ariaInvalid={!!errors.schoolId}
         />
-        <FieldError>{errors.school}</FieldError>
-        <SchoolPreview
-          placeId={value.school.placeId}
-          address={value.school.address}
-        />
+        <FieldError>{errors.schoolId}</FieldError>
       </Field>
     </div>
   );

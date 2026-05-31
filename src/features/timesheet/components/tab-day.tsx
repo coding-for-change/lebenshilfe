@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Clock, Lock, Plus, Stethoscope } from "lucide-react";
+import { Clock, Lock, Palmtree, Plus, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -13,11 +13,15 @@ import {
   relativeLabel,
   timeToMinutes,
 } from "@/lib/dates";
+import { formatDate } from "@/lib/utils";
 import { WeekStrip } from "./week-strip";
 import { deleteEventAction } from "../actions";
 import type { Event, Schedule } from "@/generated/prisma";
 import type { ChildOption } from "./children-filter";
-import type { ChildAbsenceItem } from "./timesheet-shell";
+import type {
+  ChildAbsenceItem,
+  ChildSchoolHolidayItem,
+} from "./timesheet-shell";
 
 type EventWithChild = Event & {
   child: { firstName: string; lastName: string } | null;
@@ -33,6 +37,7 @@ type Props = {
   assignedChildren: ChildOption[];
   childAbsences: ChildAbsenceItem[];
   schedules: Schedule[];
+  childSchoolHolidays: ChildSchoolHolidayItem[];
 };
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -47,6 +52,7 @@ export function TabDay({
   assignedChildren,
   childAbsences,
   schedules,
+  childSchoolHolidays,
 }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -74,15 +80,53 @@ export function TabDay({
       .filter((a): a is ChildAbsenceItem & { child: ChildOption } => !!a.child);
   }, [childAbsences, selectedDateIso, childById]);
 
+  // Children whose school is closed on the selected day, with the latest end
+  // date among any overlapping holiday ranges (for the "bis …" hint).
+  const dayHolidays = useMemo(() => {
+    const byChild = new Map<
+      string,
+      { child: ChildOption; endDate: string; name: string | null }
+    >();
+    for (const h of childSchoolHolidays) {
+      if (selectedDateIso < h.startDate || selectedDateIso > h.endDate)
+        continue;
+      const child = childById.get(h.childId);
+      if (!child) continue;
+      const existing = byChild.get(h.childId);
+      if (!existing || h.endDate > existing.endDate) {
+        byChild.set(h.childId, {
+          child,
+          endDate: h.endDate,
+          name: h.name,
+        });
+      }
+    }
+    return Array.from(byChild.values()).sort((a, b) =>
+      `${a.child.lastName} ${a.child.firstName}`.localeCompare(
+        `${b.child.lastName} ${b.child.firstName}`,
+        "de",
+      ),
+    );
+  }, [childSchoolHolidays, selectedDateIso, childById]);
+
+  const holidayChildIds = useMemo(
+    () => new Set(dayHolidays.map((h) => h.child.id)),
+    [dayHolidays],
+  );
+
   const daySchedules = useMemo(() => {
     // Convert UTC weekday (0=Sun..6=Sat) to Mon=0..Sun=6.
     const weekday = (selectedDate.getUTCDay() + 6) % 7;
-    return schedules
-      .filter((s) => s.weekday === weekday)
-      .map((s) => ({ ...s, child: childById.get(s.childId) }))
-      .filter((s): s is Schedule & { child: ChildOption } => !!s.child)
-      .sort((a, b) => a.startTime.localeCompare(b.startTime));
-  }, [schedules, selectedDate, childById]);
+    return (
+      schedules
+        .filter((s) => s.weekday === weekday)
+        .map((s) => ({ ...s, child: childById.get(s.childId) }))
+        .filter((s): s is Schedule & { child: ChildOption } => !!s.child)
+        // A school holiday replaces that child's normal schedule for the day.
+        .filter((s) => !holidayChildIds.has(s.child.id))
+        .sort((a, b) => a.startTime.localeCompare(b.startTime))
+    );
+  }, [schedules, selectedDate, childById, holidayChildIds]);
   const sickEvent = dayEvents.find((e) => e.type === "SICK");
   const workEvents = dayEvents.filter((e) => e.type === "WORK");
   const monthKey = `${selectedDate.getUTCFullYear()}-${
@@ -182,6 +226,39 @@ export function TabDay({
                 <p className="text-sm text-rose-900/80">
                   {dayAbsences[0].note}
                 </p>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {dayHolidays.length > 0 && (
+        <Card className="border-emerald-300 bg-emerald-700/10 p-4">
+          <div className="flex items-start gap-3">
+            <div className="grid place-items-center size-10 shrink-0 rounded-full bg-emerald-700/20 text-emerald-800">
+              <Palmtree className="size-5" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <p className="font-semibold text-emerald-900">
+                Heute sind Schulferien
+              </p>
+              {dayHolidays.length === 1 ? (
+                <p className="text-sm text-emerald-900/80">
+                  {dayHolidays[0].child.firstName}{" "}
+                  {dayHolidays[0].child.lastName}
+                  {dayHolidays[0].name ? ` · ${dayHolidays[0].name}` : ""} · bis{" "}
+                  {formatDate(dayHolidays[0].endDate)}
+                </p>
+              ) : (
+                <ul className="text-sm text-emerald-900/80">
+                  {dayHolidays.map((h) => (
+                    <li key={h.child.id}>
+                      {h.child.firstName} {h.child.lastName}
+                      {h.name ? ` · ${h.name}` : ""} · bis{" "}
+                      {formatDate(h.endDate)}
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
           </div>

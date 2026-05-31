@@ -7,17 +7,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { loadMapsLibrary } from "@/lib/maps/maps-loader";
 import { fetchPlaceDetails, usePlaceSuggestions } from "@/lib/maps/places-api";
-import type { SchoolValue } from "../schemas";
+import { EMPTY_SCHOOL_VALUE, type SchoolValue } from "../schemas";
 
 export type { SchoolValue };
-
-const EMPTY: SchoolValue = {
-  placeId: null,
-  name: null,
-  address: null,
-  lat: null,
-  lng: null,
-};
 
 type Props = {
   value: SchoolValue;
@@ -52,8 +44,8 @@ export function SchoolAutocomplete({
   if (error) {
     return (
       <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-        Google Maps konnte nicht geladen werden ({error}). Adresse manuell als
-        Hinweis im Bemerkungsfeld festhalten.
+        Google Maps konnte nicht geladen werden ({error}). Adresse manuell
+        eintragen.
       </div>
     );
   }
@@ -121,7 +113,7 @@ function ReadyAutocomplete({ value, onChange, id, ariaInvalid }: Props) {
       setQuery(details.name || fallbackDescription, true);
     } catch {
       onChange({
-        ...EMPTY,
+        ...EMPTY_SCHOOL_VALUE,
         name: fallbackDescription,
         address: fallbackDescription,
       });
@@ -134,7 +126,7 @@ function ReadyAutocomplete({ value, onChange, id, ariaInvalid }: Props) {
   }
 
   function handleClear() {
-    onChange(EMPTY);
+    onChange(EMPTY_SCHOOL_VALUE);
     setQuery("", true);
     clearSuggestions();
     resetSession();

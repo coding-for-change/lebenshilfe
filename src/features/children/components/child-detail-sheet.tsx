@@ -10,6 +10,7 @@ import { TabHistory } from "./tabs/tab-history";
 import { TabCalendar } from "./tabs/tab-calendar";
 import { useGeneralEditor } from "./tabs/use-general-editor";
 import type { CostBearerOption } from "@/features/cost-bearers";
+import type { SchoolOption } from "@/features/schools";
 import type { SerializedChild } from "../serialize";
 
 export type DetailTab = "general" | "history" | "calendar";
@@ -25,6 +26,8 @@ type Props = {
   costBearerOptions: CostBearerOption[];
   schoolAssistantOptions: { id: string; name: string }[];
   onCostBearerCreated: (created: CostBearerOption) => void;
+  schoolOptions: SchoolOption[];
+  onSchoolCreated: (created: SchoolOption) => void;
 };
 
 export function ChildDetailSheet({
@@ -36,6 +39,8 @@ export function ChildDetailSheet({
   costBearerOptions,
   schoolAssistantOptions,
   onCostBearerCreated,
+  schoolOptions,
+  onSchoolCreated,
 }: Props) {
   const editor = useGeneralEditor(child);
   const [askSave, setAskSave] = useState(false);
@@ -56,7 +61,7 @@ export function ChildDetailSheet({
         title={child ? `${child.firstName} ${child.lastName}` : ""}
         description={
           child
-            ? `${child.schoolName ?? "Keine Schule hinterlegt"}${
+            ? `${child.school?.name ?? "Keine Schule hinterlegt"}${
                 child.costBearer?.name ? ` · ${child.costBearer.name}` : ""
               }`
             : null
@@ -99,6 +104,8 @@ export function ChildDetailSheet({
                     formId={FORM_ID}
                     costBearerOptions={costBearerOptions}
                     onCostBearerCreated={onCostBearerCreated}
+                    schoolOptions={schoolOptions}
+                    onSchoolCreated={onSchoolCreated}
                   />
                 ) : null}
               </TabsContent>

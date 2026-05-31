@@ -4,6 +4,7 @@ import type { Prisma } from "@/generated/prisma";
 export type ChildWithRelations = Prisma.ChildGetPayload<{
   include: {
     kostentraeger: true;
+    school: { include: { holidayPlan: { include: { holidays: true } } } };
     assignments: { include: { user: true } };
     schedules: true;
     absences: true;
@@ -12,10 +13,15 @@ export type ChildWithRelations = Prisma.ChildGetPayload<{
 
 const childInclude = {
   kostentraeger: true,
+  school: {
+    include: {
+      holidayPlan: { include: { holidays: { orderBy: { startDate: "asc" } } } },
+    },
+  },
   assignments: { include: { user: true } },
   schedules: true,
   absences: true,
-} as const;
+} satisfies Prisma.ChildInclude;
 
 export async function listChildren(): Promise<ChildWithRelations[]> {
   return prisma.child.findMany({
@@ -37,11 +43,7 @@ type ChildFields = {
   schweigepflichtsentbindung?: boolean;
   bemerkung?: string | null;
   kostentraegerId?: string | null;
-  schoolName?: string | null;
-  schoolAddress?: string | null;
-  schoolPlaceId?: string | null;
-  schoolLat?: number | null;
-  schoolLng?: number | null;
+  schoolId?: string | null;
 };
 
 export async function createChild(

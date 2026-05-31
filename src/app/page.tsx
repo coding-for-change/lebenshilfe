@@ -4,6 +4,8 @@ import { isAdmin } from "@/lib/roles";
 import { TimesheetFacade, SchoolAssistantApp } from "@/features/timesheet";
 import { SchoolAssistantsFacade } from "@/features/school-assistants";
 import { ChildrenFacade } from "@/features/children";
+import { SchoolsFacade } from "@/features/schools";
+import { HolidayPlansFacade } from "@/features/holiday-plans";
 
 export default async function LandingPage() {
   const session = await getSession();
@@ -36,6 +38,7 @@ export default async function LandingPage() {
     profile,
     childAbsences,
     assignmentsByWeekday,
+    allSchools,
   ] = await Promise.all([
     TimesheetFacade.getEventsInRange(user.id, rangeStart, rangeEnd),
     TimesheetFacade.getSchedulesForChildren(childIds),
@@ -47,7 +50,40 @@ export default async function LandingPage() {
       rangeEnd,
     ),
     TimesheetFacade.getAssignmentsByWeekday(user.id),
+    SchoolsFacade.list(),
   ]);
+
+  const planBySchool = new Map(
+    allSchools.map((s) => [s.id, s.holidayPlanId] as const),
+  );
+  const planIds = Array.from(
+    new Set(
+      assignedChildren
+        .map((c) => (c.schoolId ? planBySchool.get(c.schoolId) : null))
+        .filter((id): id is string => !!id),
+    ),
+  );
+  const entries = await HolidayPlansFacade.listEntriesForPlanIds(
+    planIds,
+    rangeStart,
+    rangeEnd,
+  );
+  const entriesByPlan = new Map<string, typeof entries>();
+  for (const e of entries) {
+    const list = entriesByPlan.get(e.planId) ?? [];
+    list.push(e);
+    entriesByPlan.set(e.planId, list);
+  }
+  const childSchoolHolidays = assignedChildren.flatMap((c) => {
+    const planId = c.schoolId ? planBySchool.get(c.schoolId) : null;
+    if (!planId) return [];
+    return (entriesByPlan.get(planId) ?? []).map((e) => ({
+      childId: c.id,
+      name: e.name,
+      startDate: e.startDate,
+      endDate: e.endDate,
+    }));
+  });
 
   return (
     <SchoolAssistantApp
@@ -75,6 +111,7 @@ export default async function LandingPage() {
         note: a.note,
       }))}
       assignmentsByWeekday={assignmentsByWeekday}
+      childSchoolHolidays={childSchoolHolidays}
     />
   );
 }

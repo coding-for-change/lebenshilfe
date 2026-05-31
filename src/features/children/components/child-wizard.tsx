@@ -29,12 +29,15 @@ import { StepAdministrationChild } from "./steps/step-administration";
 import { StepOverviewChild } from "./steps/step-overview";
 import { pickFirstError, validateWizardStep } from "./wizard-validation";
 import type { CostBearerOption } from "@/features/cost-bearers";
+import type { SchoolOption } from "@/features/schools";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   costBearerOptions: CostBearerOption[];
   onCostBearerCreated: (created: CostBearerOption) => void;
+  schoolOptions: SchoolOption[];
+  onSchoolCreated: (created: SchoolOption) => void;
   // Optional: invoked when the user submits via "Anlegen & Zuweisen". Parent
   // is expected to open the detail sheet on the calendar tab so the new
   // child's assignments can be added immediately.
@@ -53,13 +56,7 @@ function buildInput(value: ChildWizardFormState): CreateChildInput {
     schweigepflichtsentbindung: value.schweigepflichtsentbindung,
     bemerkung: value.bemerkung.trim() || null,
     kostentraegerId: value.kostentraegerId,
-    school: {
-      placeId: value.school.placeId,
-      name: value.school.name,
-      address: value.school.address,
-      lat: value.school.lat,
-      lng: value.school.lng,
-    },
+    schoolId: value.schoolId,
   };
 }
 
@@ -68,6 +65,8 @@ export function ChildWizard({
   onOpenChange,
   costBearerOptions,
   onCostBearerCreated,
+  schoolOptions,
+  onSchoolCreated,
   onSavedOpenCalendar,
 }: Props) {
   const [step, setStep] = useState(0);
@@ -109,7 +108,7 @@ export function ChildWizard({
       const e = pickFirstError(parse.error.issues);
       setErrors(e);
       const root = parse.error.issues[0]?.path[0];
-      if (root === "firstName" || root === "lastName" || root === "school") {
+      if (root === "firstName" || root === "lastName") {
         setStep(0);
       } else setStep(1);
       return;
@@ -145,6 +144,8 @@ export function ChildWizard({
           value={form}
           onChange={update}
           errors={errors}
+          schoolOptions={schoolOptions}
+          onSchoolCreated={onSchoolCreated}
         />
       );
     if (step === 1)
@@ -161,9 +162,18 @@ export function ChildWizard({
       <StepOverviewChild
         value={form}
         costBearerOptions={costBearerOptions}
+        schoolOptions={schoolOptions}
       />
     );
-  }, [step, form, errors, costBearerOptions, onCostBearerCreated]);
+  }, [
+    step,
+    form,
+    errors,
+    costBearerOptions,
+    onCostBearerCreated,
+    schoolOptions,
+    onSchoolCreated,
+  ]);
 
   return (
     <WizardDialog

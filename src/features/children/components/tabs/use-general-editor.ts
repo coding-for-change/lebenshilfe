@@ -4,12 +4,11 @@ import { useDetailEditor } from "@/components/use-detail-editor";
 import { updateChildAction } from "../../actions";
 import type { UpdateChildInput } from "../../schemas";
 import type { SerializedChild } from "../../serialize";
-import type { SchoolValue } from "../school-autocomplete";
 
 export type GeneralFormState = {
   firstName: string;
   lastName: string;
-  school: SchoolValue;
+  schoolId: string | null;
   leosOne: boolean;
   schweigepflichtsentbindung: boolean;
   bescheid: string;
@@ -22,13 +21,7 @@ function fromChild(c: SerializedChild): GeneralFormState {
   return {
     firstName: c.firstName,
     lastName: c.lastName,
-    school: {
-      placeId: c.schoolPlaceId,
-      name: c.schoolName,
-      address: c.schoolAddress,
-      lat: c.schoolLat,
-      lng: c.schoolLng,
-    },
+    schoolId: c.school?.id ?? null,
     leosOne: c.leosOne,
     schweigepflichtsentbindung: c.schweigepflichtsentbindung,
     bescheid: c.bescheid ?? "",
@@ -61,14 +54,8 @@ function diff(
   if (next.kostentraegerId !== base.kostentraegerId) {
     patch.kostentraegerId = next.kostentraegerId;
   }
-  if (
-    next.school.placeId !== base.school.placeId ||
-    next.school.name !== base.school.name ||
-    next.school.address !== base.school.address ||
-    next.school.lat !== base.school.lat ||
-    next.school.lng !== base.school.lng
-  ) {
-    patch.school = next.school;
+  if (next.schoolId !== base.schoolId) {
+    patch.schoolId = next.schoolId;
   }
   return Object.keys(patch).length > 0 ? patch : null;
 }

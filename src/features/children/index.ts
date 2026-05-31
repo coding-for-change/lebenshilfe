@@ -4,7 +4,6 @@ export type {
   AssignmentInput,
   CreateChildInput,
   ScheduleInput,
-  SchoolInput,
   UpdateChildInput,
 } from "./schemas";
 export {
@@ -12,6 +11,7 @@ export {
   type SerializedAbsence,
   type SerializedAssignment,
   type SerializedChild,
+  type SerializedChildSchool,
   type SerializedCostBearer,
   type SerializedSchedule,
 } from "./serialize";

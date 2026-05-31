@@ -26,7 +26,7 @@ import {
   startOfWeekMonday,
   type CalendarEvent,
 } from "./week-utils";
-import { formatIsoDateLocal } from "@/lib/utils";
+import { formatDate, formatIsoDateLocal } from "@/lib/utils";
 import { EventCreateForm } from "./event-create-dialog";
 import { EventBlock } from "./event-block";
 import { ScheduleEinsatzBlock } from "./schedule-einsatz-block";
@@ -43,6 +43,7 @@ import type {
   SerializedAbsence,
   SerializedAssignment,
   SerializedSchedule,
+  SerializedSchoolHoliday,
   SerializedWorkEvent,
 } from "../../serialize";
 
@@ -54,6 +55,7 @@ type Props = {
   schedules: SerializedSchedule[];
   assignments: SerializedAssignment[];
   absences: SerializedAbsence[];
+  holidays: SerializedSchoolHoliday[];
   schoolAssistantOptions: SchoolAssistantOption[];
   onChanged: () => void;
 };
@@ -84,6 +86,7 @@ export function KinderWeekCalendar({
   schedules,
   assignments,
   absences,
+  holidays,
   schoolAssistantOptions,
   onChanged,
 }: Props) {
@@ -148,6 +151,23 @@ export function KinderWeekCalendar({
     }
     return map;
   }, [assignments]);
+
+  // For each weekday in the visible week, the school holiday covering it (if
+  // any), keeping the latest end date for the "bis …" hint. ISO-string compare
+  // matches the absence handling and avoids timezone drift.
+  const holidayByWeekday = useMemo(() => {
+    const map = new Map<number, SerializedSchoolHoliday>();
+    for (let wd = 0; wd < 7; wd++) {
+      const iso = formatIsoDateLocal(addDays(weekStart, wd));
+      let match: SerializedSchoolHoliday | null = null;
+      for (const h of holidays) {
+        if (iso < h.startDate || iso > h.endDate) continue;
+        if (!match || h.endDate > match.endDate) match = h;
+      }
+      if (match) map.set(wd, match);
+    }
+    return map;
+  }, [holidays, weekStart]);
 
   const goPrevWeek = () => setWeekStart((w) => addDays(w, -7));
   const goNextWeek = () => setWeekStart((w) => addDays(w, 7));
@@ -304,12 +324,14 @@ export function KinderWeekCalendar({
               formatIsoDateLocal(date) === formatIsoDateLocal(new Date());
             const dayAssignments = assignmentsByWeekday.get(weekday) ?? [];
             const dayAbsence = absencesByWeekday.get(weekday) ?? null;
+            const dayHoliday = holidayByWeekday.get(weekday) ?? null;
             return (
               <div
                 key={label}
                 className={cn(
                   "flex min-w-0 flex-col items-center gap-1 border-l px-1.5 py-2 first:border-l-0",
                   isToday && "text-primary",
+                  dayHoliday && "bg-emerald-700/20",
                 )}
               >
                 <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -350,6 +372,7 @@ export function KinderWeekCalendar({
             const dayStacked = stacked.filter((e) => e.weekday === weekday);
             const dateIso = formatIsoDateLocal(addDays(weekStart, weekday));
             const dayEinsaetze = workEventsByDate.get(dateIso) ?? [];
+            const dayHoliday = holidayByWeekday.get(weekday) ?? null;
             return (
               <div
                 key={label}
@@ -390,6 +413,17 @@ export function KinderWeekCalendar({
                     />
                   ),
                 )}
+
+                {dayHoliday ? (
+                  <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center gap-0.5 bg-emerald-700/25 px-1 text-center backdrop-blur-[1px]">
+                    <span className="text-xs font-semibold text-emerald-900">
+                      Schulferien
+                    </span>
+                    <span className="text-[10px] text-emerald-900/80">
+                      bis {formatDate(dayHoliday.endDate)}
+                    </span>
+                  </div>
+                ) : null}
 
                 {dragSelection && dragSelection.weekday === weekday ? (
                   <Popover

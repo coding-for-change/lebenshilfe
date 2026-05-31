@@ -458,7 +458,7 @@ export function NewEntrySheet({
                   dateIsWeekend && (
                     <p className="rounded-lg border border-amber-400/50 bg-amber-50/50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
                       Diese Tätigkeit ist nur an Werktagen möglich. Für
-                      Wochenend-Tätigkeiten bitte „Indirekt" wählen.
+                      Wochenend-Tätigkeiten bitte &bdquo;Indirekt&ldquo; wählen.
                     </p>
                   )}
 

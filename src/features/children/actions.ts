@@ -9,6 +9,8 @@ import type {
   CreateChildInput,
   ScheduleInput,
   UpdateChildInput,
+  UpdateVertretungInput,
+  VertretungInput,
   WorkEventInput,
   UpdateWorkEventInput,
 } from "./schemas";
@@ -168,4 +170,29 @@ export async function listWorkEventsForChildInRangeAction(
     endTime: e.endTime,
     userName: e.user.name,
   }));
+}
+
+export async function createVertretungAction(input: VertretungInput) {
+  await requireAdmin();
+  await ChildrenFacade.createVertretung(input);
+  revalidatePath(ROUTE);
+  return { success: true as const };
+}
+
+export async function updateVertretungAction(
+  childId: string,
+  date: string,
+  input: UpdateVertretungInput,
+) {
+  await requireAdmin();
+  await ChildrenFacade.updateVertretung(childId, date, input);
+  revalidatePath(ROUTE);
+  return { success: true as const };
+}
+
+export async function deleteVertretungAction(childId: string, date: string) {
+  await requireAdmin();
+  await ChildrenFacade.deleteVertretung(childId, date);
+  revalidatePath(ROUTE);
+  return { success: true as const };
 }

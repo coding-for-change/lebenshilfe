@@ -4,14 +4,12 @@ import { EventType, Prisma } from "@/generated/prisma";
 import {
   WEEKDAYS,
   emptyAssignmentsByWeekday,
-  weekStartsSundayToWeekStartsMondayDayKeyTranslation,
   type AssignmentsByWeekday,
 } from "../weekday";
 
 export async function getAssignedChildren(userId: string) {
   // A Schulbegleiter can have multiple ChildAssignment rows for the same
-  // child (one per weekday after the cod-14 schema change), so we dedupe
-  // by child id before returning.
+  // child (one per weekday), so we dedupe by child id before returning.
   const rows = await prisma.childAssignment.findMany({
     where: { userId },
     include: { child: true },
@@ -48,26 +46,6 @@ export async function getAssignmentsByWeekday(
     result[key].push(r.childId);
   }
   return result;
-}
-
-// Authorization guard: ensures every child the caller wants to log work for
-// is actually assigned to their account. Prevents a client from submitting
-// timesheet entries against a child they do not own.
-export async function assertChildrenAssignedToUser(
-  userId: string,
-  childIds: string[],
-  date: Date,
-) {
-  if (childIds.length === 0) return;
-  const day = weekStartsSundayToWeekStartsMondayDayKeyTranslation(
-    date.getDay(),
-  ); //0 indexed
-  const count = await prisma.childAssignment.count({
-    where: { userId, childId: { in: childIds }, weekday: day },
-  });
-  if (count !== childIds.length) {
-    throw new Error("Ein Kind ist diesem Konto nicht zugewiesen.");
-  }
 }
 
 export async function getSchedulesForChildren(childIds: string[]) {

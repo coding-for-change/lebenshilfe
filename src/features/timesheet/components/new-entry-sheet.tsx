@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, Stethoscope } from "lucide-react";
+import { Briefcase, Stethoscope, UserCheck } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -27,6 +27,7 @@ import {
 import type { ChildOption } from "./children-filter";
 import { childIdsForDate, type AssignmentsByWeekday } from "../weekday";
 import { cn, formatIsoDateUtc } from "@/lib/utils";
+import type { VertretungDay } from "./timesheet-shell";
 
 type LastEntry = {
   startTime: string | null;
@@ -49,6 +50,8 @@ type Props = {
   currentUserName: string;
   schedules: Schedule[];
   lastEntry: LastEntry | null;
+  /** Vertretung days for the current user — so substitute children appear in the form. */
+  substituteOn?: VertretungDay[];
 };
 
 function addMinutes(time: string, minutes: number): string {
@@ -70,6 +73,7 @@ export function NewEntrySheet({
   currentUserName,
   schedules,
   lastEntry,
+  substituteOn = [],
 }: Props) {
   const [type, setType] = useState<EventType>(EventType.WORK);
   const [date, setDate] = useState(formatIsoDateUtc(defaultDate));
@@ -77,12 +81,23 @@ export function NewEntrySheet({
   const [endTime, setEndTime] = useState("17:00");
   const [note, setNote] = useState("");
 
+  // Vertretungen for the currently selected date
+  const dayVertretungen = useMemo(
+    () => substituteOn.filter((v) => v.date === date),
+    [substituteOn, date],
+  );
+
   const dayAssignedChildren = useMemo(() => {
-    const allowed = childIdsForDate(assignmentsByWeekday, parseIsoDate(date));
-    if (allowed.length === 0) return [] as ChildOption[];
-    const allowedSet = new Set(allowed);
-    return assignedChildren.filter((c) => allowedSet.has(c.id));
-  }, [date, assignmentsByWeekday, assignedChildren]);
+    // Regular weekday-based assignments
+    const regularIds = new Set(
+      childIdsForDate(assignmentsByWeekday, parseIsoDate(date)),
+    );
+    // Date-specific Vertretung children
+    for (const v of dayVertretungen) regularIds.add(v.childId);
+
+    if (regularIds.size === 0) return [] as ChildOption[];
+    return assignedChildren.filter((c) => regularIds.has(c.id));
+  }, [date, assignmentsByWeekday, assignedChildren, dayVertretungen]);
 
   const [childIds, setChildIds] = useState<string[]>(
     dayAssignedChildren.length === 1 ? [dayAssignedChildren[0].id] : [],
@@ -139,6 +154,16 @@ export function NewEntrySheet({
       out.push(slot);
     };
 
+    // Vertretung time slot(s) — shown first so the substitute can quickly confirm
+    for (const v of dayVertretungen) {
+      push({
+        key: `vertretung-${v.childId}`,
+        label: `Vertretung (${v.childName.split(" ")[0]})`,
+        start: v.startTime,
+        end: v.endTime,
+      });
+    }
+
     const wd = weekdayIndex(parseIsoDate(date));
     const relevantChildIds =
       childIds.length > 0 ? childIds : dayAssignedChildren.map((c) => c.id);
@@ -176,7 +201,14 @@ export function NewEntrySheet({
     }
 
     return out;
-  }, [date, schedules, dayAssignedChildren, childIds, lastEntry]);
+  }, [
+    date,
+    schedules,
+    dayAssignedChildren,
+    childIds,
+    lastEntry,
+    dayVertretungen,
+  ]);
 
   const submitWithSignature = async (pngBase64: string) => {
     setSubmitting(true);
@@ -277,10 +309,20 @@ export function NewEntrySheet({
                     An diesem Tag ist dir kein Kind zugewiesen.
                   </p>
                 ) : dayAssignedChildren.length === 1 ? (
-                  <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm">
+                  <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm flex items-center gap-2">
                     <span className="text-muted-foreground">Kind: </span>
-                    {dayAssignedChildren[0].firstName}{" "}
-                    {dayAssignedChildren[0].lastName}
+                    <span>
+                      {dayAssignedChildren[0].firstName}{" "}
+                      {dayAssignedChildren[0].lastName}
+                    </span>
+                    {dayVertretungen.some(
+                      (v) => v.childId === dayAssignedChildren[0].id,
+                    ) && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                        <UserCheck className="size-3" />
+                        Vertretung
+                      </span>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-1.5">
@@ -297,9 +339,15 @@ export function NewEntrySheet({
                             checked={childIds.includes(c.id)}
                             onCheckedChange={() => toggleChild(c.id)}
                           />
-                          <span>
+                          <span className="flex-1">
                             {c.firstName} {c.lastName}
                           </span>
+                          {dayVertretungen.some((v) => v.childId === c.id) && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                              <UserCheck className="size-3" />
+                              Vertretung
+                            </span>
+                          )}
                         </label>
                       ))}
                     </div>

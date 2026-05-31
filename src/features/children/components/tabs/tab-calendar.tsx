@@ -20,6 +20,7 @@ export function TabCalendar({ child, schoolAssistantOptions }: Props) {
       assignments={child.assignments}
       absences={child.absences}
       holidays={child.school?.holidays ?? []}
+      vertretungen={child.vertretungen}
       schoolAssistantOptions={schoolAssistantOptions}
       onChanged={() => router.refresh()}
     />

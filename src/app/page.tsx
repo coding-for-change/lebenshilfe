@@ -3,9 +3,8 @@ import { redirect } from "next/navigation";
 import { isAdmin } from "@/lib/roles";
 import { TimesheetFacade, SchoolAssistantApp } from "@/features/timesheet";
 import { SchoolAssistantsFacade } from "@/features/school-assistants";
-import { ChildrenFacade } from "@/features/children";
-import { SchoolsFacade } from "@/features/schools";
-import { HolidayPlansFacade } from "@/features/holiday-plans";
+import { ChildrenFacade, serializeChild } from "@/features/children";
+import { getAssignedChildrenForUser } from "@/use-cases/get-assigned-children";
 
 export default async function LandingPage() {
   const session = await getSession();
@@ -28,7 +27,11 @@ export default async function LandingPage() {
     Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 2, 1),
   );
 
-  const assignedChildren = await TimesheetFacade.listAssignedChildren(user.id);
+  const assignedChildren = await getAssignedChildrenForUser(
+    user.id,
+    rangeStart,
+    rangeEnd,
+  );
   const childIds = assignedChildren.map((c) => c.id);
 
   const [
@@ -38,7 +41,8 @@ export default async function LandingPage() {
     profile,
     childAbsences,
     assignmentsByWeekday,
-    allSchools,
+    vertretungenAsSubstitute,
+    allChildren,
   ] = await Promise.all([
     TimesheetFacade.getEventsInRange(user.id, rangeStart, rangeEnd),
     TimesheetFacade.getSchedulesForChildren(childIds),
@@ -50,40 +54,34 @@ export default async function LandingPage() {
       rangeEnd,
     ),
     TimesheetFacade.getAssignmentsByWeekday(user.id),
-    SchoolsFacade.list(),
+    ChildrenFacade.listVertretungenForUserAsSubstitute(
+      user.id,
+      rangeStart,
+      rangeEnd,
+    ),
+    ChildrenFacade.list(),
   ]);
 
-  const planBySchool = new Map(
-    allSchools.map((s) => [s.id, s.holidayPlanId] as const),
-  );
-  const planIds = Array.from(
-    new Set(
-      assignedChildren
-        .map((c) => (c.schoolId ? planBySchool.get(c.schoolId) : null))
-        .filter((id): id is string => !!id),
-    ),
-  );
-  const entries = await HolidayPlansFacade.listEntriesForPlanIds(
-    planIds,
-    rangeStart,
-    rangeEnd,
-  );
-  const entriesByPlan = new Map<string, typeof entries>();
-  for (const e of entries) {
-    const list = entriesByPlan.get(e.planId) ?? [];
-    list.push(e);
-    entriesByPlan.set(e.planId, list);
+  // Resolve each assigned child's school holiday-plan ranges so the day view can
+  // show "Heute sind Schulferien" when their school is closed.
+  const holidaysByChildId = new Map<
+    string,
+    { name: string | null; startDate: string; endDate: string }[]
+  >();
+  for (const raw of allChildren) {
+    const c = serializeChild(raw);
+    if (c.school && c.school.holidays.length > 0) {
+      holidaysByChildId.set(c.id, c.school.holidays);
+    }
   }
-  const childSchoolHolidays = assignedChildren.flatMap((c) => {
-    const planId = c.schoolId ? planBySchool.get(c.schoolId) : null;
-    if (!planId) return [];
-    return (entriesByPlan.get(planId) ?? []).map((e) => ({
+  const childSchoolHolidays = assignedChildren.flatMap((c) =>
+    (holidaysByChildId.get(c.id) ?? []).map((h) => ({
       childId: c.id,
-      name: e.name,
-      startDate: e.startDate,
-      endDate: e.endDate,
-    }));
-  });
+      name: h.name,
+      startDate: h.startDate,
+      endDate: h.endDate,
+    })),
+  );
 
   return (
     <SchoolAssistantApp
@@ -92,17 +90,8 @@ export default async function LandingPage() {
         name: profile?.name ?? "",
         email: user.email,
       }}
-      assignedChildren={assignedChildren.map((c) => ({
-        id: c.id,
-        firstName: c.firstName,
-        lastName: c.lastName,
-      }))}
-      events={events.map((e) => ({
-        ...e,
-        child: e.child
-          ? { firstName: e.child.firstName, lastName: e.child.lastName }
-          : null,
-      }))}
+      assignedChildren={assignedChildren}
+      events={events}
       schedules={schedules}
       lockedMonthKeys={lockedMonthKeys}
       childAbsences={childAbsences.map((a) => ({
@@ -112,6 +101,14 @@ export default async function LandingPage() {
       }))}
       assignmentsByWeekday={assignmentsByWeekday}
       childSchoolHolidays={childSchoolHolidays}
+      substituteOn={vertretungenAsSubstitute.map((v) => ({
+        id: v.id,
+        date: v.date.toISOString().slice(0, 10),
+        childId: v.childId,
+        childName: `${v.child.firstName} ${v.child.lastName}`,
+        startTime: v.startTime,
+        endTime: v.endTime,
+      }))}
     />
   );
 }

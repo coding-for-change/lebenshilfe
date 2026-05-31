@@ -6,6 +6,7 @@ import { addDays, isoWeek, MONTHS_SHORT, startOfWeekUtc } from "@/lib/dates";
 import { WeekGrid } from "./week-grid";
 import { ChildrenFilter, type ChildOption } from "./children-filter";
 import type { Event, Schedule } from "@/generated/prisma";
+import type { VertretungDay } from "./timesheet-shell";
 
 type Props = {
   anchorDate: Date;
@@ -20,6 +21,7 @@ type Props = {
     Pick<Event, "id" | "date" | "type" | "startTime" | "endTime" | "childId">
   >;
   schedules: Schedule[];
+  substituteOn?: VertretungDay[];
 };
 
 export function TabWoche({
@@ -33,6 +35,7 @@ export function TabWoche({
   onSelectedChildIdsChange,
   events,
   schedules,
+  substituteOn = [],
 }: Props) {
   const monday = startOfWeekUtc(anchorDate);
   const sunday = addDays(monday, 6);
@@ -99,6 +102,7 @@ export function TabWoche({
         events={events}
         schedules={schedules}
         onSelectDay={onSelectDay}
+        substituteOn={substituteOn}
       />
 
       <p className="text-xs text-muted-foreground">

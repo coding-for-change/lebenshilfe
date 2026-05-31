@@ -11,6 +11,7 @@ import {
 } from "@/lib/dates";
 import type { Event, Schedule } from "@/generated/prisma";
 import type { ChildOption } from "./children-filter";
+import type { VertretungDay } from "./timesheet-shell";
 
 type Props = {
   anchorDate: Date;
@@ -22,6 +23,7 @@ type Props = {
   >;
   schedules: Schedule[];
   onSelectDay: (date: Date) => void;
+  substituteOn?: VertretungDay[];
 };
 
 const START_HOUR = 7;
@@ -44,9 +46,12 @@ export function WeekGrid({
   events,
   schedules,
   onSelectDay,
+  substituteOn = [],
 }: Props) {
   const monday = startOfWeekUtc(anchorDate);
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+
+  const substituteChildIds = new Set(substituteOn.map((v) => v.childId));
 
   const colorFor = (childId: string | null | undefined) => {
     if (!childId) return "bg-rose-500/15 border-rose-400 text-rose-950";
@@ -122,9 +127,11 @@ export function WeekGrid({
         </div>
         {days.map((d, i) => {
           const wd = weekdayIndex(d);
+          const iso = formatIsoDateUtc(d);
           const daySick = events.find(
             (e) => e.type === "SICK" && isSameUtcDay(e.date, d),
           );
+          const dayVertretungen = substituteOn.filter((v) => v.date === iso);
           const dayWork = events.filter(
             (e) =>
               (e.type === "WORK" || e.type === "INDIRECT") &&
@@ -136,7 +143,10 @@ export function WeekGrid({
                 selectedChildIds.includes(e.childId)),
           );
           const daySchedules = schedules.filter(
-            (s) => s.weekday === wd && selectedChildIds.includes(s.childId),
+            (s) =>
+              s.weekday === wd &&
+              selectedChildIds.includes(s.childId) &&
+              !substituteChildIds.has(s.childId),
           );
 
           return (
@@ -158,6 +168,28 @@ export function WeekGrid({
                 </div>
               ) : (
                 <>
+                  {dayVertretungen.map((v) => {
+                    const top = posFromTime(v.startTime);
+                    const blockH =
+                      posFromTime(v.endTime) - posFromTime(v.startTime);
+                    const height = Math.max(blockH, 16);
+                    return (
+                      <div
+                        key={v.id}
+                        className="absolute left-0.5 right-0.5 rounded-md border border-amber-400 bg-amber-500/25 px-1 text-[10px] font-medium leading-tight text-amber-950"
+                        style={{ top, height }}
+                      >
+                        <div className="font-mono tabular-nums">
+                          {v.startTime}–{v.endTime}
+                        </div>
+                        {height >= 26 ? (
+                          <div className="truncate text-[9px] font-semibold opacity-80">
+                            {v.childName}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                   {daySchedules.map((s) => {
                     const top = posFromTime(s.startTime);
                     const h = posFromTime(s.endTime) - posFromTime(s.startTime);

@@ -30,3 +30,9 @@ export function childIdsForDate(
 ): string[] {
   return assignments[weekdayKeyFromDate(date)];
 }
+
+export function weekStartsSundayToWeekStartsMondayDayKeyTranslation(
+  day: number,
+) {
+  return (day + 6) % 7;
+}

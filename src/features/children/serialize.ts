@@ -24,38 +24,22 @@ export type SerializedAbsence = {
   note: string | null;
 };
 
-export type SerializedChildEvent = {
+export type SerializedVertretung = {
+  id: string;
+  substituteUserId: string;
+  substituteUserName: string;
+  date: string; // YYYY-MM-DD
+  startTime: string;
+  endTime: string;
+};
+
+export type SerializedWorkEvent = {
   id: string;
   date: string; // YYYY-MM-DD
   startTime: string | null;
   endTime: string | null;
-  type: "WORK" | "SICK" | "INDIRECT";
-  isSubstitute: boolean;
-  note: string | null;
   userName: string;
 };
-
-export function serializeChildEvent(e: {
-  id: string;
-  date: Date;
-  startTime: string | null;
-  endTime: string | null;
-  type: "WORK" | "SICK" | "INDIRECT";
-  isSubstitute: boolean;
-  note: string | null;
-  user: { name: string };
-}): SerializedChildEvent {
-  return {
-    id: e.id,
-    date: formatIsoDateUtc(e.date),
-    startTime: e.startTime,
-    endTime: e.endTime,
-    type: e.type,
-    isSubstitute: e.isSubstitute,
-    note: e.note,
-    userName: e.user.name,
-  };
-}
 
 export type SerializedCostBearer = {
   id: string;
@@ -82,6 +66,7 @@ export type SerializedChild = {
   assignments: SerializedAssignment[];
   schedules: SerializedSchedule[];
   absences: SerializedAbsence[];
+  vertretungen: SerializedVertretung[];
 };
 
 export function serializeChild(c: ChildWithRelations): SerializedChild {
@@ -126,6 +111,14 @@ export function serializeChild(c: ChildWithRelations): SerializedChild {
       id: a.id,
       date: formatIsoDateUtc(a.date),
       note: a.note,
+    })),
+    vertretungen: c.vertretungen.map((v) => ({
+      id: v.id,
+      substituteUserId: v.substituteUserId,
+      substituteUserName: v.substituteUser.name,
+      date: formatIsoDateUtc(v.date),
+      startTime: v.startTime,
+      endTime: v.endTime,
     })),
   };
 }

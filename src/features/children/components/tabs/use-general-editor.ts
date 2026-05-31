@@ -1,6 +1,6 @@
 "use client";
 
-import { useAutosave } from "@/components/use-autosave";
+import { useDetailEditor } from "@/components/use-detail-editor";
 import { updateChildAction } from "../../actions";
 import type { UpdateChildInput } from "../../schemas";
 import type { SerializedChild } from "../../serialize";
@@ -73,13 +73,14 @@ function diff(
   return Object.keys(patch).length > 0 ? patch : null;
 }
 
-export function useAutosaveGeneral(child: SerializedChild) {
-  return useAutosave({
+export function useGeneralEditor(child: SerializedChild | null) {
+  return useDetailEditor({
     entity: child,
-    entityKey: child.id,
+    entityKey: child?.id,
     toForm: fromChild,
     diff,
     persist: async (patch) => {
+      if (!child) return;
       await updateChildAction(child.id, patch);
     },
   });

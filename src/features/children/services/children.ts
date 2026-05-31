@@ -7,6 +7,7 @@ export type ChildWithRelations = Prisma.ChildGetPayload<{
     assignments: { include: { user: true } };
     schedules: true;
     absences: true;
+    vertretungen: { include: { substituteUser: true } };
   };
 }>;
 
@@ -15,6 +16,7 @@ const childInclude = {
   assignments: { include: { user: true } },
   schedules: true,
   absences: true,
+  vertretungen: { include: { substituteUser: true } },
 } as const;
 
 export async function listChildren(): Promise<ChildWithRelations[]> {

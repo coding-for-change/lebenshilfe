@@ -1,15 +1,16 @@
 import { randomUUID } from "crypto";
 import {
+  ConfirmWorkEventsSchema,
   CreateEventSchema,
   SubmitMonthlyReportSchema,
   UpdateEventSchema,
+  type ConfirmWorkEventsInput,
   type CreateEventInput,
   type SubmitMonthlyReportInput,
   type UpdateEventInput,
 } from "./schemas";
 import {
   assertChildExists,
-  assertChildrenAssignedToUser,
   deleteEventById,
   findEventById,
   findMonthlyReport,
@@ -24,6 +25,7 @@ import {
   insertWorkEvents,
   listMonthlyReportsForUser,
   searchChildrenByName,
+  signWorkEvents,
   updateEventFields,
   uploadSignature,
 } from "./services";
@@ -110,11 +112,6 @@ export const TimesheetFacade = {
 
     if (parsed.type === "WORK") {
       const variant = parsed.workVariant ?? "OWN";
-      if (variant === "SUBSTITUTE") {
-        await assertChildExists(parsed.childIds[0]);
-      } else {
-        await assertChildrenAssignedToUser(userId, parsed.childIds, date);
-      }
       const batchId = randomUUID();
       const signatureKey = `signatures/events/${userId}/${batchId}.png`;
       await uploadSignature(signatureKey, parsed.signaturePngBase64);
@@ -233,5 +230,19 @@ export const TimesheetFacade = {
       supervisorName: parsed.supervisorName,
       supervisorSignatureKey: key,
     });
+  },
+
+  // The Schulbegleiter confirms admin-created/edited entries with a fresh
+  // signature. One signature is stored and attached to every confirmed entry.
+  async confirmWorkEvents(userId: string, input: ConfirmWorkEventsInput) {
+    const parsed = ConfirmWorkEventsSchema.parse(input);
+    const signatureKey = `signatures/events/${userId}/confirm-${randomUUID()}.png`;
+    await uploadSignature(signatureKey, parsed.signaturePngBase64);
+    const { count } = await signWorkEvents(
+      userId,
+      parsed.eventIds,
+      signatureKey,
+    );
+    return { confirmedCount: count };
   },
 };

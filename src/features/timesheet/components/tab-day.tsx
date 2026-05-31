@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Clock, Lock, Plus, Stethoscope } from "lucide-react";
+import { Clock, Lock, Plus, Stethoscope, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import { WeekStrip } from "./week-strip";
 import { deleteEventAction } from "../actions";
 import type { Event, Schedule } from "@/generated/prisma";
 import type { ChildOption } from "./children-filter";
-import type { ChildAbsenceItem } from "./timesheet-shell";
+import type { ChildAbsenceItem, VertretungDay } from "./timesheet-shell";
 
 type EventWithChild = Event & {
   child: { firstName: string; lastName: string } | null;
@@ -33,6 +33,7 @@ type Props = {
   assignedChildren: ChildOption[];
   childAbsences: ChildAbsenceItem[];
   schedules: Schedule[];
+  substituteOn?: VertretungDay[];
 };
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -47,6 +48,7 @@ export function TabDay({
   assignedChildren,
   childAbsences,
   schedules,
+  substituteOn = [],
 }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -74,15 +76,66 @@ export function TabDay({
       .filter((a): a is ChildAbsenceItem & { child: ChildOption } => !!a.child);
   }, [childAbsences, selectedDateIso, childById]);
 
+  const substituteChildIds = useMemo(
+    () => new Set(substituteOn.map((v) => v.childId)),
+    [substituteOn],
+  );
+
   const daySchedules = useMemo(() => {
-    // Convert UTC weekday (0=Sun..6=Sat) to Mon=0..Sun=6.
     const weekday = (selectedDate.getUTCDay() + 6) % 7;
+    const todaySubstituteChildIds = new Set(
+      substituteOn
+        .filter((v) => v.date === selectedDateIso)
+        .map((v) => v.childId),
+    );
     return schedules
-      .filter((s) => s.weekday === weekday)
+      .filter((s) => {
+        if (s.weekday !== weekday) return false;
+        if (substituteChildIds.has(s.childId)) {
+          return todaySubstituteChildIds.has(s.childId);
+        }
+        return true;
+      })
       .map((s) => ({ ...s, child: childById.get(s.childId) }))
       .filter((s): s is Schedule & { child: ChildOption } => !!s.child)
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
-  }, [schedules, selectedDate, childById]);
+  }, [
+    schedules,
+    selectedDate,
+    selectedDateIso,
+    childById,
+    substituteChildIds,
+    substituteOn,
+  ]);
+
+  const dayVertretungenGrouped = useMemo(() => {
+    const blocks = substituteOn.filter((v) => v.date === selectedDateIso);
+    const map = new Map<
+      string,
+      {
+        childId: string;
+        childName: string;
+        timeBlocks: { startTime: string; endTime: string }[];
+      }
+    >();
+    for (const v of blocks) {
+      if (!map.has(v.childId)) {
+        map.set(v.childId, {
+          childId: v.childId,
+          childName: v.childName,
+          timeBlocks: [],
+        });
+      }
+      map
+        .get(v.childId)!
+        .timeBlocks.push({ startTime: v.startTime, endTime: v.endTime });
+    }
+    for (const entry of map.values()) {
+      entry.timeBlocks.sort((a, b) => a.startTime.localeCompare(b.startTime));
+    }
+    return Array.from(map.values());
+  }, [substituteOn, selectedDateIso]);
+
   const sickEvent = dayEvents.find((e) => e.type === "SICK");
   const workEvents = dayEvents.filter(
     (e) => e.type === "WORK" || e.type === "INDIRECT",
@@ -218,6 +271,28 @@ export function TabDay({
         </Card>
       )}
 
+      {dayVertretungenGrouped.map((g) => (
+        <Card
+          key={g.childId}
+          className="border-amber-200 bg-amber-500/5 p-4"
+        >
+          <div className="flex items-start gap-3">
+            <div className="grid place-items-center size-10 shrink-0 rounded-full bg-amber-500/15 text-amber-700">
+              <UserCheck className="size-5" />
+            </div>
+            <div className="flex-1 space-y-0.5">
+              <p className="font-semibold text-amber-900">Vertretung</p>
+              <p className="text-sm text-amber-900/80">{g.childName}</p>
+              <p className="font-mono text-xs text-amber-700">
+                {g.timeBlocks
+                  .map((b) => `${b.startTime}–${b.endTime}`)
+                  .join(", ")}
+              </p>
+            </div>
+          </div>
+        </Card>
+      ))}
+
       {sickEvent && (
         <Card className="border-rose-200 bg-rose-500/10 p-4">
           <div className="flex items-center gap-3">
@@ -253,7 +328,6 @@ export function TabDay({
                 ? formatDuration(ev.startTime, ev.endTime)
                 : "";
             const isIndirect = ev.type === "INDIRECT";
-            const isSubstitute = ev.isSubstitute;
             const title = isIndirect
               ? child
                 ? `Indirekt — ${child.firstName} ${child.lastName}`
@@ -276,23 +350,23 @@ export function TabDay({
                       >
                         {dur}
                       </Badge>
-                      {isSubstitute && (
-                        <Badge className="bg-red-500/15 text-red-700 border-red-500/30 dark:text-red-300">
-                          Einspringen
+                      {ev.signatureKey ? (
+                        <Badge
+                          variant="outline"
+                          className="border-emerald-200 text-emerald-700"
+                        >
+                          Signiert
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-200 text-amber-700"
+                        >
+                          Bestätigung ausstehend
                         </Badge>
                       )}
-                      {isIndirect && (
-                        <Badge className="bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-300">
-                          Indirekt
-                        </Badge>
-                      )}
-                      <Badge
-                        variant="outline"
-                        className="border-emerald-200 text-emerald-700"
-                      >
-                        Signiert
-                      </Badge>
-                      {assignedChildren.length > 1 &&
+                      {ev.signatureKey &&
+                        assignedChildren.length > 1 &&
                         workEvents.filter(
                           (w) =>
                             w.signatureKey === ev.signatureKey &&

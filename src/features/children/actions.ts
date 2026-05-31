@@ -9,6 +9,10 @@ import type {
   CreateChildInput,
   ScheduleInput,
   UpdateChildInput,
+  UpdateVertretungInput,
+  VertretungInput,
+  WorkEventInput,
+  UpdateWorkEventInput,
 } from "./schemas";
 
 const ROUTE = "/admin/children";
@@ -114,5 +118,85 @@ export async function listWorkEventsForChildAction(childId: string) {
     type: e.type as "WORK" | "SICK" | "INDIRECT",
     isSubstitute: e.isSubstitute,
     userName: e.user.name,
+    userId: e.userId,
+    deleted: e.deleted,
+    signed: !!e.signatureKey,
   }));
+}
+
+export async function createWorkEventAsAdminAction(input: WorkEventInput) {
+  await requireAdmin();
+  await ChildrenFacade.createWorkEventAsAdmin(input);
+  revalidatePath(ROUTE);
+  return { success: true as const };
+}
+
+export async function updateWorkEventAsAdminAction(
+  id: string,
+  input: UpdateWorkEventInput,
+) {
+  await requireAdmin();
+  await ChildrenFacade.updateWorkEventAsAdmin(id, input);
+  revalidatePath(ROUTE);
+  return { success: true as const };
+}
+
+export async function deleteWorkEventAsAdminAction(id: string) {
+  await requireAdmin();
+  await ChildrenFacade.deleteWorkEventAsAdmin(id);
+  revalidatePath(ROUTE);
+  return { success: true as const };
+}
+
+export async function restoreWorkEventAsAdminAction(id: string) {
+  await requireAdmin();
+  await ChildrenFacade.restoreWorkEventAsAdmin(id);
+  revalidatePath(ROUTE);
+  return { success: true as const };
+}
+
+export async function listWorkEventsForChildInRangeAction(
+  childId: string,
+  weekStart: string,
+) {
+  await requireAdmin();
+  const from = new Date(`${weekStart}T00:00:00.000Z`);
+  const to = new Date(from.getTime() + 6 * 24 * 60 * 60 * 1000);
+  const events = await ChildrenFacade.listWorkEventsForChildInRange(
+    childId,
+    from,
+    to,
+  );
+  return events.map((e) => ({
+    id: e.id,
+    date: e.date.toISOString().slice(0, 10),
+    startTime: e.startTime,
+    endTime: e.endTime,
+    userName: e.user.name,
+  }));
+}
+
+export async function createVertretungAction(input: VertretungInput) {
+  await requireAdmin();
+  await ChildrenFacade.createVertretung(input);
+  revalidatePath(ROUTE);
+  return { success: true as const };
+}
+
+export async function updateVertretungAction(
+  childId: string,
+  date: string,
+  input: UpdateVertretungInput,
+) {
+  await requireAdmin();
+  await ChildrenFacade.updateVertretung(childId, date, input);
+  revalidatePath(ROUTE);
+  return { success: true as const };
+}
+
+export async function deleteVertretungAction(childId: string, date: string) {
+  await requireAdmin();
+  await ChildrenFacade.deleteVertretung(childId, date);
+  revalidatePath(ROUTE);
+  return { success: true as const };
 }

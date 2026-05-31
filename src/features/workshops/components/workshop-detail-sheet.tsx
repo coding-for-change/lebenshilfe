@@ -1,12 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { DetailSheet } from "@/components/detail-sheet";
+import { UnsavedChangesDialog } from "@/components/unsaved-changes-dialog";
+import { Button } from "@/components/ui/button";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useAutosave } from "@/components/use-autosave";
+import { useDetailEditor } from "@/components/use-detail-editor";
 import { updateWorkshopAction } from "../actions";
 import type { UpdateWorkshopInput } from "../schemas";
+
+const FORM_ID = "workshop-detail-form";
 
 type WorkshopValue = {
   id: string;
@@ -42,36 +47,90 @@ type Props = {
 };
 
 export function WorkshopDetailSheet({ workshop, open, onOpenChange }: Props) {
-  return (
-    <DetailSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      title={workshop?.name ?? ""}
-      description="Name und Kurzbeschreibung des Workshops."
-    >
-      {workshop ? (
-        <DetailBody
-          key={workshop.id}
-          workshop={workshop}
-        />
-      ) : null}
-    </DetailSheet>
-  );
-}
-
-function DetailBody({ workshop }: { workshop: WorkshopValue }) {
-  const { form, update } = useAutosave({
+  const editor = useDetailEditor({
     entity: workshop,
-    entityKey: workshop.id,
+    entityKey: workshop?.id,
     toForm: fromWorkshop,
     diff,
     persist: async (patch) => {
+      if (!workshop) return;
       await updateWorkshopAction(workshop.id, patch);
     },
   });
+  const [askSave, setAskSave] = useState(false);
+
+  function requestClose() {
+    if (editor.dirty) setAskSave(true);
+    else onOpenChange(false);
+  }
 
   return (
-    <div className="flex flex-col gap-5">
+    <>
+      <DetailSheet
+        open={open}
+        onOpenChange={(next) => {
+          if (!next) requestClose();
+        }}
+        title={workshop?.name ?? ""}
+        description="Name und Kurzbeschreibung des Workshops."
+        footer={
+          workshop ? (
+            <Button
+              type="submit"
+              form={FORM_ID}
+              disabled={!editor.dirty || editor.saving}
+            >
+              {editor.saving ? "Speichern…" : "Speichern"}
+            </Button>
+          ) : null
+        }
+      >
+        {workshop && editor.form ? (
+          <WorkshopFields
+            key={workshop.id}
+            form={editor.form}
+            update={editor.update}
+            onSubmit={editor.save}
+          />
+        ) : null}
+      </DetailSheet>
+
+      <UnsavedChangesDialog
+        open={askSave}
+        onOpenChange={setAskSave}
+        onSave={async () => {
+          if (await editor.save()) {
+            setAskSave(false);
+            onOpenChange(false);
+          }
+        }}
+        onDiscard={() => {
+          setAskSave(false);
+          onOpenChange(false);
+        }}
+      />
+    </>
+  );
+}
+
+function WorkshopFields({
+  form,
+  update,
+  onSubmit,
+}: {
+  form: FormState;
+  update: (patch: Partial<FormState>) => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <form
+      id={FORM_ID}
+      className="flex flex-col gap-5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+    >
       <Field>
         <FieldLabel htmlFor="workshop-det-name">
           <FieldContent>
@@ -103,6 +162,6 @@ function DetailBody({ workshop }: { workshop: WorkshopValue }) {
           placeholder="Kurzbeschreibung…"
         />
       </Field>
-    </div>
+    </form>
   );
 }

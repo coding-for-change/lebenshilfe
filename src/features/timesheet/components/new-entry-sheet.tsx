@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, FileText, Stethoscope, UserPlus } from "lucide-react";
+import { Briefcase, Stethoscope, UserCheck } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -31,6 +31,7 @@ import {
 import type { ChildOption } from "./children-filter";
 import { childIdsForDate, type AssignmentsByWeekday } from "../weekday";
 import { cn, formatIsoDateUtc } from "@/lib/utils";
+import type { VertretungDay } from "./timesheet-shell";
 
 type WorkVariant = "OWN" | "SUBSTITUTE" | "INDIRECT";
 
@@ -61,6 +62,8 @@ type Props = {
   currentUserName: string;
   schedules: Schedule[];
   lastEntry: LastEntry | null;
+  /** Vertretung days for the current user — so substitute children appear in the form. */
+  substituteOn?: VertretungDay[];
 };
 
 function addMinutes(time: string, minutes: number): string {
@@ -82,6 +85,7 @@ export function NewEntrySheet({
   currentUserName,
   schedules,
   lastEntry,
+  substituteOn = [],
 }: Props) {
   const [type, setType] = useState<EventType>(EventType.WORK);
   const [workVariant, setWorkVariant] = useState<WorkVariant>("OWN");
@@ -91,12 +95,23 @@ export function NewEntrySheet({
   const [note, setNote] = useState("");
   const [otherChild, setOtherChild] = useState<SearchChildOption | null>(null);
 
+  // Vertretungen for the currently selected date
+  const dayVertretungen = useMemo(
+    () => substituteOn.filter((v) => v.date === date),
+    [substituteOn, date],
+  );
+
   const dayAssignedChildren = useMemo(() => {
-    const allowed = childIdsForDate(assignmentsByWeekday, parseIsoDate(date));
-    if (allowed.length === 0) return [] as ChildOption[];
-    const allowedSet = new Set(allowed);
-    return assignedChildren.filter((c) => allowedSet.has(c.id));
-  }, [date, assignmentsByWeekday, assignedChildren]);
+    // Regular weekday-based assignments
+    const regularIds = new Set(
+      childIdsForDate(assignmentsByWeekday, parseIsoDate(date)),
+    );
+    // Date-specific Vertretung children
+    for (const v of dayVertretungen) regularIds.add(v.childId);
+
+    if (regularIds.size === 0) return [] as ChildOption[];
+    return assignedChildren.filter((c) => regularIds.has(c.id));
+  }, [date, assignmentsByWeekday, assignedChildren, dayVertretungen]);
 
   const [childIds, setChildIds] = useState<string[]>(
     dayAssignedChildren.length === 1 ? [dayAssignedChildren[0].id] : [],
@@ -176,6 +191,16 @@ export function NewEntrySheet({
       out.push(slot);
     };
 
+    // Vertretung time slot(s) — shown first so the substitute can quickly confirm
+    for (const v of dayVertretungen) {
+      push({
+        key: `vertretung-${v.childId}`,
+        label: `Vertretung (${v.childName.split(" ")[0]})`,
+        start: v.startTime,
+        end: v.endTime,
+      });
+    }
+
     const wd = weekdayIndex(parseIsoDate(date));
     const relevantChildIds =
       childIds.length > 0 ? childIds : dayAssignedChildren.map((c) => c.id);
@@ -213,7 +238,14 @@ export function NewEntrySheet({
     }
 
     return out;
-  }, [date, schedules, dayAssignedChildren, childIds, lastEntry]);
+  }, [
+    date,
+    schedules,
+    dayAssignedChildren,
+    childIds,
+    lastEntry,
+    dayVertretungen,
+  ]);
 
   const submitWithSignature = async (pngBase64: string) => {
     setSubmitting(true);
@@ -342,73 +374,55 @@ export function NewEntrySheet({
 
             {type === EventType.WORK && (
               <>
-                <div className="grid grid-cols-3 gap-1.5">
-                  <Button
-                    type="button"
-                    variant={workVariant === "OWN" ? "default" : "outline"}
-                    onClick={() => setWorkVariant("OWN")}
-                    className="h-10 text-xs sm:text-sm"
-                  >
-                    <Briefcase className="size-3.5" /> Eigenes Kind
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={
-                      workVariant === "SUBSTITUTE" ? "default" : "outline"
-                    }
-                    onClick={() => setWorkVariant("SUBSTITUTE")}
-                    className="h-10 text-xs sm:text-sm"
-                  >
-                    <UserPlus className="size-3.5" /> Einspringen
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={workVariant === "INDIRECT" ? "default" : "outline"}
-                    onClick={() => setWorkVariant("INDIRECT")}
-                    className="h-10 text-xs sm:text-sm"
-                  >
-                    <FileText className="size-3.5" /> Indirekt
-                  </Button>
-                </div>
-
-                {workVariant === "OWN" &&
-                  (dayAssignedChildren.length === 0 ? (
-                    <p className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
-                      An diesem Tag ist dir kein Kind zugewiesen.
-                    </p>
-                  ) : dayAssignedChildren.length === 1 ? (
-                    <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm">
-                      <span className="text-muted-foreground">Kind: </span>
+                {dayAssignedChildren.length === 0 ? (
+                  <p className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+                    An diesem Tag ist dir kein Kind zugewiesen.
+                  </p>
+                ) : dayAssignedChildren.length === 1 ? (
+                  <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm flex items-center gap-2">
+                    <span className="text-muted-foreground">Kind: </span>
+                    <span>
                       {dayAssignedChildren[0].firstName}{" "}
                       {dayAssignedChildren[0].lastName}
-                    </div>
-                  ) : (
-                    <div className="space-y-1.5">
-                      <Label>Kinder</Label>
-                      <div className="space-y-1 rounded-lg border border-border p-2">
-                        {dayAssignedChildren.map((c) => (
-                          <label
-                            key={c.id}
-                            htmlFor={`child-${c.id}`}
-                            className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
-                          >
-                            <Checkbox
-                              id={`child-${c.id}`}
-                              checked={childIds.includes(c.id)}
-                              onCheckedChange={() => toggleChild(c.id)}
-                            />
-                            <span>
-                              {c.firstName} {c.lastName}
+                    </span>
+                    {dayVertretungen.some(
+                      (v) => v.childId === dayAssignedChildren[0].id,
+                    ) && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                        <UserCheck className="size-3" />
+                        Vertretung
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <Label>Kinder</Label>
+                    <div className="space-y-1 rounded-lg border border-border p-2">
+                      {dayAssignedChildren.map((c) => (
+                        <label
+                          key={c.id}
+                          htmlFor={`child-${c.id}`}
+                          className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+                        >
+                          <Checkbox
+                            id={`child-${c.id}`}
+                            checked={childIds.includes(c.id)}
+                            onCheckedChange={() => toggleChild(c.id)}
+                          />
+                          <span className="flex-1">
+                            {c.firstName} {c.lastName}
+                          </span>
+                          {dayVertretungen.some((v) => v.childId === c.id) && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                              <UserCheck className="size-3" />
+                              Vertretung
                             </span>
-                          </label>
-                        ))}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Der Eintrag wird für jedes ausgewählte Kind separat
-                        gespeichert — mit derselben Unterschrift.
-                      </p>
+                          )}
+                        </label>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+                )}
 
                 {workVariant === "SUBSTITUTE" && (
                   <div className="space-y-1.5">

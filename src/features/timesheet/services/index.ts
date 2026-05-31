@@ -9,8 +9,7 @@ import {
 
 export async function getAssignedChildren(userId: string) {
   // A Schulbegleiter can have multiple ChildAssignment rows for the same
-  // child (one per weekday after the cod-14 schema change), so we dedupe
-  // by child id before returning.
+  // child (one per weekday), so we dedupe by child id before returning.
   const rows = await prisma.childAssignment.findMany({
     where: { userId },
     include: { child: true },
@@ -49,24 +48,6 @@ export async function getAssignmentsByWeekday(
   return result;
 }
 
-// Authorization guard: ensures every child the caller wants to log work for
-// is actually assigned to their account. Prevents a client from submitting
-// timesheet entries against a child they do not own.
-export async function assertChildrenAssignedToUser(
-  userId: string,
-  childIds: string[],
-  date: Date,
-) {
-  if (childIds.length === 0) return;
-  const day = date.getDay() - 1; //0 indexed
-  const count = await prisma.childAssignment.count({
-    where: { userId, childId: { in: childIds }, weekday: day },
-  });
-  if (count !== childIds.length) {
-    throw new Error("Ein Kind ist diesem Konto nicht zugewiesen.");
-  }
-}
-
 export async function getSchedulesForChildren(childIds: string[]) {
   if (childIds.length === 0) return [];
   return prisma.schedule.findMany({
@@ -81,7 +62,7 @@ export async function getEventsForUserInRange(
   endExclusive: Date,
 ) {
   return prisma.event.findMany({
-    where: { userId, date: { gte: start, lt: endExclusive } },
+    where: { userId, deleted: false, date: { gte: start, lt: endExclusive } },
     include: {
       child: { select: { id: true, firstName: true, lastName: true } },
     },
@@ -217,6 +198,23 @@ export async function getEventsForChildInRange(
 
 export async function findEventById(id: string) {
   return prisma.event.findUnique({ where: { id } });
+}
+
+export async function signWorkEvents(
+  userId: string,
+  eventIds: string[],
+  signatureKey: string,
+) {
+  return prisma.event.updateMany({
+    where: {
+      id: { in: eventIds },
+      userId,
+      type: EventType.WORK,
+      signatureKey: null,
+      deleted: false,
+    },
+    data: { signatureKey },
+  });
 }
 
 export async function updateEventFields(

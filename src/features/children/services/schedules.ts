@@ -32,5 +32,5 @@ export async function updateSchedule(
 }
 
 export async function deleteScheduleById(id: string) {
-  await prisma.schedule.delete({ where: { id } });
+  return prisma.schedule.delete({ where: { id } });
 }

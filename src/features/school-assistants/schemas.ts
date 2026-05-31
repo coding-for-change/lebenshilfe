@@ -11,18 +11,30 @@ export const WorkshopSelectionSchema = z.object({
 
 export type WorkshopSelectionInput = z.infer<typeof WorkshopSelectionSchema>;
 
+// Canonical profile fields — deliberately WITHOUT `.default()`. A `.default()`
+// survives `.partial()` in Zod, so a partial update parse would silently
+// inject `false`/`[]` for untouched fields and overwrite stored data. Defaults
+// belong only on the create-specific schema below.
 const profileFieldsSchema = z.object({
-  leosOne: z.boolean().default(false),
-  outlook: z.boolean().default(false),
+  leosOne: z.boolean(),
+  outlook: z.boolean(),
   weeklyHours: z
     .number()
     .min(0, "Stunden dürfen nicht negativ sein.")
     .max(168, "Maximal 168 Stunden pro Woche.")
     .nullable()
     .optional(),
-  zvNeuNachBescheid: z.boolean().default(false),
+  zvNeuNachBescheid: z.boolean(),
   zvNeuNote: z.string().max(2000, "Notiz ist zu lang.").nullable().optional(),
   introductionDay: dateStringSchema.nullable().optional(),
+  workshops: z.array(WorkshopSelectionSchema),
+});
+
+// Create accepts omitted booleans/workshops by falling back to defaults.
+const profileFieldsCreateSchema = profileFieldsSchema.extend({
+  leosOne: z.boolean().default(false),
+  outlook: z.boolean().default(false),
+  zvNeuNachBescheid: z.boolean().default(false),
   workshops: z.array(WorkshopSelectionSchema).default([]),
 });
 
@@ -45,7 +57,7 @@ const sharedRefinement = (
 };
 
 export const CreateSchulbegleiterSchema = stammdatenSchema
-  .merge(profileFieldsSchema)
+  .merge(profileFieldsCreateSchema)
   .superRefine(sharedRefinement);
 
 export type CreateSchoolAssistantInput = z.infer<
@@ -63,7 +75,7 @@ export type UpdateSchoolAssistantInput = z.infer<
 >;
 
 export const BasicInfoStepSchema = stammdatenSchema;
-export const VertragStepSchema = profileFieldsSchema
+export const VertragStepSchema = profileFieldsCreateSchema
   .pick({
     leosOne: true,
     outlook: true,
@@ -73,6 +85,6 @@ export const VertragStepSchema = profileFieldsSchema
     introductionDay: true,
   })
   .superRefine(sharedRefinement);
-export const WorkshopsStepSchema = profileFieldsSchema.pick({
+export const WorkshopsStepSchema = profileFieldsCreateSchema.pick({
   workshops: true,
 });

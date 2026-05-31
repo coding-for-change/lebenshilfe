@@ -36,6 +36,7 @@ import { TabDay } from "./tab-day";
 import { TabWoche } from "./tab-woche";
 import { TabMonat } from "./tab-monat";
 import { SettingsDialog } from "./settings-dialog";
+import { ConfirmChangesDialog } from "./confirm-changes-dialog";
 import { startOfDayUtc } from "@/lib/dates";
 import type { ChildOption } from "./children-filter";
 import type { ChildAbsence, Event, Schedule } from "@/generated/prisma";
@@ -50,6 +51,15 @@ export type ChildAbsenceItem = Pick<ChildAbsence, "childId" | "note"> & {
   date: string;
 };
 
+export type VertretungDay = {
+  id: string;
+  date: string; // YYYY-MM-DD
+  childId: string;
+  childName: string;
+  startTime: string;
+  endTime: string;
+};
+
 type Props = {
   currentUser: { id: string; name: string; email: string };
   assignedChildren: ChildOption[];
@@ -58,6 +68,8 @@ type Props = {
   lockedMonthKeys: string[];
   childAbsences: ChildAbsenceItem[];
   assignmentsByWeekday: AssignmentsByWeekday;
+  /** Days this user steps in as substitute Schulbegleiter. */
+  substituteOn?: VertretungDay[];
 };
 
 const NAV_ITEMS: Array<{
@@ -88,6 +100,7 @@ export function SchoolAssistantApp({
   lockedMonthKeys,
   childAbsences,
   assignmentsByWeekday,
+  substituteOn = [],
 }: Props) {
   const today = useMemo(() => startOfDayUtc(new Date()), []);
   const [activeTab, setActiveTab] = useState<Exclude<TabId, "mehr">>("tag");
@@ -101,6 +114,7 @@ export function SchoolAssistantApp({
     assignedChildren.map((c) => c.id),
   );
   const [newEntryOpen, setNewEntryOpen] = useState(false);
+  const [confirmDismissed, setConfirmDismissed] = useState(false);
 
   const lockedMonths = useMemo(
     () => new Set(lockedMonthKeys),
@@ -133,6 +147,14 @@ export function SchoolAssistantApp({
     return sorted[0];
   }, [events]);
 
+  // Work entries an admin created or edited on the Schulbegleiter's behalf are
+  // stored without a signatureKey. They await the Schulbegleiter's confirming
+  // signature (soft-deleted originals are already filtered server-side).
+  const unconfirmedWorkEvents = useMemo(
+    () => events.filter((e) => e.type === "WORK" && !e.signatureKey),
+    [events],
+  );
+
   const greeting = useMemo(() => greet(currentUser.name), [currentUser.name]);
 
   const activeNav = NAV_ITEMS.find((n) => n.id === activeTab);
@@ -151,6 +173,7 @@ export function SchoolAssistantApp({
             assignedChildren={assignedChildren}
             childAbsences={childAbsences}
             schedules={schedules}
+            substituteOn={substituteOn}
           />
         );
       case "woche":
@@ -166,6 +189,7 @@ export function SchoolAssistantApp({
             onSelectedChildIdsChange={setSelectedChildIds}
             events={events}
             schedules={schedules}
+            substituteOn={substituteOn}
           />
         );
       case "monat":
@@ -178,6 +202,7 @@ export function SchoolAssistantApp({
             onSelectDay={jumpToDay}
             events={events}
             lockedMonths={lockedMonths}
+            substituteOn={substituteOn}
           />
         );
     }
@@ -340,6 +365,7 @@ export function SchoolAssistantApp({
           assignmentsByWeekday={assignmentsByWeekday}
           currentUserName={currentUser.name}
           schedules={schedules}
+          substituteOn={substituteOn}
           lastEntry={
             lastWorkEntry
               ? {
@@ -355,6 +381,21 @@ export function SchoolAssistantApp({
           onOpenChange={setSettingsOpen}
           name={currentUser.name}
           email={currentUser.email}
+        />
+
+        <ConfirmChangesDialog
+          open={unconfirmedWorkEvents.length > 0 && !confirmDismissed}
+          onLater={() => setConfirmDismissed(true)}
+          onConfirmed={() => setConfirmDismissed(true)}
+          events={unconfirmedWorkEvents.map((e) => ({
+            id: e.id,
+            date: e.date,
+            startTime: e.startTime,
+            endTime: e.endTime,
+            note: e.note,
+            child: e.child,
+          }))}
+          signerLabel={currentUser.name}
         />
 
         <Toaster

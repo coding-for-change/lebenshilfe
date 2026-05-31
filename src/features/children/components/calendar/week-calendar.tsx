@@ -29,12 +29,13 @@ import {
 import { formatIsoDateLocal } from "@/lib/utils";
 import { EventCreateForm } from "./event-create-dialog";
 import { EventBlock } from "./event-block";
+import { ScheduleEinsatzBlock } from "./schedule-einsatz-block";
 import { DayQuickAddSection } from "./day-quick-add";
 import {
   deleteAbsenceAction,
   deleteAssignmentAction,
   deleteScheduleAction,
-  listWorkEventsForChildAction,
+  listWorkEventsForChildInRangeAction,
   updateAssignmentAction,
   updateScheduleAction,
 } from "../../actions";
@@ -42,11 +43,9 @@ import type {
   SerializedAbsence,
   SerializedAssignment,
   SerializedSchedule,
+  SerializedVertretung,
+  SerializedWorkEvent,
 } from "../../serialize";
-
-type ChildEventRow = Awaited<
-  ReturnType<typeof listWorkEventsForChildAction>
->[number];
 
 type SchoolAssistantOption = { id: string; name: string };
 
@@ -56,6 +55,7 @@ type Props = {
   schedules: SerializedSchedule[];
   assignments: SerializedAssignment[];
   absences: SerializedAbsence[];
+  vertretungen: SerializedVertretung[];
   schoolAssistantOptions: SchoolAssistantOption[];
   onChanged: () => void;
 };
@@ -68,18 +68,12 @@ type DragState = {
 
 export type EventKind = "schedule" | "assignment" | "absence";
 
-// Static legend in the toolbar — the segmented kind-picker is gone now that
-// only Stundenplan is created via drag in the hour grid; Zuweisung +
-// Krankheit are added per day from the header's "+" button. Termine/Events
-// (work / einspringen / indirekt) are read-only here and originate from the
-// Schulbegleiter timesheet flow.
 const LEGEND_ITEMS: { label: string; swatch: string }[] = [
   { label: "Stundenplan", swatch: "bg-sky-500" },
   { label: "Zuweisung", swatch: "bg-primary/70" },
+  { label: "Vertretung", swatch: "bg-amber-500/70" },
   { label: "Krankheit", swatch: "bg-red-500/70" },
-  { label: "Arbeit", swatch: "bg-emerald-500/70" },
-  { label: "Einspringen", swatch: "bg-red-500 ring-1 ring-red-700" },
-  { label: "Indirekt", swatch: "bg-amber-500/70" },
+  { label: "Einsatz überschreitet", swatch: "bg-red-500" },
 ];
 
 const HOURS = Array.from(
@@ -93,36 +87,36 @@ export function KinderWeekCalendar({
   schedules,
   assignments,
   absences,
+  vertretungen,
   schoolAssistantOptions,
   onChanged,
 }: Props) {
   const [weekStart, setWeekStart] = useState<Date>(() =>
     startOfWeekMonday(new Date()),
   );
+  const [workEvents, setWorkEvents] = useState<SerializedWorkEvent[]>([]);
   const [drag, setDrag] = useState<DragState>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
-  const [childEvents, setChildEvents] = useState<ChildEventRow[]>([]);
 
-  // Termine/Events for this child are fetched once per childId and refreshed
-  // whenever `onChanged` is called from outside (after edits). The hour grid
-  // filters them by the visible week below.
   useEffect(() => {
-    let cancelled = false;
-    listWorkEventsForChildAction(childId)
-      .then((rows) => {
-        if (!cancelled) setChildEvents(rows);
-      })
-      .catch(() => {
-        if (!cancelled) setChildEvents([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [childId]);
+    const weekStartIso = formatIsoDateLocal(weekStart);
+    listWorkEventsForChildInRangeAction(childId, weekStartIso)
+      .then(setWorkEvents)
+      .catch(() => setWorkEvents([]));
+  }, [childId, weekStart]);
 
-  // Hour grid stacks schedules (recurring weekly) with Termine that fall
-  // within the visible week. Assignments and absences remain in day chips.
+  const workEventsByDate = useMemo(() => {
+    const map = new Map<string, SerializedWorkEvent[]>();
+    for (const e of workEvents) {
+      if (!map.has(e.date)) map.set(e.date, []);
+      map.get(e.date)!.push(e);
+    }
+    return map;
+  }, [workEvents]);
+
+  // Hour grid is schedules only — assignments and absences are whole-day
+  // and live in the day-header chips, not the time grid.
   const stacked = useMemo(() => {
     const stackable: CalendarEvent[] = schedules.map((s) => ({
       layer: "schedule",
@@ -133,49 +127,20 @@ export function KinderWeekCalendar({
       label: "Stundenplan",
       sublabel: `${s.startTime}–${s.endTime}`,
     }));
-
-    const weekFrom = weekStart;
-    const weekTo = addDays(weekStart, 7);
-    for (const ev of childEvents) {
-      if (!ev.startTime || !ev.endTime) continue; // skip full-day SICK; not relevant here
-      const d = new Date(`${ev.date}T00:00:00`);
-      if (d < weekFrom || d >= weekTo) continue;
-      const wd = (d.getDay() + 6) % 7;
-      const kind = ev.isSubstitute
-        ? "substitute"
-        : ev.type === "INDIRECT"
-          ? "indirect"
-          : "work";
-      const label =
-        kind === "substitute"
-          ? "Einspringen"
-          : kind === "indirect"
-            ? "Indirekt"
-            : "Arbeit";
-      stackable.push({
-        layer: "event",
-        kind,
-        weekday: wd,
-        startHour: clampHours(parseTime(ev.startTime)),
-        endHour: clampHours(parseTime(ev.endTime)),
-        id: ev.id,
-        label,
-        sublabel: ev.note ? `${ev.userName} · ${ev.note}` : ev.userName,
-      });
-    }
-
     return packEvents(stackable);
-  }, [schedules, childEvents, weekStart]);
+  }, [schedules]);
 
   // Map absence date → entry, restricted to the visible week.
+  // Use ISO string comparison (YYYY-MM-DD) to avoid local-vs-UTC timezone
+  // issues: addDays uses raw ms (local midnight), but stored dates are UTC.
   const absencesByWeekday = useMemo(() => {
     const map = new Map<number, SerializedAbsence>();
-    const weekFrom = weekStart;
-    const weekTo = addDays(weekStart, 6);
+    const isoFrom = formatIsoDateLocal(weekStart);
+    const isoTo = formatIsoDateLocal(addDays(weekStart, 6));
     for (const ab of absences) {
-      const d = new Date(`${ab.date}T00:00:00`);
-      if (d < weekFrom || d > weekTo) continue;
-      const wd = (d.getDay() + 6) % 7;
+      if (ab.date < isoFrom || ab.date > isoTo) continue;
+      // Parse as UTC to get the correct weekday.
+      const wd = (new Date(ab.date).getUTCDay() + 6) % 7;
       map.set(wd, ab);
     }
     return map;
@@ -189,6 +154,21 @@ export function KinderWeekCalendar({
     }
     return map;
   }, [assignments]);
+
+  // Map ISO date string → vertretungen for that date (restricted to visible week).
+  // Use ISO string comparison (YYYY-MM-DD) to avoid local-vs-UTC timezone
+  // issues: addDays uses raw ms (local midnight), but stored dates are UTC.
+  const vertretungenByDate = useMemo(() => {
+    const map = new Map<string, SerializedVertretung[]>();
+    const isoFrom = formatIsoDateLocal(weekStart);
+    const isoTo = formatIsoDateLocal(addDays(weekStart, 6));
+    for (const v of vertretungen) {
+      if (v.date < isoFrom || v.date > isoTo) continue;
+      if (!map.has(v.date)) map.set(v.date, []);
+      map.get(v.date)!.push(v);
+    }
+    return map;
+  }, [vertretungen, weekStart]);
 
   const goPrevWeek = () => setWeekStart((w) => addDays(w, -7));
   const goNextWeek = () => setWeekStart((w) => addDays(w, 7));
@@ -346,6 +326,9 @@ export function KinderWeekCalendar({
               formatIsoDateLocal(date) === formatIsoDateLocal(new Date());
             const dayAssignments = assignmentsByWeekday.get(weekday) ?? [];
             const dayAbsence = absencesByWeekday.get(weekday) ?? null;
+            const isoDate = formatIsoDateLocal(date);
+            const dayVertretungen = vertretungenByDate.get(isoDate) ?? [];
+            const daySchedules = schedules.filter((s) => s.weekday === weekday);
             return (
               <div
                 key={label}
@@ -366,6 +349,8 @@ export function KinderWeekCalendar({
                   childId={childId}
                   assignments={dayAssignments}
                   absence={dayAbsence}
+                  vertretungen={dayVertretungen}
+                  daySchedules={daySchedules}
                   schoolAssistantOptions={schoolAssistantOptions}
                   onChanged={onChanged}
                 />
@@ -390,6 +375,8 @@ export function KinderWeekCalendar({
 
           {DAY_LABELS_DE.map((label, weekday) => {
             const dayStacked = stacked.filter((e) => e.weekday === weekday);
+            const dateIso = formatIsoDateLocal(addDays(weekStart, weekday));
+            const dayEinsaetze = workEventsByDate.get(dateIso) ?? [];
             return (
               <div
                 key={label}
@@ -408,17 +395,28 @@ export function KinderWeekCalendar({
                   />
                 ))}
 
-                {/* Schedules only — assignment + absence live in the day header. */}
-                {dayStacked.map((ev) => (
-                  <EventBlock
-                    key={`${ev.layer}-${ev.id}`}
-                    ev={ev}
-                    col={ev.col}
-                    cols={ev.cols}
-                    onDelete={() => handleDelete(ev.layer, ev.id)}
-                    onMove={(s, e) => handleMove(ev, s, e)}
-                  />
-                ))}
+                {dayStacked.map((ev) =>
+                  ev.layer === "schedule" && dayEinsaetze.length > 0 ? (
+                    <ScheduleEinsatzBlock
+                      key={`schedule-einsatz-${ev.id}`}
+                      ev={ev}
+                      col={ev.col}
+                      cols={ev.cols}
+                      einsaetze={dayEinsaetze}
+                      onDelete={() => handleDelete(ev.layer, ev.id)}
+                      onMove={(s, e) => handleMove(ev, s, e)}
+                    />
+                  ) : (
+                    <EventBlock
+                      key={`${ev.layer}-${ev.id}`}
+                      ev={ev}
+                      col={ev.col}
+                      cols={ev.cols}
+                      onDelete={() => handleDelete(ev.layer, ev.id)}
+                      onMove={(s, e) => handleMove(ev, s, e)}
+                    />
+                  ),
+                )}
 
                 {dragSelection && dragSelection.weekday === weekday ? (
                   <Popover

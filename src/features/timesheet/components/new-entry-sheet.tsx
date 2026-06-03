@@ -390,8 +390,8 @@ export function NewEntrySheet({
                 </div>
                 {dayAssignedChildren.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
-                    An diesem Tag ist dir kein Kind zugewiesen — nur deine eigene
-                    Krankmeldung ist möglich.
+                    An diesem Tag ist dir kein Kind zugewiesen — nur deine
+                    eigene Krankmeldung ist möglich.
                   </p>
                 ) : sickSubject !== "self" ? (
                   <p className="text-xs text-muted-foreground">

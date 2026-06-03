@@ -39,8 +39,10 @@ import {
   listChildren,
   listSchedulesForChild,
   listSchedulesForChildren,
+  listSickEventsInRange,
   listVertretungenForUserAsSubstitute,
   listWorkEventsForChild,
+  listWorkEventsInRange,
   syncVertretungBlocksForChildWeekday,
   listWorkEventsForChildInRange,
   updateAssignment,
@@ -52,6 +54,12 @@ import {
   deleteWorkEventAsAdmin,
   restoreWorkEventAsAdmin,
 } from "./services";
+import { formatIsoDateUtc } from "@/lib/utils";
+import { serializeChild } from "./serialize";
+import {
+  detectHandlungsbedarf,
+  type HandlungsbedarfResult,
+} from "./handlungsbedarf";
 
 function childFieldsFromCreate(input: CreateChildInput) {
   return {
@@ -319,5 +327,42 @@ export const ChildrenFacade = {
 
   async listWorkEventsForChildInRange(childId: string, from: Date, to: Date) {
     return listWorkEventsForChildInRange(childId, from, to);
+  },
+
+  /**
+   * COD-50 — Handlungsbedarf dashboard. Loads every child (with assignments,
+   * Stundenplan, absences and Vertretungen) plus the week's SICK and WORK
+   * events, then derives the list of problematic cases for the given week.
+   * `weekStartIso` is the Monday (YYYY-MM-DD); the range is [Mon, next Mon).
+   */
+  async getHandlungsbedarf(
+    weekStartIso: string,
+  ): Promise<HandlungsbedarfResult> {
+    const from = new Date(`${weekStartIso}T00:00:00.000Z`);
+    const to = new Date(from.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const [children, sickEvents, workEvents] = await Promise.all([
+      listChildren(),
+      listSickEventsInRange(from, to),
+      listWorkEventsInRange(from, to),
+    ]);
+
+    return detectHandlungsbedarf({
+      weekStartIso,
+      children: children.map(serializeChild),
+      sickEvents: sickEvents.map((e) => ({
+        userId: e.userId,
+        userName: e.user.name,
+        date: formatIsoDateUtc(e.date),
+      })),
+      workEvents: workEvents.map((e) => ({
+        // childId is guaranteed non-null by listWorkEventsInRange's filter.
+        childId: e.childId as string,
+        userName: e.user.name,
+        date: formatIsoDateUtc(e.date),
+        startTime: e.startTime,
+        endTime: e.endTime,
+      })),
+    });
   },
 };

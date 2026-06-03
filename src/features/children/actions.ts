@@ -198,3 +198,10 @@ export async function deleteVertretungAction(childId: string, date: string) {
   revalidatePath(ROUTE);
   return { success: true as const };
 }
+
+// COD-50 — read-only fetch of the Handlungsbedarf cases for a given week.
+// Called from the dashboard when the admin switches weeks.
+export async function getHandlungsbedarfAction(weekStartIso: string) {
+  await requireAdmin();
+  return ChildrenFacade.getHandlungsbedarf(weekStartIso);
+}

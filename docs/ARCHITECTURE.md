@@ -48,3 +48,30 @@ src/
 ## Manifesto Rules
 - **Deep-linking into a feature's `/services` folder is a build-breaking offense.**
 - **Every Feature MUST expose its logic through a single `facade.ts`.**
+
+## Feature Notes
+
+### Handlungsbedarf dashboard (COD-50)
+`/admin/handlungsbedarf` surfaces problematic cases for a selectable week
+(sick Schulbegleiter without a Vertretung, sick substitutes, abated children
+who still have a booked Einsatz, unstaffed Stundenplan blocks, booked hours
+over the Stundenplan, and missing Stammdaten such as the
+Schweigepflichtsentbindung).
+
+It lives **inside the `children` feature** rather than in a Use Case: every
+input is reachable from the children domain (children with their assignments,
+Stundenplan, absences and Vertretungen, plus the `Event` rows the children
+services already own), so it is a single-feature operation. Per the rules, a
+single-feature operation is **not** a Use Case.
+
+- **Detection** is a pure, side-effect-free function in
+  `features/children/handlungsbedarf.ts` (`detectHandlungsbedarf`). It takes
+  already-serialized data and returns a sorted list of cases — trivially
+  testable, no DB/session.
+- **Facade**: `ChildrenFacade.getHandlungsbedarf(weekStartIso)` fetches the data
+  via the children services and delegates to the pure detector.
+- **Action**: `getHandlungsbedarfAction` (`requireAdmin` → Facade) feeds the
+  client week-switcher; the inline "Vertretung zuweisen" reuses the existing
+  `createVertretungAction` / `updateVertretungAction`.
+
+See `docs/architecture/dependency-graph.md` for the diagram.

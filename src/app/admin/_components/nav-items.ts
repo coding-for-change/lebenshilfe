@@ -3,6 +3,7 @@ import {
   BookOpen,
   Home,
   ShieldCheck,
+  TriangleAlert,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -20,6 +21,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: "Übersicht",
     description: "Zurück zur Übersicht.",
     icon: Home,
+  },
+  {
+    href: "/admin/handlungsbedarf",
+    label: "Handlungsbedarf",
+    description: "Problematische Fälle und offene Vertretungen.",
+    icon: TriangleAlert,
   },
   {
     href: "/admin/school-assistants",

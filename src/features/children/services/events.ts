@@ -104,3 +104,52 @@ export async function listWorkEventsForChildInRange(
     orderBy: { date: "asc" },
   });
 }
+
+export type SickEventWithUser = Prisma.EventGetPayload<{
+  include: { user: true };
+}>;
+
+/**
+ * All SICK events across every Schulbegleiter in a half-open date range
+ * `[from, to)`. Used by the Handlungsbedarf dashboard to find sick assistants.
+ * Soft-deleted entries are excluded.
+ */
+export async function listSickEventsInRange(
+  from: Date,
+  to: Date,
+): Promise<SickEventWithUser[]> {
+  return prisma.event.findMany({
+    where: {
+      type: EventType.SICK,
+      deleted: false,
+      date: { gte: from, lt: to },
+    },
+    include: { user: true },
+    orderBy: { date: "asc" },
+  });
+}
+
+export type WorkEventWithChildAndUser = Prisma.EventGetPayload<{
+  include: { user: true; child: true };
+}>;
+
+/**
+ * All WORK events across every child in a half-open date range `[from, to)`.
+ * Used by the Handlungsbedarf dashboard to cross-check booked hours against
+ * absences and the Stundenplan. Soft-deleted entries are excluded.
+ */
+export async function listWorkEventsInRange(
+  from: Date,
+  to: Date,
+): Promise<WorkEventWithChildAndUser[]> {
+  return prisma.event.findMany({
+    where: {
+      type: EventType.WORK,
+      deleted: false,
+      childId: { not: null },
+      date: { gte: from, lt: to },
+    },
+    include: { user: true, child: true },
+    orderBy: { date: "asc" },
+  });
+}

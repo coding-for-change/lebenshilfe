@@ -24,6 +24,8 @@ import {
   createSchedule,
   createVertretungBlocks,
   deleteAbsenceById,
+  findAbsenceById,
+  reportChildAbsence,
   deleteAssignmentById,
   deleteChildById,
   deleteScheduleById,
@@ -52,6 +54,47 @@ import {
   deleteWorkEventAsAdmin,
   restoreWorkEventAsAdmin,
 } from "./services";
+import { isSameUtcDay } from "@/lib/dates";
+
+/**
+ * Shared access guard: verifies that every childId is either regularly assigned
+ * to userId on that weekday OR covered by a Vertretung for that specific date.
+ * Throws if any child is uncovered. Kept as a module-level helper so both the
+ * public facade method and the Schulbegleiter sick-report path reuse it.
+ */
+async function assertChildrenAccess(
+  userId: string,
+  childIds: string[],
+  date: Date,
+) {
+  if (childIds.length === 0) return;
+
+  // Mon=0..Sun=6, matching Schedule.weekday convention.
+  const weekday = (date.getUTCDay() + 6) % 7;
+  const coveredByAssignment = await getAssignmentCoverage(
+    userId,
+    childIds,
+    weekday,
+  );
+
+  const uncovered = childIds.filter((id) => !coveredByAssignment.has(id));
+  if (uncovered.length === 0) return;
+
+  // Normalise to UTC midnight to match @db.Date semantics.
+  const dateOnly = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+  const coveredByVertretung = await getVertretungCoverage(
+    userId,
+    uncovered,
+    dateOnly,
+  );
+
+  const stillUncovered = uncovered.filter((id) => !coveredByVertretung.has(id));
+  if (stillUncovered.length > 0) {
+    throw new Error("Ein Kind ist diesem Konto nicht zugewiesen.");
+  }
+}
 
 function childFieldsFromCreate(input: CreateChildInput) {
   return {
@@ -268,35 +311,46 @@ export const ChildrenFacade = {
     childIds: string[],
     date: Date,
   ) {
-    if (childIds.length === 0) return;
+    return assertChildrenAccess(userId, childIds, date);
+  },
 
-    // Mon=0..Sun=6, matching Schedule.weekday convention.
-    const weekday = (date.getUTCDay() + 6) % 7;
-    const coveredByAssignment = await getAssignmentCoverage(
-      userId,
-      childIds,
-      weekday,
-    );
+  /**
+   * A Schulbegleiter reports a single assigned child sick for a date. Verifies
+   * the child is assigned to (or covered by a Vertretung of) the user on that
+   * date, then writes a ChildAbsence stamped with the reporter. Idempotent if
+   * the child is already marked absent. No auth/session context here — the
+   * caller (action) resolves the userId via the auth guards.
+   */
+  async reportChildSick(userId: string, input: AbsenceInput) {
+    const parsed = AbsenceSchema.parse(input);
+    const date = new Date(`${parsed.date}T00:00:00.000Z`);
+    await assertChildrenAccess(userId, [parsed.childId], date);
+    return reportChildAbsence({
+      childId: parsed.childId,
+      date,
+      note: parsed.note ?? null,
+      createdByUserId: userId,
+    });
+  },
 
-    const uncovered = childIds.filter((id) => !coveredByAssignment.has(id));
-    if (uncovered.length === 0) return;
-
-    // Normalise to UTC midnight to match @db.Date semantics.
-    const dateOnly = new Date(
-      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
-    );
-    const coveredByVertretung = await getVertretungCoverage(
-      userId,
-      uncovered,
-      dateOnly,
-    );
-
-    const stillUncovered = uncovered.filter(
-      (id) => !coveredByVertretung.has(id),
-    );
-    if (stillUncovered.length > 0) {
-      throw new Error("Ein Kind ist diesem Konto nicht zugewiesen.");
+  /**
+   * A Schulbegleiter revokes a child sick report they made. Only the reporter
+   * may revoke, and only until the end of the (UTC) day on which it was
+   * reported. Admin-created absences (createdByUserId === null) and reports by
+   * other users are rejected — admins remove those via the admin children view.
+   */
+  async revokeChildSick(userId: string, absenceId: string) {
+    const absence = await findAbsenceById(absenceId);
+    if (!absence) throw new Error("Krankmeldung nicht gefunden.");
+    if (absence.createdByUserId !== userId) {
+      throw new Error("Diese Krankmeldung kann nicht zurückgenommen werden.");
     }
+    if (!isSameUtcDay(new Date(), absence.createdAt)) {
+      throw new Error(
+        "Eine Krankmeldung kann nur am selben Tag zurückgenommen werden.",
+      );
+    }
+    await deleteAbsenceById(absenceId);
   },
 
   async createWorkEventAsAdmin(input: WorkEventInput) {

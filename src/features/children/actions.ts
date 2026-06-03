@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth-guards";
+import { requireAdmin, requireAuth } from "@/lib/auth-guards";
 import { ChildrenFacade } from "./facade";
 import type {
   AbsenceInput,
@@ -103,6 +103,28 @@ export async function deleteAbsenceAction(id: string) {
   await requireAdmin();
   await ChildrenFacade.deleteAbsence(id);
   revalidatePath(ROUTE);
+  return { success: true as const };
+}
+
+// A Schulbegleiter reports one of their assigned children sick from the home
+// page. Access is enforced inside the facade (assigned/Vertretung on the date).
+export async function reportChildSickAction(input: AbsenceInput) {
+  const { id: userId } = await requireAuth();
+  await ChildrenFacade.reportChildSick(userId, input);
+  revalidatePath("/"); // Schulbegleiter home
+  revalidatePath(ROUTE); // admin children view
+  revalidatePath("/admin/map"); // map hides absent children
+  return { success: true as const };
+}
+
+// A Schulbegleiter takes back a sick report they made (same-day window enforced
+// in the facade). Admins still revoke any absence via deleteAbsenceAction.
+export async function revokeChildSickAction(absenceId: string) {
+  const { id: userId } = await requireAuth();
+  await ChildrenFacade.revokeChildSick(userId, absenceId);
+  revalidatePath("/");
+  revalidatePath(ROUTE);
+  revalidatePath("/admin/map");
   return { success: true as const };
 }
 

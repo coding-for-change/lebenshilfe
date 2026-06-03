@@ -15,6 +15,7 @@ import {
 } from "@/lib/dates";
 import { WeekStrip } from "./week-strip";
 import { deleteEventAction } from "../actions";
+import { revokeChildSickAction } from "@/features/children/actions";
 import type { Event, Schedule } from "@/generated/prisma";
 import type { ChildOption } from "./children-filter";
 import type { ChildAbsenceItem, VertretungDay } from "./timesheet-shell";
@@ -173,6 +174,20 @@ export function TabDay({
     }
   };
 
+  const handleRevokeAbsence = async (id: string) => {
+    setBusyId(id);
+    try {
+      await revokeChildSickAction(id);
+      toast.success("Krankmeldung zurückgenommen.");
+    } catch (e: unknown) {
+      toast.error(
+        e instanceof Error ? e.message : "Zurücknehmen fehlgeschlagen.",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <WeekStrip
@@ -215,27 +230,36 @@ export function TabDay({
             <div className="grid place-items-center size-10 shrink-0 rounded-full bg-rose-500/15 text-rose-700">
               <Stethoscope className="size-5" />
             </div>
-            <div className="flex-1 space-y-1">
+            <div className="flex-1 space-y-2">
               <p className="font-semibold text-rose-900">
                 {dayAbsences.length === 1
-                  ? `${dayAbsences[0].child.firstName} ${dayAbsences[0].child.lastName} ist krank gemeldet`
+                  ? "Kind krank gemeldet"
                   : `${dayAbsences.length} zugewiesene Kinder sind krank gemeldet`}
               </p>
-              {dayAbsences.length > 1 && (
-                <ul className="text-sm text-rose-900/80">
-                  {dayAbsences.map((a) => (
-                    <li key={a.childId}>
+              <ul className="space-y-1.5">
+                {dayAbsences.map((a) => (
+                  <li
+                    key={a.id}
+                    className="flex items-center gap-2 text-sm text-rose-900/90"
+                  >
+                    <span className="flex-1">
                       {a.child.firstName} {a.child.lastName}
                       {a.note ? ` — ${a.note}` : ""}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {dayAbsences.length === 1 && dayAbsences[0].note && (
-                <p className="text-sm text-rose-900/80">
-                  {dayAbsences[0].note}
-                </p>
-              )}
+                    </span>
+                    {a.canRevoke && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-rose-700 hover:text-rose-900"
+                        onClick={() => handleRevokeAbsence(a.id)}
+                        disabled={busyId === a.id}
+                      >
+                        Zurücknehmen
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </Card>

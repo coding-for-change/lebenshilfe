@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, Stethoscope, UserCheck } from "lucide-react";
+import { Baby, Briefcase, Stethoscope, UserCheck } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { EventType, type Schedule } from "@/generated/prisma";
 import { SignaturePadDialog } from "./signature-pad-dialog";
 import { createEventAction } from "../actions";
+import { reportChildSickAction } from "@/features/children/actions";
 import {
   formatDuration,
   parseIsoDate,
@@ -102,6 +103,10 @@ export function NewEntrySheet({
   const [childIds, setChildIds] = useState<string[]>(
     dayAssignedChildren.length === 1 ? [dayAssignedChildren[0].id] : [],
   );
+  // For type=SICK: who is sick — the Schulbegleiter ("self") or one assigned
+  // child (the child's id). Self keeps the unchanged own-sick (signed) flow;
+  // a child id triggers a ChildAbsence report.
+  const [sickSubject, setSickSubject] = useState<"self" | string>("self");
   const [sigOpen, setSigOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -109,11 +114,22 @@ export function NewEntrySheet({
     if (open) {
       setDate(formatIsoDateUtc(defaultDate));
       setType(EventType.WORK);
+      setSickSubject("self");
       setStartTime("08:00");
       setEndTime("17:00");
       setNote("");
     }
   }, [open, defaultDate]);
+
+  // Drop a child selection that is no longer valid for the day (e.g. after a
+  // date change) so the sick report can never target an unassigned child.
+  useEffect(() => {
+    setSickSubject((prev) =>
+      prev === "self" || dayAssignedChildren.some((c) => c.id === prev)
+        ? prev
+        : "self",
+    );
+  }, [dayAssignedChildren]);
 
   // Whenever the day's assigned children change (open, date change, or
   // the underlying data updates), preselect the only one if applicable
@@ -210,6 +226,28 @@ export function NewEntrySheet({
     dayVertretungen,
   ]);
 
+  // A child sick report writes a ChildAbsence directly — no signature required.
+  const submitChildSick = async () => {
+    if (sickSubject === "self") return;
+    setSubmitting(true);
+    try {
+      await reportChildSickAction({
+        childId: sickSubject,
+        date,
+        note: note.trim() || undefined,
+      });
+      const child = dayAssignedChildren.find((c) => c.id === sickSubject);
+      toast.success(
+        child ? `${child.firstName} krank gemeldet` : "Kind krank gemeldet",
+      );
+      onOpenChange(false);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Speichern fehlgeschlagen.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const submitWithSignature = async (pngBase64: string) => {
     setSubmitting(true);
     try {
@@ -264,7 +302,14 @@ export function NewEntrySheet({
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (canProceed && !submitting) setSigOpen(true);
+              if (!canProceed || submitting) return;
+              // A child sick report saves immediately; everything else
+              // (work entry, own sick) is confirmed with a signature.
+              if (type === EventType.SICK && sickSubject !== "self") {
+                void submitChildSick();
+              } else {
+                setSigOpen(true);
+              }
             }}
             className="px-4 pb-6 space-y-4"
           >
@@ -301,6 +346,61 @@ export function NewEntrySheet({
                 <Stethoscope className="size-4" /> Krank
               </Button>
             </div>
+
+            {type === EventType.SICK && (
+              <div className="space-y-1.5">
+                <Label>Wer ist krank?</Label>
+                <div className="grid grid-cols-1 gap-1.5">
+                  <Button
+                    type="button"
+                    variant={sickSubject === "self" ? "default" : "outline"}
+                    onClick={() => setSickSubject("self")}
+                    className={cn(
+                      "h-11 justify-start",
+                      sickSubject === "self" &&
+                        "bg-rose-600 hover:bg-rose-700 text-white",
+                    )}
+                  >
+                    <Stethoscope className="size-4" /> Ich (eigene Krankmeldung)
+                  </Button>
+                  {dayAssignedChildren.map((c) => (
+                    <Button
+                      key={c.id}
+                      type="button"
+                      variant={sickSubject === c.id ? "default" : "outline"}
+                      onClick={() => setSickSubject(c.id)}
+                      className={cn(
+                        "h-11 justify-start",
+                        sickSubject === c.id &&
+                          "bg-rose-600 hover:bg-rose-700 text-white",
+                      )}
+                    >
+                      <Baby className="size-4" />
+                      <span className="flex-1 text-left">
+                        {c.firstName} {c.lastName}
+                      </span>
+                      {dayVertretungen.some((v) => v.childId === c.id) && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                          <UserCheck className="size-3" />
+                          Vertretung
+                        </span>
+                      )}
+                    </Button>
+                  ))}
+                </div>
+                {dayAssignedChildren.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    An diesem Tag ist dir kein Kind zugewiesen — nur deine eigene
+                    Krankmeldung ist möglich.
+                  </p>
+                ) : sickSubject !== "self" ? (
+                  <p className="text-xs text-muted-foreground">
+                    Wird ohne Unterschrift gespeichert und ist für die
+                    Verwaltung sichtbar.
+                  </p>
+                ) : null}
+              </div>
+            )}
 
             {type === EventType.WORK && (
               <>
@@ -441,9 +541,11 @@ export function NewEntrySheet({
               </Button>
               <Button
                 type="submit"
-                disabled={!canProceed}
+                disabled={!canProceed || submitting}
               >
-                Speichern & signieren
+                {type === EventType.SICK && sickSubject !== "self"
+                  ? "Kind krank melden"
+                  : "Speichern & signieren"}
               </Button>
             </div>
           </form>

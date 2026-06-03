@@ -48,7 +48,11 @@ type EventWithChild = Event & {
 
 // Date-Spalte ist `@db.Date`; serialisiert als YYYY-MM-DD über die RSC-Grenze.
 export type ChildAbsenceItem = Pick<ChildAbsence, "childId" | "note"> & {
+  id: string;
   date: string;
+  // True when the current Schulbegleiter reported it and is still within the
+  // same-day window — i.e. may take it back from the day view.
+  canRevoke: boolean;
 };
 
 export type VertretungDay = {

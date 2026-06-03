@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth-guards";
 import { redirect } from "next/navigation";
 import { isAdmin } from "@/lib/roles";
+import { isSameUtcDay } from "@/lib/dates";
 import { TimesheetFacade, SchoolAssistantApp } from "@/features/timesheet";
 import { SchoolAssistantsFacade } from "@/features/school-assistants";
 import { ChildrenFacade } from "@/features/children";
@@ -72,9 +73,14 @@ export default async function LandingPage() {
       schedules={schedules}
       lockedMonthKeys={lockedMonthKeys}
       childAbsences={childAbsences.map((a) => ({
+        id: a.id,
         childId: a.childId,
         date: a.date.toISOString().slice(0, 10),
         note: a.note,
+        // The reporter may take it back until the end of the day they reported
+        // it. Computed server-side; the action re-checks authoritatively.
+        canRevoke:
+          a.createdByUserId === user.id && isSameUtcDay(today, a.createdAt),
       }))}
       assignmentsByWeekday={assignmentsByWeekday}
       substituteOn={vertretungenAsSubstitute.map((v) => ({

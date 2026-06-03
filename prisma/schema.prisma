@@ -43,6 +43,7 @@ model User {
   monthlyReports MonthlyReport[]
   profile       SchoolAssistantProfile?
   vertretungenAsSubstitute  ChildVertretung[] @relation("SubstituteVertretung")
+  reportedChildAbsences     ChildAbsence[]    @relation("ReportedChildAbsences")
 
   @@unique([email])
   @@map("user")
@@ -190,11 +191,17 @@ model ChildAbsence {
   childId   String
   date      DateTime @db.Date
   note      String?  @db.Text
+  // Who reported the absence. NULL -> created by an admin (via /admin/children);
+  // non-null -> reported by a Schulbegleiter for an assigned child. Used to scope
+  // who may revoke it. onDelete: SetNull keeps the absence if the reporter is removed.
+  createdByUserId String?
   createdAt DateTime @default(now())
-  child     Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  child         Child  @relation(fields: [childId], references: [id], onDelete: Cascade)
+  createdByUser User?  @relation("ReportedChildAbsences", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   @@unique([childId, date])
   @@index([childId, date])
+  @@index([createdByUserId])
   @@map("child_absence")
 }
 

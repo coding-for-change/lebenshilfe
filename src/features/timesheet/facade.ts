@@ -41,17 +41,32 @@ function parseDateOnly(dateStr: string): Date {
 // blocks on a day, each becoming its own entry. Throws if any selected child
 // has no schedule for that weekday: a Schulbegleiter may only log time that
 // exists in the Stundenplan (the substitute/Vertretung case is COD-51).
-async function deriveWorkBlocksFromSchedule(childIds: string[], date: Date) {
+//
+// `selectedBlockIds` lets the assistant pick which of the day's blocks were
+// actually worked. The selection only narrows WHICH blocks are logged — the
+// times always come from the Schedule, never from the client. When omitted,
+// every block is logged (full day).
+async function deriveWorkBlocksFromSchedule(
+  childIds: string[],
+  date: Date,
+  selectedBlockIds?: string[],
+) {
   const weekday = weekdayIndex(date);
   const schedules = await getSchedulesForChildren(childIds);
 
-  const blocks: { childId: string; startTime: string; endTime: string }[] = [];
+  const available: {
+    id: string;
+    childId: string;
+    startTime: string;
+    endTime: string;
+  }[] = [];
   const childrenWithoutSchedule: string[] = [];
 
   for (const childId of childIds) {
     const childBlocks = schedules
       .filter((s) => s.childId === childId && s.weekday === weekday)
       .map((s) => ({
+        id: s.id,
         childId,
         startTime: s.startTime,
         endTime: s.endTime,
@@ -60,7 +75,7 @@ async function deriveWorkBlocksFromSchedule(childIds: string[], date: Date) {
       childrenWithoutSchedule.push(childId);
       continue;
     }
-    blocks.push(...childBlocks);
+    available.push(...childBlocks);
   }
 
   if (childrenWithoutSchedule.length > 0) {
@@ -69,7 +84,23 @@ async function deriveWorkBlocksFromSchedule(childIds: string[], date: Date) {
     );
   }
 
-  return blocks;
+  // No explicit selection → log the full day's blocks.
+  if (selectedBlockIds === undefined) return available;
+
+  if (selectedBlockIds.length === 0) {
+    throw new Error("Es wurde keine Stundenplan-Zeit ausgewählt.");
+  }
+
+  // Resolve each picked id back to a real schedule block. An id that isn't an
+  // available block (wrong child, wrong day, tampered) is rejected outright.
+  const byId = new Map(available.map((b) => [b.id, b]));
+  return selectedBlockIds.map((id) => {
+    const block = byId.get(id);
+    if (!block) {
+      throw new Error("Ungültige Stundenplan-Auswahl.");
+    }
+    return block;
+  });
 }
 
 function assertMonthNotLocked(
@@ -145,9 +176,13 @@ export const TimesheetFacade = {
     assertMonthNotLocked(report);
 
     if (parsed.type === "WORK") {
-      // Derive times before touching storage so a missing Stundenplan fails
-      // fast without leaving an orphaned signature behind.
-      const blocks = await deriveWorkBlocksFromSchedule(parsed.childIds, date);
+      // Derive times before touching storage so a missing Stundenplan (or an
+      // invalid selection) fails fast without leaving an orphaned signature.
+      const blocks = await deriveWorkBlocksFromSchedule(
+        parsed.childIds,
+        date,
+        parsed.scheduleBlockIds,
+      );
 
       const batchId = randomUUID();
       const signatureKey = `signatures/events/${userId}/${batchId}.png`;

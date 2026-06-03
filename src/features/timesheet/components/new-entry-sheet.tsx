@@ -90,6 +90,7 @@ export function NewEntrySheet({
   const [childIds, setChildIds] = useState<string[]>(
     dayAssignedChildren.length === 1 ? [dayAssignedChildren[0].id] : [],
   );
+  const [selectedBlockIds, setSelectedBlockIds] = useState<string[]>([]);
   const [sigOpen, setSigOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -121,6 +122,12 @@ export function NewEntrySheet({
     );
   };
 
+  const toggleBlock = (id: string) => {
+    setSelectedBlockIds((cur) =>
+      cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id],
+    );
+  };
+
   const weekday = useMemo(() => weekdayIndex(parseIsoDate(date)), [date]);
 
   // The exact blocks that will be saved server-side: one entry per Stundenplan
@@ -142,6 +149,18 @@ export function NewEntrySheet({
     });
   }, [childIds, schedules, weekday, dayAssignedChildren]);
 
+  // Default to logging every block; the assistant unchecks the ones not
+  // worked. Re-runs only when the set of blocks changes (date/children), not
+  // when the assistant toggles a block, so manual choices stick.
+  useEffect(() => {
+    setSelectedBlockIds(scheduleBlocks.map((b) => b.id));
+  }, [scheduleBlocks]);
+
+  const selectedBlocks = useMemo(
+    () => scheduleBlocks.filter((b) => selectedBlockIds.includes(b.id)),
+    [scheduleBlocks, selectedBlockIds],
+  );
+
   // First names of selected children that have no Stundenplan on this weekday;
   // an entry can't be derived for them, so submission is blocked.
   const missingScheduleNames = useMemo(() => {
@@ -158,12 +177,12 @@ export function NewEntrySheet({
 
   const totalMinutes = useMemo(
     () =>
-      scheduleBlocks.reduce(
+      selectedBlocks.reduce(
         (sum, b) =>
           sum + (timeToMinutes(b.endTime) - timeToMinutes(b.startTime)),
         0,
       ),
-    [scheduleBlocks],
+    [selectedBlocks],
   );
 
   const canProceed =
@@ -171,23 +190,25 @@ export function NewEntrySheet({
       ? true
       : childIds.length >= 1 &&
         missingScheduleNames.length === 0 &&
-        scheduleBlocks.length >= 1;
+        selectedBlocks.length >= 1;
 
   const submitWithSignature = async (pngBase64: string) => {
     setSubmitting(true);
     try {
-      await createEventAction({
+      const result = await createEventAction({
         type,
         date,
         childIds: type === EventType.WORK ? childIds : [],
+        scheduleBlockIds:
+          type === EventType.WORK ? selectedBlockIds : undefined,
         note: note.trim() || undefined,
         signaturePngBase64: pngBase64,
       });
       toast.success(
         type === EventType.WORK
-          ? `Eintrag gespeichert (${childIds.length} Kind${
-              childIds.length === 1 ? "" : "er"
-            })`
+          ? `${result.createdCount} ${
+              result.createdCount === 1 ? "Eintrag" : "Einträge"
+            } gespeichert`
           : "Krankheit gespeichert",
       );
       setSigOpen(false);
@@ -201,8 +222,8 @@ export function NewEntrySheet({
 
   const signerSubtitle =
     type === EventType.WORK
-      ? `${date} · ${scheduleBlocks.length} ${
-          scheduleBlocks.length === 1 ? "Einsatz" : "Einsätze"
+      ? `${date} · ${selectedBlocks.length} ${
+          selectedBlocks.length === 1 ? "Einsatz" : "Einsätze"
         }${totalMinutes > 0 ? ` · ${formatMinutes(totalMinutes)}` : ""}`
       : `${date} · Krank · ganztägig`;
 
@@ -332,36 +353,49 @@ export function NewEntrySheet({
                       </p>
                     ) : (
                       <>
-                        <div className="space-y-1 rounded-lg border border-border bg-muted/40 p-2">
-                          {scheduleBlocks.map((b) => (
-                            <div
-                              key={b.id}
-                              className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm"
-                            >
-                              <span className="flex items-center gap-2">
+                        <div className="space-y-1 rounded-lg border border-border p-2">
+                          {scheduleBlocks.map((b) => {
+                            const checked = selectedBlockIds.includes(b.id);
+                            return (
+                              <label
+                                key={b.id}
+                                htmlFor={`block-${b.id}`}
+                                className={cn(
+                                  "flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent",
+                                  !checked && "opacity-55",
+                                )}
+                              >
+                                <Checkbox
+                                  id={`block-${b.id}`}
+                                  checked={checked}
+                                  onCheckedChange={() => toggleBlock(b.id)}
+                                />
                                 <Clock className="size-4 text-muted-foreground" />
                                 {childIds.length > 1 && (
                                   <span className="text-muted-foreground">
                                     {b.childFirstName}
                                   </span>
                                 )}
-                                <span className="font-mono tabular-nums text-base">
+                                <span className="font-mono text-base tabular-nums">
                                   {b.startTime}–{b.endTime}
                                 </span>
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {formatDuration(b.startTime, b.endTime)}
-                              </span>
-                            </div>
-                          ))}
+                                <span className="ml-auto text-xs text-muted-foreground">
+                                  {formatDuration(b.startTime, b.endTime)}
+                                </span>
+                              </label>
+                            );
+                          })}
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Die Zeiten kommen aus dem Stundenplan und sind nicht
-                          veränderbar
                           {scheduleBlocks.length > 1
-                            ? " — pro Block ein Eintrag."
-                            : "."}
+                            ? "Nur die tatsächlich gearbeiteten Blöcke auswählen — pro Block ein Eintrag. Die Zeiten kommen aus dem Stundenplan."
+                            : "Die Zeit kommt aus dem Stundenplan und ist nicht veränderbar."}
                         </p>
+                        {selectedBlocks.length === 0 && (
+                          <p className="text-xs font-medium text-amber-700">
+                            Mindestens einen Block auswählen.
+                          </p>
+                        )}
                       </>
                     )}
                   </div>

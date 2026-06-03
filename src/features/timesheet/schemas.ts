@@ -17,12 +17,15 @@ const signatureSchema = z
 
 // Times are NOT supplied by the client for WORK entries (COD-48): a
 // Schulbegleiter follows the Stundenplan, so start/end are derived
-// server-side from the child's Schedule for the entry's weekday.
+// server-side from the child's Schedule for the entry's weekday. The client
+// only chooses WHICH Stundenplan blocks were actually worked, by Schedule
+// row id; the times themselves are always resolved from the schedule.
 export const CreateEventSchema = z
   .object({
     type: z.nativeEnum(EventType),
     date: dateStringSchema,
     childIds: z.array(z.string().min(1)).default([]),
+    scheduleBlockIds: z.array(z.string().min(1)).optional(),
     note: z.string().max(2000).optional(),
     signaturePngBase64: signatureSchema,
   })

@@ -14,7 +14,7 @@ import {
   HOUR_HEIGHT,
   START_HOUR,
   snapHours,
-  parseTime,
+  einsatzExceeds,
   type PositionedEvent,
 } from "./week-utils";
 import type { SerializedWorkEvent } from "../../serialize";
@@ -27,18 +27,6 @@ type Props = {
   onDelete: () => void;
   onMove: (newStartHour: number, newEndHour: number) => void | Promise<void>;
 };
-
-function einsatzExceeds(
-  einsatz: SerializedWorkEvent,
-  scheduleStartHour: number,
-  scheduleEndHour: number,
-): boolean {
-  if (!einsatz.startTime || !einsatz.endTime) return false;
-  return (
-    parseTime(einsatz.startTime) < scheduleStartHour ||
-    parseTime(einsatz.endTime) > scheduleEndHour
-  );
-}
 
 export function ScheduleEinsatzBlock({
   ev,

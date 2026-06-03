@@ -4,7 +4,13 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NAV_ITEMS, ADMIN_NAV_ITEMS, ALL_NAV_ITEMS } from "./nav-items";
+import {
+  NAV_ITEMS,
+  ADMIN_NAV_ITEMS,
+  ALL_NAV_ITEMS,
+  isNavActive,
+} from "./nav-items";
+import { AdminBottomTabBar } from "./admin-bottom-tab-bar";
 import { ChevronRight, LifeBuoy, Send } from "lucide-react";
 import {
   Sidebar,
@@ -33,7 +39,7 @@ type AdminShellProps = {
 };
 
 function deriveBreadcrumb(pathname: string): string {
-  const match = ALL_NAV_ITEMS.find((item) => pathname.startsWith(item.href));
+  const match = ALL_NAV_ITEMS.find((item) => isNavActive(pathname, item.href));
   return match?.label ?? "Übersicht";
 }
 
@@ -76,14 +82,17 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
 
   return (
     <>
+      {/* Decorative chrome is desktop-only: it is never visible behind the
+          full-bleed mobile layout and its compositing layers hurt scroll/paint
+          on mid-range phones. */}
       <div
         aria-hidden
-        className="fixed inset-0 -z-20 bg-cover bg-center"
+        className="fixed inset-0 -z-20 hidden bg-cover bg-center md:block"
         style={{ backgroundImage: "url('/login.webp')" }}
       />
       <div
         aria-hidden
-        className="fixed inset-0 -z-10 bg-white/40 backdrop-blur-[2px]"
+        className="fixed inset-0 -z-10 hidden bg-white/40 backdrop-blur-[2px] md:block"
       />
       <SidebarProvider
         defaultOpen
@@ -105,7 +114,7 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
                   width={160}
                   height={160}
                   priority
-                  className="h-20 w-auto object-contain transition-all group-data-[collapsible=icon]:h-8"
+                  className="h-14 w-auto object-contain transition-all group-data-[collapsible=icon]:h-8 md:h-20"
                 />
               </Link>
             </div>
@@ -121,7 +130,7 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
                       href={item.href}
                       label={item.label}
                       Icon={item.icon}
-                      isActive={pathname.startsWith(item.href)}
+                      isActive={isNavActive(pathname, item.href)}
                     />
                   ))}
                 </SidebarMenu>
@@ -137,7 +146,7 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
                       href={item.href}
                       label={item.label}
                       Icon={item.icon}
-                      isActive={pathname.startsWith(item.href)}
+                      isActive={isNavActive(pathname, item.href)}
                     />
                   ))}
                 </SidebarMenu>
@@ -187,18 +196,23 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
         </Sidebar>
 
         <SidebarInset>
-          <header className="flex h-14 shrink-0 items-center gap-2 rounded-t-xl border-b border-border bg-background/60 px-4 backdrop-blur">
-            <SidebarTrigger className="-ml-1" />
+          <header className="flex h-14 shrink-0 items-center gap-2 rounded-t-xl border-b border-border bg-background/60 px-4 md:backdrop-blur">
+            <SidebarTrigger className="-ml-1 size-11 md:size-7" />
             <SidebarSeparator
               orientation="vertical"
-              className="mr-2 h-4"
+              className="mr-2 hidden h-4 md:block"
             />
             <nav
               aria-label="Pfad"
               className="flex items-center gap-1.5 text-sm text-muted-foreground"
             >
-              <Link href="/admin">Verwaltung</Link>
-              <ChevronRight className="size-3.5 opacity-60" />
+              <Link
+                href="/admin"
+                className="hidden md:inline"
+              >
+                Verwaltung
+              </Link>
+              <ChevronRight className="hidden size-3.5 opacity-60 md:inline" />
               <span className="font-medium text-foreground">{breadcrumb}</span>
             </nav>
           </header>
@@ -207,13 +221,19 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
               {children}
             </div>
           ) : (
-            <div className="mx-auto w-full max-w-7xl px-6 py-8">{children}</div>
+            <div className="mx-auto w-full max-w-7xl px-4 py-6 pb-24 md:px-6 md:py-8 md:pb-8">
+              {children}
+            </div>
           )}
         </SidebarInset>
+
+        <AdminBottomTabBar />
 
         <Toaster
           position="bottom-right"
           richColors
+          // Lift toasts above the mobile bottom tab bar (~56px + safe area).
+          mobileOffset={{ bottom: "6rem" }}
         />
       </SidebarProvider>
     </>

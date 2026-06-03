@@ -4,14 +4,6 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   Field,
   FieldContent,
   FieldError,
@@ -19,6 +11,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { WizardDialog } from "@/components/wizard-dialog";
 import { createWorkshopAction } from "../actions";
 import { WorkshopSchema } from "../schemas";
 
@@ -42,8 +35,7 @@ export function WorkshopFormDialog({ open, onOpenChange }: Props) {
     setErrors({});
   }, [open]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit() {
     const parsed = WorkshopSchema.safeParse({
       name,
       description: description || null,
@@ -75,77 +67,71 @@ export function WorkshopFormDialog({ open, onOpenChange }: Props) {
   }
 
   return (
-    <Dialog
+    <WizardDialog
       open={open}
-      onOpenChange={(next) => !busy && onOpenChange(next)}
+      onOpenChange={onOpenChange}
+      title="Neuen Workshop anlegen"
+      description="Name und Kurzbeschreibung des Workshops."
+      busy={busy}
+      onSubmit={submit}
+      footer={
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={busy}
+          >
+            Abbrechen
+          </Button>
+          <Button
+            type="submit"
+            disabled={busy}
+          >
+            {busy ? "Wird gespeichert…" : "Anlegen"}
+          </Button>
+        </>
+      }
     >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Neuen Workshop anlegen</DialogTitle>
-          <DialogDescription>
-            Name und Kurzbeschreibung des Workshops.
-          </DialogDescription>
-        </DialogHeader>
-        <form
-          onSubmit={handleSubmit}
-          className="flex flex-col gap-4"
-        >
-          <Field>
-            <FieldLabel htmlFor="workshop-name">
-              <FieldContent>
-                <span>Name</span>
-              </FieldContent>
-            </FieldLabel>
-            <Input
-              id="workshop-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="z.B. Erste Hilfe Schulung"
-              disabled={busy}
-              aria-invalid={!!errors.name}
-            />
-            <FieldError>{errors.name}</FieldError>
-          </Field>
+      <div className="flex flex-col gap-4">
+        <Field>
+          <FieldLabel htmlFor="workshop-name">
+            <FieldContent>
+              <span>Name</span>
+            </FieldContent>
+          </FieldLabel>
+          <Input
+            id="workshop-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="z.B. Erste Hilfe Schulung"
+            disabled={busy}
+            aria-invalid={!!errors.name}
+          />
+          <FieldError>{errors.name}</FieldError>
+        </Field>
 
-          <Field>
-            <FieldLabel htmlFor="workshop-description">
-              <FieldContent>
-                <span>Beschreibung</span>
-                <span className="text-xs font-normal text-muted-foreground">
-                  Optional.
-                </span>
-              </FieldContent>
-            </FieldLabel>
-            <Textarea
-              id="workshop-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={4}
-              placeholder="Kurzbeschreibung…"
-              disabled={busy}
-              aria-invalid={!!errors.description}
-            />
-            <FieldError>{errors.description}</FieldError>
-          </Field>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={busy}
-            >
-              Abbrechen
-            </Button>
-            <Button
-              type="submit"
-              disabled={busy}
-            >
-              {busy ? "Wird gespeichert…" : "Anlegen"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <Field>
+          <FieldLabel htmlFor="workshop-description">
+            <FieldContent>
+              <span>Beschreibung</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                Optional.
+              </span>
+            </FieldContent>
+          </FieldLabel>
+          <Textarea
+            id="workshop-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={4}
+            placeholder="Kurzbeschreibung…"
+            disabled={busy}
+            aria-invalid={!!errors.description}
+          />
+          <FieldError>{errors.description}</FieldError>
+        </Field>
+      </div>
+    </WizardDialog>
   );
 }

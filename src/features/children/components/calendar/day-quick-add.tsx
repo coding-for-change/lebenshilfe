@@ -289,7 +289,7 @@ function DayChip({
         type="button"
         aria-label="Entfernen"
         onClick={onDelete}
-        className="ml-auto shrink-0 opacity-0 transition-opacity group-hover/chip:opacity-100"
+        className="ml-auto shrink-0 opacity-100 transition-opacity md:opacity-0 md:group-hover/chip:opacity-100"
       >
         <X className="size-3" />
       </button>
@@ -378,7 +378,7 @@ function VertretungChip({
             e.stopPropagation();
             onDelete();
           }}
-          className="ml-auto shrink-0 opacity-0 transition-opacity group-hover/chip:opacity-100"
+          className="ml-auto shrink-0 opacity-100 transition-opacity md:opacity-0 md:group-hover/chip:opacity-100"
         >
           <X className="size-3" />
         </button>

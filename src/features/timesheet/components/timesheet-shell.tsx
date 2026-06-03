@@ -173,6 +173,7 @@ export function SchoolAssistantApp({
             assignedChildren={assignedChildren}
             childAbsences={childAbsences}
             schedules={schedules}
+            assignmentsByWeekday={assignmentsByWeekday}
             substituteOn={substituteOn}
           />
         );
@@ -189,6 +190,7 @@ export function SchoolAssistantApp({
             onSelectedChildIdsChange={setSelectedChildIds}
             events={events}
             schedules={schedules}
+            assignmentsByWeekday={assignmentsByWeekday}
             substituteOn={substituteOn}
           />
         );

@@ -18,6 +18,8 @@ import { deleteEventAction } from "../actions";
 import type { Event, Schedule } from "@/generated/prisma";
 import type { ChildOption } from "./children-filter";
 import type { ChildAbsenceItem, VertretungDay } from "./timesheet-shell";
+import { childIdsForDate } from "../weekday";
+import type { AssignmentsByWeekday } from "../weekday";
 
 type EventWithChild = Event & {
   child: { firstName: string; lastName: string } | null;
@@ -33,6 +35,7 @@ type Props = {
   assignedChildren: ChildOption[];
   childAbsences: ChildAbsenceItem[];
   schedules: Schedule[];
+  assignmentsByWeekday: AssignmentsByWeekday;
   substituteOn?: VertretungDay[];
 };
 
@@ -48,6 +51,7 @@ export function TabDay({
   assignedChildren,
   childAbsences,
   schedules,
+  assignmentsByWeekday,
   substituteOn = [],
 }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -76,13 +80,11 @@ export function TabDay({
       .filter((a): a is ChildAbsenceItem & { child: ChildOption } => !!a.child);
   }, [childAbsences, selectedDateIso, childById]);
 
-  const substituteChildIds = useMemo(
-    () => new Set(substituteOn.map((v) => v.childId)),
-    [substituteOn],
-  );
-
   const daySchedules = useMemo(() => {
     const weekday = (selectedDate.getUTCDay() + 6) % 7;
+    const assignedToday = new Set(
+      childIdsForDate(assignmentsByWeekday, selectedDate),
+    );
     const todaySubstituteChildIds = new Set(
       substituteOn
         .filter((v) => v.date === selectedDateIso)
@@ -91,10 +93,13 @@ export function TabDay({
     return schedules
       .filter((s) => {
         if (s.weekday !== weekday) return false;
-        if (substituteChildIds.has(s.childId)) {
-          return todaySubstituteChildIds.has(s.childId);
-        }
-        return true;
+        // Only show a child's Stundenplan on days this user actually covers
+        // them — through a regular weekday assignment or by stepping in as
+        // today's substitute. Without this gate every assigned child would
+        // appear on every weekday, regardless of who is on duty.
+        return (
+          assignedToday.has(s.childId) || todaySubstituteChildIds.has(s.childId)
+        );
       })
       .map((s) => ({ ...s, child: childById.get(s.childId) }))
       .filter((s): s is Schedule & { child: ChildOption } => !!s.child)
@@ -104,7 +109,7 @@ export function TabDay({
     selectedDate,
     selectedDateIso,
     childById,
-    substituteChildIds,
+    assignmentsByWeekday,
     substituteOn,
   ]);
 

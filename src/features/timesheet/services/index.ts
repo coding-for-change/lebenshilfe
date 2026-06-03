@@ -80,23 +80,23 @@ export async function getEventsForUserInMonth(
   return getEventsForUserInRange(userId, start, end);
 }
 
+// One Event row per (child, Stundenplan block). A child with several schedule
+// blocks on the day therefore produces several WORK entries (COD-48).
 export async function insertWorkEvents(args: {
   userId: string;
-  childIds: string[];
   date: Date;
-  startTime: string;
-  endTime: string;
+  blocks: { childId: string; startTime: string; endTime: string }[];
   note?: string | null;
   signatureKey: string;
 }) {
   return prisma.event.createMany({
-    data: args.childIds.map((childId) => ({
+    data: args.blocks.map((block) => ({
       userId: args.userId,
-      childId,
+      childId: block.childId,
       type: EventType.WORK,
       date: args.date,
-      startTime: args.startTime,
-      endTime: args.endTime,
+      startTime: block.startTime,
+      endTime: block.endTime,
       note: args.note ?? null,
       signatureKey: args.signatureKey,
     })),

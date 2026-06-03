@@ -15,13 +15,14 @@ const signatureSchema = z
     "Ungültige Signatur.",
   );
 
+// Times are NOT supplied by the client for WORK entries (COD-48): a
+// Schulbegleiter follows the Stundenplan, so start/end are derived
+// server-side from the child's Schedule for the entry's weekday.
 export const CreateEventSchema = z
   .object({
     type: z.nativeEnum(EventType),
     date: dateStringSchema,
     childIds: z.array(z.string().min(1)).default([]),
-    startTime: timeStringSchema.optional(),
-    endTime: timeStringSchema.optional(),
     note: z.string().max(2000).optional(),
     signaturePngBase64: signatureSchema,
   })
@@ -33,24 +34,6 @@ export const CreateEventSchema = z
           path: ["childIds"],
           message: "Mindestens ein Kind auswählen.",
         });
-      if (!val.startTime)
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["startTime"],
-          message: "Startzeit fehlt.",
-        });
-      if (!val.endTime)
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["endTime"],
-          message: "Endzeit fehlt.",
-        });
-      if (val.startTime && val.endTime && !(val.endTime > val.startTime))
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["endTime"],
-          message: "Ende muss nach Start liegen.",
-        });
     }
     if (val.type === "SICK") {
       if (val.childIds.length !== 0)
@@ -58,12 +41,6 @@ export const CreateEventSchema = z
           code: z.ZodIssueCode.custom,
           path: ["childIds"],
           message: "Bei Krankheit darf kein Kind gewählt werden.",
-        });
-      if (val.startTime || val.endTime)
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["startTime"],
-          message: "Krankheit ist ganztägig.",
         });
     }
   });

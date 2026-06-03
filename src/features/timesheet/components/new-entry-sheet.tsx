@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, Stethoscope, UserCheck } from "lucide-react";
+import { Briefcase, Clock, Stethoscope, UserCheck } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -29,18 +29,6 @@ import { childIdsForDate, type AssignmentsByWeekday } from "../weekday";
 import { cn, formatIsoDateUtc } from "@/lib/utils";
 import type { VertretungDay } from "./timesheet-shell";
 
-type LastEntry = {
-  startTime: string | null;
-  endTime: string | null;
-};
-
-type QuickSlot = {
-  key: string;
-  label: string;
-  start: string;
-  end: string;
-};
-
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -49,19 +37,22 @@ type Props = {
   assignmentsByWeekday: AssignmentsByWeekday;
   currentUserName: string;
   schedules: Schedule[];
-  lastEntry: LastEntry | null;
   /** Vertretung days for the current user — so substitute children appear in the form. */
   substituteOn?: VertretungDay[];
 };
 
-function addMinutes(time: string, minutes: number): string {
-  const total = Math.max(
-    0,
-    Math.min(24 * 60 - 1, timeToMinutes(time) + minutes),
-  );
+type ScheduleBlock = {
+  id: string;
+  childId: string;
+  childFirstName: string;
+  startTime: string;
+  endTime: string;
+};
+
+function formatMinutes(total: number): string {
   const h = Math.floor(total / 60);
   const m = total % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
 export function NewEntrySheet({
@@ -72,13 +63,10 @@ export function NewEntrySheet({
   assignmentsByWeekday,
   currentUserName,
   schedules,
-  lastEntry,
   substituteOn = [],
 }: Props) {
   const [type, setType] = useState<EventType>(EventType.WORK);
   const [date, setDate] = useState(formatIsoDateUtc(defaultDate));
-  const [startTime, setStartTime] = useState("08:00");
-  const [endTime, setEndTime] = useState("17:00");
   const [note, setNote] = useState("");
 
   // Vertretungen for the currently selected date
@@ -109,8 +97,6 @@ export function NewEntrySheet({
     if (open) {
       setDate(formatIsoDateUtc(defaultDate));
       setType(EventType.WORK);
-      setStartTime("08:00");
-      setEndTime("17:00");
       setNote("");
     }
   }, [open, defaultDate]);
@@ -129,86 +115,63 @@ export function NewEntrySheet({
     });
   }, [dayAssignedChildren]);
 
-  const duration = useMemo(() => {
-    if (!startTime || !endTime) return null;
-    if (timeToMinutes(endTime) <= timeToMinutes(startTime)) return null;
-    return formatDuration(startTime, endTime);
-  }, [startTime, endTime]);
-
-  const canProceed =
-    type === EventType.SICK ? true : childIds.length >= 1 && Boolean(duration);
-
   const toggleChild = (id: string) => {
     setChildIds((cur) =>
       cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id],
     );
   };
 
-  const quickSlots = useMemo<QuickSlot[]>(() => {
-    const out: QuickSlot[] = [];
-    const seen = new Set<string>();
-    const push = (slot: QuickSlot) => {
-      const fp = `${slot.start}-${slot.end}`;
-      if (seen.has(fp)) return;
-      seen.add(fp);
-      out.push(slot);
-    };
+  const weekday = useMemo(() => weekdayIndex(parseIsoDate(date)), [date]);
 
-    // Vertretung time slot(s) — shown first so the substitute can quickly confirm
-    for (const v of dayVertretungen) {
-      push({
-        key: `vertretung-${v.childId}`,
-        label: `Vertretung (${v.childName.split(" ")[0]})`,
-        start: v.startTime,
-        end: v.endTime,
-      });
-    }
+  // The exact blocks that will be saved server-side: one entry per Stundenplan
+  // block per selected child. Times are read-only — they come from the
+  // Stundenplan, never from manual input (COD-48).
+  const scheduleBlocks = useMemo<ScheduleBlock[]>(() => {
+    return childIds.flatMap((childId) => {
+      const child = dayAssignedChildren.find((c) => c.id === childId);
+      return schedules
+        .filter((s) => s.childId === childId && s.weekday === weekday)
+        .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime))
+        .map((s) => ({
+          id: s.id,
+          childId,
+          childFirstName: child?.firstName ?? "",
+          startTime: s.startTime,
+          endTime: s.endTime,
+        }));
+    });
+  }, [childIds, schedules, weekday, dayAssignedChildren]);
 
-    const wd = weekdayIndex(parseIsoDate(date));
-    const relevantChildIds =
-      childIds.length > 0 ? childIds : dayAssignedChildren.map((c) => c.id);
-    const daySchedules = schedules.filter(
-      (s) => s.weekday === wd && relevantChildIds.includes(s.childId),
-    );
-    if (daySchedules.length > 0) {
-      const start = daySchedules.reduce((acc, s) =>
-        timeToMinutes(s.startTime) < timeToMinutes(acc.startTime) ? s : acc,
-      ).startTime;
-      const end = daySchedules.reduce((acc, s) =>
-        timeToMinutes(s.endTime) > timeToMinutes(acc.endTime) ? s : acc,
-      ).endTime;
-      push({
-        key: "schedule",
-        label: "Stundenplan",
-        start,
-        end,
-      });
-    }
+  // First names of selected children that have no Stundenplan on this weekday;
+  // an entry can't be derived for them, so submission is blocked.
+  const missingScheduleNames = useMemo(() => {
+    return childIds
+      .filter(
+        (id) =>
+          !schedules.some((s) => s.childId === id && s.weekday === weekday),
+      )
+      .map(
+        (id) => dayAssignedChildren.find((c) => c.id === id)?.firstName ?? "",
+      )
+      .filter(Boolean);
+  }, [childIds, schedules, weekday, dayAssignedChildren]);
 
-    if (lastEntry?.startTime && lastEntry?.endTime) {
-      push({
-        key: "last",
-        label: "Letzter Eintrag",
-        start: lastEntry.startTime,
-        end: lastEntry.endTime,
-      });
-      push({
-        key: "last-plus-15",
-        label: "Letzter +15m",
-        start: lastEntry.startTime,
-        end: addMinutes(lastEntry.endTime, 15),
-      });
-    }
+  const totalMinutes = useMemo(
+    () =>
+      scheduleBlocks.reduce(
+        (sum, b) =>
+          sum + (timeToMinutes(b.endTime) - timeToMinutes(b.startTime)),
+        0,
+      ),
+    [scheduleBlocks],
+  );
 
-    return out;
-  }, [
-    date,
-    schedules,
-    dayAssignedChildren,
-    childIds,
-    lastEntry,
-    dayVertretungen,
-  ]);
+  const canProceed =
+    type === EventType.SICK
+      ? true
+      : childIds.length >= 1 &&
+        missingScheduleNames.length === 0 &&
+        scheduleBlocks.length >= 1;
 
   const submitWithSignature = async (pngBase64: string) => {
     setSubmitting(true);
@@ -217,8 +180,6 @@ export function NewEntrySheet({
         type,
         date,
         childIds: type === EventType.WORK ? childIds : [],
-        startTime: type === EventType.WORK ? startTime : undefined,
-        endTime: type === EventType.WORK ? endTime : undefined,
         note: note.trim() || undefined,
         signaturePngBase64: pngBase64,
       });
@@ -240,7 +201,9 @@ export function NewEntrySheet({
 
   const signerSubtitle =
     type === EventType.WORK
-      ? `${date} · ${startTime}–${endTime}${duration ? ` · ${duration}` : ""}`
+      ? `${date} · ${scheduleBlocks.length} ${
+          scheduleBlocks.length === 1 ? "Einsatz" : "Einsätze"
+        }${totalMinutes > 0 ? ` · ${formatMinutes(totalMinutes)}` : ""}`
       : `${date} · Krank · ganztägig`;
 
   return (
@@ -358,59 +321,49 @@ export function NewEntrySheet({
                   </div>
                 )}
 
-                <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-end">
+                {childIds.length > 0 && (
                   <div className="space-y-1.5">
-                    <Label htmlFor="start">Start</Label>
-                    <Input
-                      id="start"
-                      type="time"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      className="h-14 text-xl font-mono tabular-nums"
-                    />
-                  </div>
-                  <span className="pb-3 text-muted-foreground">→</span>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="end">Ende</Label>
-                    <Input
-                      id="end"
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      className="h-14 text-xl font-mono tabular-nums"
-                    />
-                  </div>
-                </div>
-
-                <p className="text-sm text-muted-foreground">
-                  {duration
-                    ? `Dauer: ${duration}`
-                    : "Ende muss nach Start liegen"}
-                </p>
-
-                {quickSlots.length > 0 && (
-                  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
-                    {quickSlots.map((slot) => (
-                      <button
-                        key={slot.key}
-                        type="button"
-                        onClick={() => {
-                          setStartTime(slot.start);
-                          setEndTime(slot.end);
-                        }}
-                        className={cn(
-                          "flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors",
-                          startTime === slot.start && endTime === slot.end
-                            ? "border-amber-400 bg-amber-400/10 text-foreground"
-                            : "border-border bg-muted/40 hover:bg-accent",
-                        )}
-                      >
-                        <span className="font-medium">{slot.label}</span>
-                        <span className="font-mono tabular-nums text-muted-foreground">
-                          {slot.start}–{slot.end}
-                        </span>
-                      </button>
-                    ))}
+                    <Label>Zeiten (aus Stundenplan)</Label>
+                    {missingScheduleNames.length > 0 ? (
+                      <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                        Für {missingScheduleNames.join(", ")} ist an diesem Tag
+                        kein Stundenplan hinterlegt. Ein Eintrag ist nur entlang
+                        des Stundenplans möglich.
+                      </p>
+                    ) : (
+                      <>
+                        <div className="space-y-1 rounded-lg border border-border bg-muted/40 p-2">
+                          {scheduleBlocks.map((b) => (
+                            <div
+                              key={b.id}
+                              className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm"
+                            >
+                              <span className="flex items-center gap-2">
+                                <Clock className="size-4 text-muted-foreground" />
+                                {childIds.length > 1 && (
+                                  <span className="text-muted-foreground">
+                                    {b.childFirstName}
+                                  </span>
+                                )}
+                                <span className="font-mono tabular-nums text-base">
+                                  {b.startTime}–{b.endTime}
+                                </span>
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {formatDuration(b.startTime, b.endTime)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Die Zeiten kommen aus dem Stundenplan und sind nicht
+                          veränderbar
+                          {scheduleBlocks.length > 1
+                            ? " — pro Block ein Eintrag."
+                            : "."}
+                        </p>
+                      </>
+                    )}
                   </div>
                 )}
               </>

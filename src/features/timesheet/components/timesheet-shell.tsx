@@ -136,17 +136,6 @@ export function SchoolAssistantApp({
     setActiveTab(id);
   };
 
-  const lastWorkEntry = useMemo(() => {
-    const work = events.filter(
-      (e) => e.type === "WORK" && e.startTime && e.endTime,
-    );
-    if (work.length === 0) return null;
-    const sorted = [...work].sort(
-      (a, b) => b.date.getTime() - a.date.getTime(),
-    );
-    return sorted[0];
-  }, [events]);
-
   // Work entries an admin created or edited on the Schulbegleiter's behalf are
   // stored without a signatureKey. They await the Schulbegleiter's confirming
   // signature (soft-deleted originals are already filtered server-side).
@@ -366,14 +355,6 @@ export function SchoolAssistantApp({
           currentUserName={currentUser.name}
           schedules={schedules}
           substituteOn={substituteOn}
-          lastEntry={
-            lastWorkEntry
-              ? {
-                  startTime: lastWorkEntry.startTime ?? null,
-                  endTime: lastWorkEntry.endTime ?? null,
-                }
-              : null
-          }
         />
 
         <SettingsDialog

@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { weekdayIndex } from "@/lib/dates";
 import {
   ConfirmWorkEventsSchema,
   CreateEventSchema,
@@ -33,6 +34,42 @@ function parseDateOnly(dateStr: string): Date {
   // "YYYY-MM-DD" -> UTC date (matches @db.Date semantics without TZ shift)
   const [y, m, d] = dateStr.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d));
+}
+
+// COD-48: derive WORK start/end times from each child's Stundenplan for the
+// entry's weekday — one block per Schedule row. A child may have several
+// blocks on a day, each becoming its own entry. Throws if any selected child
+// has no schedule for that weekday: a Schulbegleiter may only log time that
+// exists in the Stundenplan (the substitute/Vertretung case is COD-51).
+async function deriveWorkBlocksFromSchedule(childIds: string[], date: Date) {
+  const weekday = weekdayIndex(date);
+  const schedules = await getSchedulesForChildren(childIds);
+
+  const blocks: { childId: string; startTime: string; endTime: string }[] = [];
+  const childrenWithoutSchedule: string[] = [];
+
+  for (const childId of childIds) {
+    const childBlocks = schedules
+      .filter((s) => s.childId === childId && s.weekday === weekday)
+      .map((s) => ({
+        childId,
+        startTime: s.startTime,
+        endTime: s.endTime,
+      }));
+    if (childBlocks.length === 0) {
+      childrenWithoutSchedule.push(childId);
+      continue;
+    }
+    blocks.push(...childBlocks);
+  }
+
+  if (childrenWithoutSchedule.length > 0) {
+    throw new Error(
+      "Für mindestens ein ausgewähltes Kind ist an diesem Tag kein Stundenplan hinterlegt. Ein Eintrag ist nur entlang des Stundenplans möglich.",
+    );
+  }
+
+  return blocks;
 }
 
 function assertMonthNotLocked(
@@ -108,19 +145,21 @@ export const TimesheetFacade = {
     assertMonthNotLocked(report);
 
     if (parsed.type === "WORK") {
+      // Derive times before touching storage so a missing Stundenplan fails
+      // fast without leaving an orphaned signature behind.
+      const blocks = await deriveWorkBlocksFromSchedule(parsed.childIds, date);
+
       const batchId = randomUUID();
       const signatureKey = `signatures/events/${userId}/${batchId}.png`;
       await uploadSignature(signatureKey, parsed.signaturePngBase64);
       await insertWorkEvents({
         userId,
-        childIds: parsed.childIds,
         date,
-        startTime: parsed.startTime!,
-        endTime: parsed.endTime!,
+        blocks,
         note: parsed.note ?? null,
         signatureKey,
       });
-      return { createdCount: parsed.childIds.length, signatureKey };
+      return { createdCount: blocks.length, signatureKey };
     }
 
     const eventId = randomUUID();

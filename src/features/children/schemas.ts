@@ -139,6 +139,49 @@ export const UpdateVertretungSchema = z.object({
 });
 export type UpdateVertretungInput = z.infer<typeof UpdateVertretungSchema>;
 
+// Result of fuzzy-matching a free-text child name against the roster. Used by
+// the Vertretung-Request flow (COD-51). `suggestedChildId` is only set when the
+// best candidate clears the confidence threshold and is unambiguous; the full
+// `candidates` list is for the admin queue only and never reaches a companion.
+export type ChildMatchCandidate = {
+  childId: string;
+  firstName: string;
+  lastName: string;
+  score: number;
+};
+
+export type ChildMatchResult = {
+  suggestedChildId: string | null;
+  matchScore: number | null;
+  candidates: ChildMatchCandidate[];
+};
+
+// A WORK event created on behalf of a Schulbegleiter that carries their
+// existing signature (captured when they reported the Vertretung). Distinct
+// from WorkEventSchema, whose admin-created events start unsigned.
+export const SignedWorkEventSchema = z.object({
+  childId: z.string().min(1),
+  userId: z.string().min(1),
+  date: dateString,
+  startTime: timeString,
+  endTime: timeString,
+  note: optionalText(2000),
+  signatureKey: z.string().min(1),
+});
+export type SignedWorkEventInput = z.infer<typeof SignedWorkEventSchema>;
+
+// A substitution record materialised from a confirmed Vertretung-Request. Unlike
+// VertretungSchema (admin-planned, times copied from the Stundenplan), the times
+// here are the ones the companion actually reported.
+export const SubstitutionRecordSchema = z.object({
+  childId: z.string().min(1),
+  substituteUserId: z.string().min(1),
+  date: dateString,
+  startTime: timeString,
+  endTime: timeString,
+});
+export type SubstitutionRecordInput = z.infer<typeof SubstitutionRecordSchema>;
+
 // Kinder-Wizard UI state types — kept here per AGENTS.md ("Zod schemas and TS types").
 
 export type SchoolValue = {

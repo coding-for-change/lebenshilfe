@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { EventType, type Prisma } from "@/generated/prisma";
-import type { WorkEventInput, UpdateWorkEventInput } from "../schemas";
+import type {
+  WorkEventInput,
+  UpdateWorkEventInput,
+  SignedWorkEventInput,
+} from "../schemas";
 
 export type ChildWorkEvent = Prisma.EventGetPayload<{
   include: { user: true };
@@ -26,6 +30,27 @@ export async function createWorkEventAsAdmin(input: WorkEventInput) {
       startTime: input.startTime,
       endTime: input.endTime,
       note: input.note ?? null,
+    },
+  });
+}
+
+/**
+ * Create a WORK event that is already signed by the Schulbegleiter. Used when
+ * an admin confirms a Vertretung-Request: the companion signed at report time,
+ * so the resulting entry carries that signature (non-null `signatureKey` →
+ * "signed by the Schulbegleiter") and counts toward billing immediately.
+ */
+export async function createSignedWorkEvent(input: SignedWorkEventInput) {
+  return prisma.event.create({
+    data: {
+      childId: input.childId,
+      userId: input.userId,
+      type: EventType.WORK,
+      date: new Date(`${input.date}T00:00:00.000Z`),
+      startTime: input.startTime,
+      endTime: input.endTime,
+      note: input.note ?? null,
+      signatureKey: input.signatureKey,
     },
   });
 }

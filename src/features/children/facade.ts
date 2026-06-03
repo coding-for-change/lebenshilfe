@@ -13,16 +13,23 @@ import {
   type UpdateChildInput,
   WorkEventSchema,
   UpdateWorkEventSchema,
+  SignedWorkEventSchema,
+  SubstitutionRecordSchema,
   type UpdateVertretungInput,
   type VertretungInput,
   type WorkEventInput,
   type UpdateWorkEventInput,
+  type SignedWorkEventInput,
+  type SubstitutionRecordInput,
+  type ChildMatchResult,
 } from "./schemas";
 import {
   createAssignment,
   createChild,
   createSchedule,
+  createSignedWorkEvent,
   createVertretungBlocks,
+  rankChildrenByName,
   deleteAbsenceById,
   deleteAssignmentById,
   deleteChildById,
@@ -232,6 +239,62 @@ export const ChildrenFacade = {
       substituteUserId: parsed.substituteUserId,
       date,
       timeBlocks,
+    });
+  },
+
+  /**
+   * Fuzzy-match a free-text child name against the roster (COD-51). Returns a
+   * *suggestion* only — never auto-links. `suggestedChildId` is set only when
+   * the best candidate clears the confidence threshold AND is clearly ahead of
+   * the runner-up; otherwise it stays null and an admin must pick the child.
+   * The roster never leaves the server, so this is safe to call before a
+   * companion's report is shown to anyone.
+   */
+  async matchChildByFreeText(text: string): Promise<ChildMatchResult> {
+    const SUGGEST_THRESHOLD = 0.82;
+    const AMBIGUOUS_DELTA = 0.08;
+
+    const candidates = await rankChildrenByName(text, 5);
+    const best = candidates[0];
+    const runnerUp = candidates[1];
+
+    let suggestedChildId: string | null = null;
+    if (best && best.score >= SUGGEST_THRESHOLD) {
+      const ambiguous = runnerUp
+        ? best.score - runnerUp.score < AMBIGUOUS_DELTA
+        : false;
+      if (!ambiguous) suggestedChildId = best.childId;
+    }
+
+    return {
+      suggestedChildId,
+      matchScore: best?.score ?? null,
+      candidates,
+    };
+  },
+
+  /**
+   * Create a WORK event that carries the Schulbegleiter's own signature.
+   * Used when an admin confirms a Vertretung-Request — the companion already
+   * signed at report time, so the materialised entry is billable at once.
+   */
+  async createSignedWorkEvent(input: SignedWorkEventInput) {
+    const parsed = SignedWorkEventSchema.parse(input);
+    return createSignedWorkEvent(parsed);
+  },
+
+  /**
+   * Materialise a substitution record (ChildVertretung) from a confirmed
+   * Vertretung-Request. Unlike {@link createVertretung}, the times are the ones
+   * the companion actually reported, not copied from the Stundenplan.
+   */
+  async createSubstitutionRecord(input: SubstitutionRecordInput) {
+    const parsed = SubstitutionRecordSchema.parse(input);
+    await createVertretungBlocks({
+      childId: parsed.childId,
+      substituteUserId: parsed.substituteUserId,
+      date: new Date(`${parsed.date}T00:00:00.000Z`),
+      timeBlocks: [{ startTime: parsed.startTime, endTime: parsed.endTime }],
     });
   },
 

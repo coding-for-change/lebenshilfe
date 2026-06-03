@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { EventType, type Schedule } from "@/generated/prisma";
 import { SignaturePadDialog } from "./signature-pad-dialog";
 import { createEventAction } from "../actions";
+import { submitVertretungRequestAction } from "@/features/vertretung-requests/actions";
 import {
   formatDuration,
   parseIsoDate,
@@ -28,6 +29,10 @@ import type { ChildOption } from "./children-filter";
 import { childIdsForDate, type AssignmentsByWeekday } from "../weekday";
 import { cn, formatIsoDateUtc } from "@/lib/utils";
 import type { VertretungDay } from "./timesheet-shell";
+
+/** UI entry mode. VERTRETUNG is a free-text substitution report (COD-51) and is
+ * NOT an EventType — it becomes a pending VertretungRequest, not an Event. */
+type EntryMode = "WORK" | "VERTRETUNG" | "SICK";
 
 type LastEntry = {
   startTime: string | null;
@@ -64,6 +69,44 @@ function addMinutes(time: string, minutes: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+function TimeRangeInputs({
+  startTime,
+  endTime,
+  onStartChange,
+  onEndChange,
+}: {
+  startTime: string;
+  endTime: string;
+  onStartChange: (v: string) => void;
+  onEndChange: (v: string) => void;
+}) {
+  return (
+    <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-end">
+      <div className="space-y-1.5">
+        <Label htmlFor="start">Start</Label>
+        <Input
+          id="start"
+          type="time"
+          value={startTime}
+          onChange={(e) => onStartChange(e.target.value)}
+          className="h-14 text-xl font-mono tabular-nums"
+        />
+      </div>
+      <span className="pb-3 text-muted-foreground">→</span>
+      <div className="space-y-1.5">
+        <Label htmlFor="end">Ende</Label>
+        <Input
+          id="end"
+          type="time"
+          value={endTime}
+          onChange={(e) => onEndChange(e.target.value)}
+          className="h-14 text-xl font-mono tabular-nums"
+        />
+      </div>
+    </div>
+  );
+}
+
 export function NewEntrySheet({
   open,
   onOpenChange,
@@ -75,11 +118,12 @@ export function NewEntrySheet({
   lastEntry,
   substituteOn = [],
 }: Props) {
-  const [type, setType] = useState<EventType>(EventType.WORK);
+  const [mode, setMode] = useState<EntryMode>("WORK");
   const [date, setDate] = useState(formatIsoDateUtc(defaultDate));
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("17:00");
   const [note, setNote] = useState("");
+  const [childNameText, setChildNameText] = useState("");
 
   // Vertretungen for the currently selected date
   const dayVertretungen = useMemo(
@@ -108,10 +152,11 @@ export function NewEntrySheet({
   useEffect(() => {
     if (open) {
       setDate(formatIsoDateUtc(defaultDate));
-      setType(EventType.WORK);
+      setMode("WORK");
       setStartTime("08:00");
       setEndTime("17:00");
       setNote("");
+      setChildNameText("");
     }
   }, [open, defaultDate]);
 
@@ -136,7 +181,11 @@ export function NewEntrySheet({
   }, [startTime, endTime]);
 
   const canProceed =
-    type === EventType.SICK ? true : childIds.length >= 1 && Boolean(duration);
+    mode === "SICK"
+      ? true
+      : mode === "VERTRETUNG"
+        ? childNameText.trim().length >= 2 && Boolean(duration)
+        : childIds.length >= 1 && Boolean(duration);
 
   const toggleChild = (id: string) => {
     setChildIds((cur) =>
@@ -213,22 +262,34 @@ export function NewEntrySheet({
   const submitWithSignature = async (pngBase64: string) => {
     setSubmitting(true);
     try {
-      await createEventAction({
-        type,
-        date,
-        childIds: type === EventType.WORK ? childIds : [],
-        startTime: type === EventType.WORK ? startTime : undefined,
-        endTime: type === EventType.WORK ? endTime : undefined,
-        note: note.trim() || undefined,
-        signaturePngBase64: pngBase64,
-      });
-      toast.success(
-        type === EventType.WORK
-          ? `Eintrag gespeichert (${childIds.length} Kind${
-              childIds.length === 1 ? "" : "er"
-            })`
-          : "Krankheit gespeichert",
-      );
+      if (mode === "VERTRETUNG") {
+        await submitVertretungRequestAction({
+          childNameText: childNameText.trim(),
+          date,
+          startTime,
+          endTime,
+          note: note.trim() || undefined,
+          signaturePngBase64: pngBase64,
+        });
+        toast.success("Vertretung gemeldet — wird vom Team zugeordnet.");
+      } else {
+        await createEventAction({
+          type: mode === "SICK" ? EventType.SICK : EventType.WORK,
+          date,
+          childIds: mode === "WORK" ? childIds : [],
+          startTime: mode === "WORK" ? startTime : undefined,
+          endTime: mode === "WORK" ? endTime : undefined,
+          note: note.trim() || undefined,
+          signaturePngBase64: pngBase64,
+        });
+        toast.success(
+          mode === "WORK"
+            ? `Eintrag gespeichert (${childIds.length} Kind${
+                childIds.length === 1 ? "" : "er"
+              })`
+            : "Krankheit gespeichert",
+        );
+      }
       setSigOpen(false);
       onOpenChange(false);
     } catch (e: unknown) {
@@ -239,9 +300,16 @@ export function NewEntrySheet({
   };
 
   const signerSubtitle =
-    type === EventType.WORK
-      ? `${date} · ${startTime}–${endTime}${duration ? ` · ${duration}` : ""}`
-      : `${date} · Krank · ganztägig`;
+    mode === "SICK"
+      ? `${date} · Krank · ganztägig`
+      : `${date} · ${startTime}–${endTime}${duration ? ` · ${duration}` : ""}`;
+
+  const signerTitle =
+    mode === "VERTRETUNG"
+      ? "Vertretung bestätigen"
+      : mode === "WORK"
+        ? "Arbeitszeit bestätigen"
+        : "Krankheit bestätigen";
 
   return (
     <>
@@ -279,22 +347,34 @@ export function NewEntrySheet({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <Button
                 type="button"
-                variant={type === EventType.WORK ? "default" : "outline"}
-                onClick={() => setType(EventType.WORK)}
-                className="h-12"
+                variant={mode === "WORK" ? "default" : "outline"}
+                onClick={() => setMode("WORK")}
+                className="h-12 flex-col gap-1 text-xs"
               >
                 <Briefcase className="size-4" /> Arbeit
               </Button>
               <Button
                 type="button"
-                variant={type === EventType.SICK ? "default" : "outline"}
-                onClick={() => setType(EventType.SICK)}
+                variant={mode === "VERTRETUNG" ? "default" : "outline"}
+                onClick={() => setMode("VERTRETUNG")}
                 className={cn(
-                  "h-12",
-                  type === EventType.SICK &&
+                  "h-12 flex-col gap-1 text-xs",
+                  mode === "VERTRETUNG" &&
+                    "bg-amber-500 hover:bg-amber-600 text-white",
+                )}
+              >
+                <UserCheck className="size-4" /> Vertretung
+              </Button>
+              <Button
+                type="button"
+                variant={mode === "SICK" ? "default" : "outline"}
+                onClick={() => setMode("SICK")}
+                className={cn(
+                  "h-12 flex-col gap-1 text-xs",
+                  mode === "SICK" &&
                     "bg-rose-600 hover:bg-rose-700 text-white",
                 )}
               >
@@ -302,7 +382,7 @@ export function NewEntrySheet({
               </Button>
             </div>
 
-            {type === EventType.WORK && (
+            {mode === "WORK" && (
               <>
                 {dayAssignedChildren.length === 0 ? (
                   <p className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
@@ -358,29 +438,12 @@ export function NewEntrySheet({
                   </div>
                 )}
 
-                <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-end">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="start">Start</Label>
-                    <Input
-                      id="start"
-                      type="time"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      className="h-14 text-xl font-mono tabular-nums"
-                    />
-                  </div>
-                  <span className="pb-3 text-muted-foreground">→</span>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="end">Ende</Label>
-                    <Input
-                      id="end"
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      className="h-14 text-xl font-mono tabular-nums"
-                    />
-                  </div>
-                </div>
+                <TimeRangeInputs
+                  startTime={startTime}
+                  endTime={endTime}
+                  onStartChange={setStartTime}
+                  onEndChange={setEndTime}
+                />
 
                 <p className="text-sm text-muted-foreground">
                   {duration
@@ -416,6 +479,38 @@ export function NewEntrySheet({
               </>
             )}
 
+            {mode === "VERTRETUNG" && (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="childName">Name des Kindes</Label>
+                  <Input
+                    id="childName"
+                    value={childNameText}
+                    onChange={(e) => setChildNameText(e.target.value)}
+                    placeholder="Vor- und Nachname"
+                    autoComplete="off"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Bitte den Namen frei eintippen. Die genaue Zuordnung
+                    übernimmt das Team.
+                  </p>
+                </div>
+
+                <TimeRangeInputs
+                  startTime={startTime}
+                  endTime={endTime}
+                  onStartChange={setStartTime}
+                  onEndChange={setEndTime}
+                />
+
+                <p className="text-sm text-muted-foreground">
+                  {duration
+                    ? `Dauer: ${duration}`
+                    : "Ende muss nach Start liegen"}
+                </p>
+              </>
+            )}
+
             <div className="space-y-1.5">
               <Label htmlFor="note">Notiz (optional)</Label>
               <Textarea
@@ -423,9 +518,9 @@ export function NewEntrySheet({
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder={
-                  type === EventType.WORK
-                    ? "z.B. besondere Vorkommnisse"
-                    : "z.B. Arzttermin"
+                  mode === "SICK"
+                    ? "z.B. Arzttermin"
+                    : "z.B. besondere Vorkommnisse"
                 }
                 rows={3}
               />
@@ -453,11 +548,7 @@ export function NewEntrySheet({
       <SignaturePadDialog
         open={sigOpen}
         onOpenChange={setSigOpen}
-        title={
-          type === EventType.WORK
-            ? "Arbeitszeit bestätigen"
-            : "Krankheit bestätigen"
-        }
+        title={signerTitle}
         subtitle={signerSubtitle}
         signerLabel={`${currentUserName} (Mitarbeiter)`}
         onConfirm={submitWithSignature}

@@ -75,3 +75,39 @@ single-feature operation is **not** a Use Case.
   `createVertretungAction` / `updateVertretungAction`.
 
 See `docs/architecture/dependency-graph.md` for the diagram.
+
+### Vertretung-Requests: free-text child matching (COD-51)
+A Schulbegleiter can report a Vertretung for a child they are **not** assigned
+to. The child is entered as **free text** (`childNameText`) — the roster is
+never shown to the companion (Datenschutz). The server fuzzy-matches the text
+against the roster and stores a *suggestion only*; nothing is auto-confirmed.
+An admin resolves each report in the "Zuzuordnen" section of the Handlungsbedarf
+tab (COD-50): confirming materialises the billable `WORK` `Event` (carrying the
+companion's signature) **and** a `ChildVertretung`, so an unresolved report
+never reaches billing/export.
+
+It lives in its own bounded context, `features/vertretung-requests/`, because it
+owns a new table (`VertretungRequest`) and is initiated from the timesheet UI,
+independent of the children domain.
+
+- **Matching** is split cleanly: the pure string math is `lib/fuzzy.ts`
+  (`nameSimilarity`, robust to umlauts/diacritics/word-order); the roster
+  ranking is a children service (`rankChildrenByName`); the threshold decision
+  is `ChildrenFacade.matchChildByFreeText` (suggests only when confident AND
+  unambiguous). The roster never leaves the server.
+- **Facade**: `VertretungRequestsFacade` owns the `VertretungRequest` table only
+  (create / listPending / get / markConfirmed / markRejected) and uploads the
+  companion's signature. It stays free of auth/HTTP.
+- **Use Cases** (cross-feature, two facades each):
+  - `submit-vertretung-request` — `ChildrenFacade.matchChildByFreeText` →
+    `VertretungRequestsFacade.createRequest`.
+  - `resolve-vertretung-request` — on admin confirm, `ChildrenFacade`
+    creates the signed `Event` + the `ChildVertretung`, then
+    `VertretungRequestsFacade.markConfirmed`.
+- **Actions**: `submitVertretungRequestAction` (`requireAuth` → submit use case),
+  `confirmVertretungRequestAction` (`requireAdmin` → resolve use case),
+  `rejectVertretungRequestAction` (`requireAdmin` → Facade directly,
+  single-feature), `listPendingVertretungRequestsAction` (`requireAdmin`).
+- **UI**: a third "Vertretung" mode in the timesheet new-entry sheet (free-text
+  child, manual time, signature) and the `VertretungQueue` component mounted in
+  the Handlungsbedarf page.

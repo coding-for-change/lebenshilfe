@@ -19,6 +19,12 @@ enum EventType {
   SICK
 }
 
+enum VertretungRequestStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
 enum SchulbegleiterStatus {
   INVITATION_PENDING
   ACCEPTED
@@ -43,6 +49,7 @@ model User {
   monthlyReports MonthlyReport[]
   profile       SchoolAssistantProfile?
   vertretungenAsSubstitute  ChildVertretung[] @relation("SubstituteVertretung")
+  vertretungRequests        VertretungRequest[] @relation("VertretungRequestReporter")
 
   @@unique([email])
   @@map("user")
@@ -133,6 +140,7 @@ model Child {
   events                     Event[]
   absences                   ChildAbsence[]
   vertretungen               ChildVertretung[]
+  suggestedVertretungRequests VertretungRequest[] @relation("VertretungRequestSuggestedChild")
 
   @@index([kostentraegerId])
   @@map("child")
@@ -171,6 +179,41 @@ model ChildVertretung {
   @@index([childId, date])
   @@index([substituteUserId, date])
   @@map("child_vertretung")
+}
+
+/// A Schulbegleiter-reported substitution ("Vertretung") for a child they are
+/// NOT assigned to. The child is captured as free text (`childNameText`) for
+/// Datenschutz reasons — the roster is never shown to the companion. The server
+/// fuzzy-matches the text against the child roster and stores a *suggestion*
+/// only (`suggestedChildId` + `matchScore`); nothing is auto-confirmed. An admin
+/// resolves each PENDING row in the Zuordnungs-Queue: confirming materializes
+/// the billable WORK Event (`resolvedEventId`) and a ChildVertretung record, so
+/// an unresolved report never reaches billing/export.
+model VertretungRequest {
+  id               String                  @id @default(cuid())
+  reportedByUserId String
+  childNameText    String
+  date             DateTime                @db.Date
+  startTime        String
+  endTime          String
+  note             String?                 @db.Text
+  signatureKey     String
+  status           VertretungRequestStatus @default(PENDING)
+  suggestedChildId String?
+  matchScore       Float?
+  resolvedChildId  String?
+  resolvedByUserId String?
+  resolvedEventId  String?
+  resolvedAt       DateTime?
+  rejectionReason  String?                 @db.Text
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  reportedByUser   User                    @relation("VertretungRequestReporter", fields: [reportedByUserId], references: [id], onDelete: Cascade)
+  suggestedChild   Child?                  @relation("VertretungRequestSuggestedChild", fields: [suggestedChildId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([reportedByUserId])
+  @@map("vertretung_request")
 }
 
 model Kostentraeger {

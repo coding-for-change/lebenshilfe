@@ -6,6 +6,8 @@ export type {
   ScheduleInput,
   SchoolInput,
   UpdateChildInput,
+  ChildMatchCandidate,
+  ChildMatchResult,
 } from "./schemas";
 export {
   serializeChild,

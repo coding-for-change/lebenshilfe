@@ -18,6 +18,8 @@ graph TD
         UC_removeAdmin[remove-admin-user]
         UC_resendAdmin[resend-admin-invitation]
         UC_resendSA[resend-school-assistant-invitation]
+        UC_submitVR[submit-vertretung-request]
+        UC_resolveVR[resolve-vertretung-request]
     end
 
     subgraph "Feature Facades"
@@ -26,6 +28,7 @@ graph TD
         F_sa[SchoolAssistantsFacade]
         F_invitation[InvitationFacade]
         F_user[UserFacade]
+        F_vr[VertretungRequestsFacade]
     end
 
     UC_cancelInvite --> F_invitation
@@ -44,6 +47,31 @@ graph TD
     UC_resendAdmin --> F_invitation
     UC_resendSA --> F_invitation
     UC_resendSA --> F_sa
+    UC_submitVR --> F_children
+    UC_submitVR --> F_vr
+    UC_resolveVR --> F_children
+    UC_resolveVR --> F_vr
+```
+
+## Vertretung-Request flow (COD-51)
+
+A Schulbegleiter-reported substitution with a **free-text** child name. Two
+cross-feature Use Cases coordinate `ChildrenFacade` and
+`VertretungRequestsFacade`; the roster is matched server-side and never shown
+to the companion. Nothing reaches billing until an admin confirms (which then
+materialises the `Event` + `ChildVertretung`).
+
+```mermaid
+graph LR
+    SB["Schulbegleiter: new-entry sheet"] --> A_submit[submitVertretungRequestAction]
+    A_submit --> UC_submitVR[submit-vertretung-request]
+    UC_submitVR --> F_children[ChildrenFacade.matchChildByFreeText]
+    UC_submitVR --> F_vr[VertretungRequestsFacade.createRequest]
+
+    Admin["Admin: Handlungsbedarf · Zuzuordnen"] --> A_confirm[confirmVertretungRequestAction]
+    A_confirm --> UC_resolveVR[resolve-vertretung-request]
+    UC_resolveVR --> F_children2[ChildrenFacade: signed Event + ChildVertretung]
+    UC_resolveVR --> F_vr2[VertretungRequestsFacade.markConfirmed]
 ```
 
 ## Single-feature flows (no Use Case)

@@ -99,9 +99,23 @@ function ReadyAutocomplete({ value, onChange, id, ariaInvalid }: Props) {
 
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
+    null,
+  );
   const anchorRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const listId = useId();
+
+  // Render the list inside the enclosing dialog/sheet rather than document.body.
+  // That escapes the modal's inner overflow clipping while staying within its
+  // scroll-lock subtree, so mouse-wheel and touch scrolling keep working.
+  useEffect(() => {
+    setPortalContainer(
+      anchorRef.current?.closest<HTMLElement>(
+        '[data-slot="dialog-content"],[data-slot="sheet-content"]',
+      ) ?? null,
+    );
+  }, []);
 
   useEffect(() => {
     if (value.name && !query) setQuery(value.name, true);
@@ -240,6 +254,7 @@ function ReadyAutocomplete({ value, onChange, id, ariaInvalid }: Props) {
       {/* Portal lets the list escape the wizard dialog's stacking/overflow.
           Focus stays in the input so typing keeps driving the search. */}
       <PopoverContent
+        container={portalContainer ?? undefined}
         align="start"
         sideOffset={4}
         onOpenAutoFocus={(e) => e.preventDefault()}

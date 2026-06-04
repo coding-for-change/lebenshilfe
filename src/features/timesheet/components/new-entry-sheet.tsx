@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, Stethoscope, UserCheck } from "lucide-react";
+import {
+  Briefcase,
+  FileText,
+  Stethoscope,
+  UserCheck,
+  UserPlus,
+} from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -374,55 +380,87 @@ export function NewEntrySheet({
 
             {type === EventType.WORK && (
               <>
-                {dayAssignedChildren.length === 0 ? (
-                  <p className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
-                    An diesem Tag ist dir kein Kind zugewiesen.
-                  </p>
-                ) : dayAssignedChildren.length === 1 ? (
-                  <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm flex items-center gap-2">
-                    <span className="text-muted-foreground">Kind: </span>
-                    <span>
-                      {dayAssignedChildren[0].firstName}{" "}
-                      {dayAssignedChildren[0].lastName}
-                    </span>
-                    {dayVertretungen.some(
-                      (v) => v.childId === dayAssignedChildren[0].id,
-                    ) && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
-                        <UserCheck className="size-3" />
-                        Vertretung
+                <div className="grid grid-cols-3 gap-1.5">
+                  <Button
+                    type="button"
+                    variant={workVariant === "OWN" ? "default" : "outline"}
+                    onClick={() => setWorkVariant("OWN")}
+                    className="h-10 text-xs sm:text-sm"
+                  >
+                    <Briefcase className="size-3.5" /> Eigenes Kind
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={
+                      workVariant === "SUBSTITUTE" ? "default" : "outline"
+                    }
+                    onClick={() => setWorkVariant("SUBSTITUTE")}
+                    className="h-10 text-xs sm:text-sm"
+                  >
+                    <UserPlus className="size-3.5" /> Einspringen
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={workVariant === "INDIRECT" ? "default" : "outline"}
+                    onClick={() => setWorkVariant("INDIRECT")}
+                    className="h-10 text-xs sm:text-sm"
+                  >
+                    <FileText className="size-3.5" /> Indirekt
+                  </Button>
+                </div>
+
+                {workVariant === "OWN" &&
+                  (dayAssignedChildren.length === 0 ? (
+                    <p className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+                      An diesem Tag ist dir kein Kind zugewiesen.
+                    </p>
+                  ) : dayAssignedChildren.length === 1 ? (
+                    <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm flex items-center gap-2">
+                      <span className="text-muted-foreground">Kind: </span>
+                      <span>
+                        {dayAssignedChildren[0].firstName}{" "}
+                        {dayAssignedChildren[0].lastName}
                       </span>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    <Label>Kinder</Label>
-                    <div className="space-y-1 rounded-lg border border-border p-2">
-                      {dayAssignedChildren.map((c) => (
-                        <label
-                          key={c.id}
-                          htmlFor={`child-${c.id}`}
-                          className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
-                        >
-                          <Checkbox
-                            id={`child-${c.id}`}
-                            checked={childIds.includes(c.id)}
-                            onCheckedChange={() => toggleChild(c.id)}
-                          />
-                          <span className="flex-1">
-                            {c.firstName} {c.lastName}
-                          </span>
-                          {dayVertretungen.some((v) => v.childId === c.id) && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
-                              <UserCheck className="size-3" />
-                              Vertretung
-                            </span>
-                          )}
-                        </label>
-                      ))}
+                      {dayVertretungen.some(
+                        (v) => v.childId === dayAssignedChildren[0].id,
+                      ) && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                          <UserCheck className="size-3" />
+                          Vertretung
+                        </span>
+                      )}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <div className="space-y-1.5">
+                      <Label>Kinder</Label>
+                      <div className="space-y-1 rounded-lg border border-border p-2">
+                        {dayAssignedChildren.map((c) => (
+                          <label
+                            key={c.id}
+                            htmlFor={`child-${c.id}`}
+                            className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+                          >
+                            <Checkbox
+                              id={`child-${c.id}`}
+                              checked={childIds.includes(c.id)}
+                              onCheckedChange={() => toggleChild(c.id)}
+                            />
+                            <span className="flex-1">
+                              {c.firstName} {c.lastName}
+                            </span>
+                            {dayVertretungen.some(
+                              (v) => v.childId === c.id,
+                            ) && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                                <UserCheck className="size-3" />
+                                Vertretung
+                              </span>
+                            )}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
 
                 {workVariant === "SUBSTITUTE" && (
                   <div className="space-y-1.5">

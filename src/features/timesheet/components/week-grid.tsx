@@ -11,7 +11,7 @@ import {
 } from "@/lib/dates";
 import type { Event, Schedule } from "@/generated/prisma";
 import type { ChildOption } from "./children-filter";
-import type { VertretungDay } from "./timesheet-shell";
+import type { ChildSchoolHolidayItem, VertretungDay } from "./timesheet-shell";
 
 type Props = {
   anchorDate: Date;
@@ -23,6 +23,7 @@ type Props = {
   >;
   schedules: Schedule[];
   onSelectDay: (date: Date) => void;
+  childSchoolHolidays?: ChildSchoolHolidayItem[];
   substituteOn?: VertretungDay[];
 };
 
@@ -88,12 +89,30 @@ export function WeekGrid({
   events,
   schedules,
   onSelectDay,
+  childSchoolHolidays = [],
   substituteOn = [],
 }: Props) {
   const monday = startOfWeekUtc(anchorDate);
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
 
   const substituteChildIds = new Set(substituteOn.map((v) => v.childId));
+
+  // Distinct school-holiday names covering each weekday, limited to the
+  // currently selected children (matching how schedules/work are filtered).
+  const holidayNamesByIso = new Map<string, string[]>();
+  for (const d of days) {
+    const iso = formatIsoDateUtc(d);
+    const names: string[] = [];
+    for (const h of childSchoolHolidays) {
+      const inSelection =
+        selectedChildIds.length === 0 || selectedChildIds.includes(h.childId);
+      if (!inSelection) continue;
+      if (iso < h.startDate || iso > h.endDate) continue;
+      const label = h.name ?? "Schulferien";
+      if (!names.includes(label)) names.push(label);
+    }
+    if (names.length > 0) holidayNamesByIso.set(iso, names);
+  }
 
   const colorFor = (childId: string | null | undefined) => {
     if (!childId) return "bg-rose-500/15 border-rose-400 text-rose-950";
@@ -124,6 +143,7 @@ export function WeekGrid({
         <div />
         {days.map((d, i) => {
           const isToday = isSameUtcDay(d, today);
+          const holidayNames = holidayNamesByIso.get(formatIsoDateUtc(d));
           return (
             <button
               key={formatIsoDateUtc(d)}
@@ -132,6 +152,7 @@ export function WeekGrid({
               className={cn(
                 "flex flex-col items-center py-2 text-xs hover:bg-accent",
                 i > 0 && "border-l border-border",
+                holidayNames && "bg-emerald-700/10",
               )}
             >
               <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -145,6 +166,14 @@ export function WeekGrid({
               >
                 {d.getUTCDate()}
               </span>
+              {holidayNames ? (
+                <span
+                  className="mt-0.5 w-full truncate px-1 text-center text-[9px] font-medium text-emerald-800"
+                  title={holidayNames.join(" · ")}
+                >
+                  {holidayNames.join(", ")}
+                </span>
+              ) : null}
             </button>
           );
         })}
@@ -188,10 +217,16 @@ export function WeekGrid({
               !substituteChildIds.has(s.childId),
           );
 
+          const isHoliday = holidayNamesByIso.has(iso);
+
           return (
             <div
               key={formatIsoDateUtc(d)}
-              className={cn("relative", i > 0 && "border-l border-border")}
+              className={cn(
+                "relative",
+                i > 0 && "border-l border-border",
+                isHoliday && "bg-emerald-700/5",
+              )}
             >
               {hours.map((h, j) => (
                 <div

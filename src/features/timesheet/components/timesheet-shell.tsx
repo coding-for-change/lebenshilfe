@@ -200,6 +200,7 @@ export function SchoolAssistantApp({
             onSelectedChildIdsChange={setSelectedChildIds}
             events={events}
             schedules={schedules}
+            childSchoolHolidays={childSchoolHolidays}
             substituteOn={substituteOn}
           />
         );

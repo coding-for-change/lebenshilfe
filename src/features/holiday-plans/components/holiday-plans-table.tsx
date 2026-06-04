@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -14,10 +13,9 @@ import {
 } from "@/components/ui/table";
 import { PageSection } from "@/components/page-section";
 import { SearchableTable } from "@/components/searchable-table";
-import { ConfirmDialog } from "@/components/confirm-dialog";
 import { HolidayPlanCreateDialog } from "./holiday-plan-create-dialog";
 import { HolidayPlanDetailSheet } from "./holiday-plan-detail-sheet";
-import { deleteHolidayPlanAction } from "../actions";
+import { HolidayPlanRowActions } from "./holiday-plan-row-actions";
 import type { SerializedHolidayPlan } from "../serialize";
 
 type Props = {
@@ -27,9 +25,6 @@ type Props = {
 export function HolidayPlansTable({ plans }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [openPlanId, setOpenPlanId] = useState<string | null>(null);
-  const [deletePlan, setDeletePlan] = useState<SerializedHolidayPlan | null>(
-    null,
-  );
 
   const openPlan = useMemo(
     () => plans.find((p) => p.id === openPlanId) ?? null,
@@ -85,14 +80,10 @@ export function HolidayPlansTable({ plans }: Props) {
                         className="text-right"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Ferienplan löschen"
-                          onClick={() => setDeletePlan(p)}
-                        >
-                          <Trash2 className="size-4 text-destructive" />
-                        </Button>
+                        <HolidayPlanRowActions
+                          plan={p}
+                          onOpenDetails={() => setOpenPlanId(p.id)}
+                        />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -115,36 +106,6 @@ export function HolidayPlansTable({ plans }: Props) {
         plan={openPlan}
         open={!!openPlan}
         onOpenChange={(next) => !next && setOpenPlanId(null)}
-      />
-
-      <ConfirmDialog
-        open={!!deletePlan}
-        onOpenChange={(next) => !next && setDeletePlan(null)}
-        title="Ferienplan löschen?"
-        description={
-          deletePlan
-            ? `"${deletePlan.name}" wird gelöscht. ${
-                deletePlan.schoolCount > 0
-                  ? `Die Zuweisung wird bei ${deletePlan.schoolCount} ${
-                      deletePlan.schoolCount === 1 ? "Schule" : "Schulen"
-                    } entfernt.`
-                  : ""
-              }`
-            : ""
-        }
-        confirmLabel="Löschen"
-        variant="destructive"
-        onConfirm={async () => {
-          if (!deletePlan) return;
-          try {
-            await deleteHolidayPlanAction(deletePlan.id);
-            toast.success("Ferienplan gelöscht.");
-          } catch (err) {
-            toast.error(
-              err instanceof Error ? err.message : "Löschen fehlgeschlagen.",
-            );
-          }
-        }}
       />
     </>
   );

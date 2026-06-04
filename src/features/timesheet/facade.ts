@@ -10,7 +10,6 @@ import {
   type UpdateEventInput,
 } from "./schemas";
 import {
-  assertChildExists,
   deleteEventById,
   findEventById,
   findMonthlyReport,
@@ -24,7 +23,6 @@ import {
   insertSickEvent,
   insertWorkEvents,
   listMonthlyReportsForUser,
-  searchChildrenByName,
   signWorkEvents,
   updateEventFields,
   uploadSignature,
@@ -130,7 +128,6 @@ export const TimesheetFacade = {
 
     if (parsed.type === "INDIRECT") {
       const childId = parsed.childIds[0];
-      await assertChildExists(childId);
       const eventId = randomUUID();
       const signatureKey = `signatures/events/${userId}/${eventId}.png`;
       await uploadSignature(signatureKey, parsed.signaturePngBase64);
@@ -156,10 +153,6 @@ export const TimesheetFacade = {
       signatureKey,
     });
     return { createdCount: 1, signatureKey };
-  },
-
-  async searchChildren(userId: string, query: string) {
-    return searchChildrenByName(userId, query);
   },
 
   async updateEvent(userId: string, eventId: string, input: UpdateEventInput) {

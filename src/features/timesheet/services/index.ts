@@ -148,40 +148,6 @@ export async function insertIndirectEvent(args: {
   });
 }
 
-export async function assertChildExists(childId: string) {
-  const child = await prisma.child.findUnique({
-    where: { id: childId },
-    select: { id: true },
-  });
-  if (!child) {
-    throw new Error("Kind nicht gefunden.");
-  }
-}
-
-// Restricts the search to children that have (now or previously) been
-// assigned to this Schulbegleiter — a user must never be able to look up the
-// names of children outside their own caseload.
-export async function searchChildrenByName(
-  userId: string,
-  query: string,
-  limit = 10,
-) {
-  const trimmed = query.trim();
-  if (trimmed.length < 1) return [];
-  return prisma.child.findMany({
-    where: {
-      assignments: { some: { userId } },
-      OR: [
-        { firstName: { contains: trimmed } },
-        { lastName: { contains: trimmed } },
-      ],
-    },
-    select: { id: true, firstName: true, lastName: true },
-    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-    take: limit,
-  });
-}
-
 export async function getEventsForChildInRange(
   childId: string,
   start: Date,

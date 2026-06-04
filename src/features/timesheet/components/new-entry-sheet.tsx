@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { match } from "ts-pattern";
 import {
   Briefcase,
   FileText,
@@ -605,15 +606,14 @@ export function NewEntrySheet({
       <SignaturePadDialog
         open={sigOpen}
         onOpenChange={setSigOpen}
-        title={
-          type === EventType.SICK
-            ? "Krankheit bestätigen"
-            : type === EventType.INDIRECT
-              ? "Indirekte Leistung bestätigen"
-              : workVariant === "SUBSTITUTE"
-                ? "Einspringen bestätigen"
-                : "Arbeitszeit bestätigen"
-        }
+        title={match({ type, workVariant })
+          .with({ type: EventType.SICK }, () => "Krankheit bestätigen")
+          .with(
+            { type: EventType.INDIRECT },
+            () => "Indirekte Leistung bestätigen",
+          )
+          .with({ workVariant: "SUBSTITUTE" }, () => "Einspringen bestätigen")
+          .otherwise(() => "Arbeitszeit bestätigen")}
         subtitle={signerSubtitle}
         signerLabel={`${currentUserName} (Mitarbeiter)`}
         onConfirm={submitWithSignature}

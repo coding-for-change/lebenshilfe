@@ -18,7 +18,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
-import { searchChildrenForSubstituteAction } from "../actions";
+import { searchAssignedChildrenAction } from "@/features/children/actions";
 
 export type ChildOption = {
   id: string;
@@ -57,7 +57,7 @@ export function ChildSearchCombobox({
           return;
         }
         try {
-          const rows = await searchChildrenForSubstituteAction(q);
+          const rows = await searchAssignedChildrenAction(q);
           setResults(rows);
         } catch {
           setResults([]);

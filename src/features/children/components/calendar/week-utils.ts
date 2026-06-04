@@ -72,7 +72,7 @@ export type CalendarEvent = {
   tandem?: boolean;
   // Event-only: distinguishes regular work, substitute (Einspringen) and
   // indirect (Lehrergespräch/Workshop) entries so EventBlock can color them.
-  kind?: EventKind;
+  eventKind?: EventKind;
 };
 
 export function germanWeekRangeLabel(weekStart: Date) {

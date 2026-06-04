@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { match } from "ts-pattern";
 import { Clock, Lock, Plus, Stethoscope, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -327,14 +328,14 @@ export function TabDay({
               ev.startTime && ev.endTime
                 ? formatDuration(ev.startTime, ev.endTime)
                 : "";
-            const isIndirect = ev.type === "INDIRECT";
-            const title = isIndirect
-              ? child
-                ? `Indirekt — ${child.firstName} ${child.lastName}`
-                : "Indirekte Leistung"
-              : child
-                ? `${child.firstName} ${child.lastName}`
-                : "Arbeit";
+            const childName = child
+              ? `${child.firstName} ${child.lastName}`
+              : null;
+            const title = match(ev.type)
+              .with("INDIRECT", () =>
+                childName ? `Indirekt — ${childName}` : "Indirekte Leistung",
+              )
+              .otherwise(() => childName ?? "Arbeit");
             return (
               <Card
                 key={ev.id}

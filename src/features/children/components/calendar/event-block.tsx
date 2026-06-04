@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { match } from "ts-pattern";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,16 +63,21 @@ export function EventBlock({ ev, col, cols, onDelete, onMove }: Props) {
       layerClasses += " ring-1 ring-primary";
     }
   } else if (ev.layer === "event") {
-    if (ev.kind === "substitute") {
-      layerClasses =
-        "z-30 bg-red-500/20 border border-red-500/60 text-red-900 ring-1 ring-red-500 dark:text-red-200";
-    } else if (ev.kind === "indirect") {
-      layerClasses =
-        "z-30 bg-amber-500/20 border border-amber-500/60 text-amber-900 dark:text-amber-200";
-    } else {
-      layerClasses =
-        "z-30 bg-emerald-500/20 border border-emerald-500/60 text-emerald-900 dark:text-emerald-200";
-    }
+    layerClasses = match(ev.eventKind)
+      .with(
+        "substitute",
+        () =>
+          "z-30 bg-red-500/20 border border-red-500/60 text-red-900 ring-1 ring-red-500 dark:text-red-200",
+      )
+      .with(
+        "indirect",
+        () =>
+          "z-30 bg-amber-500/20 border border-amber-500/60 text-amber-900 dark:text-amber-200",
+      )
+      .otherwise(
+        () =>
+          "z-30 bg-emerald-500/20 border border-emerald-500/60 text-emerald-900 dark:text-emerald-200",
+      );
   } else {
     // Absence: full-width backdrop, override the column slot.
     style.left = `${SIDE_INSET}px`;

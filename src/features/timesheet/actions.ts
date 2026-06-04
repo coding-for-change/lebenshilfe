@@ -41,11 +41,6 @@ export async function submitMonthlyReportAction(
   revalidatePath("/");
 }
 
-export async function searchChildrenForSubstituteAction(query: string) {
-  const { id: userId } = await requireAuth();
-  return TimesheetFacade.searchChildren(userId, query);
-}
-
 export async function confirmWorkEventsAction(input: ConfirmWorkEventsInput) {
   const { id: userId } = await requireAuth();
   const result = await TimesheetFacade.confirmWorkEvents(userId, input);

@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   Table,
   TableBody,
@@ -22,7 +23,7 @@ import {
 } from "@/features/holiday-plans";
 import { SchoolWizard } from "./school-wizard";
 import { SchoolDetailSheet } from "./school-detail-sheet";
-import { assignHolidayPlanAction } from "../actions";
+import { assignHolidayPlanAction, deleteSchoolAction } from "../actions";
 import type { SerializedSchool } from "../serialize";
 
 type Props = {
@@ -37,6 +38,9 @@ export function SchoolsTable({ schools, holidayPlans }: Props) {
   const [batchPlanId, setBatchPlanId] = useState<string | null>(null);
   const [batchBusy, setBatchBusy] = useState(false);
   const [extraPlans, setExtraPlans] = useState<HolidayPlanOption[]>([]);
+  const [deleteSchool, setDeleteSchool] = useState<SerializedSchool | null>(
+    null,
+  );
 
   const allPlanOptions = useMemo(() => {
     const byId = new Map<string, HolidayPlanOption>();
@@ -192,6 +196,7 @@ export function SchoolsTable({ schools, holidayPlans }: Props) {
                       <TableHead>Adresse</TableHead>
                       <TableHead>Ferienplan</TableHead>
                       <TableHead className="text-center">Kinder</TableHead>
+                      <TableHead className="w-12 text-right">Aktion</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -218,6 +223,19 @@ export function SchoolsTable({ schools, holidayPlans }: Props) {
                         <TableCell className="text-center tabular-nums">
                           {s.childrenCount}
                         </TableCell>
+                        <TableCell
+                          className="text-right"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Schule löschen"
+                            onClick={() => setDeleteSchool(s)}
+                          >
+                            <Trash2 className="size-4 text-destructive" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -242,6 +260,36 @@ export function SchoolsTable({ schools, holidayPlans }: Props) {
         holidayPlanOptions={allPlanOptions}
         holidayPlans={holidayPlans}
         onHolidayPlanCreated={addPlanOption}
+      />
+
+      <ConfirmDialog
+        open={!!deleteSchool}
+        onOpenChange={(next) => !next && setDeleteSchool(null)}
+        title="Schule löschen?"
+        description={
+          deleteSchool
+            ? `„${deleteSchool.name}“ wird gelöscht.${
+                deleteSchool.childrenCount > 0
+                  ? ` Bei ${deleteSchool.childrenCount} ${
+                      deleteSchool.childrenCount === 1 ? "Kind" : "Kindern"
+                    } wird die Schulzuordnung entfernt.`
+                  : ""
+              }`
+            : ""
+        }
+        confirmLabel="Löschen"
+        variant="destructive"
+        onConfirm={async () => {
+          if (!deleteSchool) return;
+          try {
+            await deleteSchoolAction(deleteSchool.id);
+            toast.success("Schule gelöscht.");
+          } catch (err) {
+            toast.error(
+              err instanceof Error ? err.message : "Löschen fehlgeschlagen.",
+            );
+          }
+        }}
       />
     </>
   );

@@ -38,6 +38,48 @@ const CHILD_COLORS = [
   "bg-fuchsia-500/20 border-fuchsia-400 text-fuchsia-950",
 ];
 
+type ColumnSpan = { col: number; cols: number };
+
+// Greedy interval-graph packing: blocks that overlap in time are spread across
+// adjacent columns instead of stacking on top of each other. Returns one
+// { col, cols } per input block, aligned to the input order.
+function packColumns(
+  blocks: Array<{ start: number; end: number }>,
+): ColumnSpan[] {
+  const order = blocks
+    .map((b, i) => ({ i, start: b.start, end: b.end }))
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+
+  const result: ColumnSpan[] = new Array(blocks.length);
+  let group: Array<{ i: number; col: number }> = [];
+  let colEnds: number[] = [];
+  let groupEnd = -Infinity;
+
+  const flush = () => {
+    const cols = colEnds.length;
+    for (const g of group) result[g.i] = { col: g.col, cols };
+    group = [];
+    colEnds = [];
+    groupEnd = -Infinity;
+  };
+
+  for (const b of order) {
+    // A new overlap group starts once a block begins after everything so far.
+    if (group.length && b.start >= groupEnd) flush();
+    let col = colEnds.findIndex((end) => end <= b.start);
+    if (col === -1) {
+      col = colEnds.length;
+      colEnds.push(b.end);
+    } else {
+      colEnds[col] = b.end;
+    }
+    group.push({ i: b.i, col });
+    groupEnd = Math.max(groupEnd, b.end);
+  }
+  flush();
+  return result;
+}
+
 export function WeekGrid({
   anchorDate,
   today,
@@ -71,9 +113,9 @@ export function WeekGrid({
     (_, i) => START_HOUR + i,
   );
 
-  const posFromTime = (time: string) => {
-    const mins = timeToMinutes(time) - START_HOUR * 60;
-    return Math.max(0, Math.min(totalHeight, (mins / 60) * HOUR_HEIGHT));
+  const minutesToPos = (mins: number) => {
+    const offset = mins - START_HOUR * 60;
+    return Math.max(0, Math.min(totalHeight, (offset / 60) * HOUR_HEIGHT));
   };
 
   return (
@@ -164,74 +206,135 @@ export function WeekGrid({
                   Krank
                 </div>
               ) : (
-                <>
-                  {dayVertretungen.map((v) => {
-                    const top = posFromTime(v.startTime);
-                    const blockH =
-                      posFromTime(v.endTime) - posFromTime(v.startTime);
-                    const height = Math.max(blockH, 16);
-                    return (
-                      <div
-                        key={v.id}
-                        className="absolute left-0.5 right-0.5 rounded-md border border-amber-400 bg-amber-500/25 px-1 text-[10px] font-medium leading-tight text-amber-950"
-                        style={{ top, height }}
-                      >
-                        <div className="font-mono tabular-nums">
-                          {v.startTime}–{v.endTime}
-                        </div>
-                        {height >= 26 ? (
-                          <div className="truncate text-[9px] font-semibold opacity-80">
-                            {v.childName}
-                          </div>
-                        ) : null}
-                      </div>
+                (() => {
+                  // Lay schedules (planned), logged work and Vertretungen out
+                  // together so overlapping blocks sit side by side instead of
+                  // stacking their text on top of each other.
+                  type DayBlock = { id: string; start: number; end: number } & (
+                    | {
+                        kind: "vertretung";
+                        data: (typeof dayVertretungen)[number];
+                      }
+                    | { kind: "schedule"; data: (typeof daySchedules)[number] }
+                    | { kind: "work"; data: (typeof dayWork)[number] }
+                  );
+
+                  const blocks: DayBlock[] = [];
+                  for (const v of dayVertretungen) {
+                    blocks.push({
+                      kind: "vertretung",
+                      id: `v-${v.id}`,
+                      start: timeToMinutes(v.startTime),
+                      end: timeToMinutes(v.endTime),
+                      data: v,
+                    });
+                  }
+                  const workSpans = dayWork.map((ev) => {
+                    const start = ev.startTime
+                      ? timeToMinutes(ev.startTime)
+                      : START_HOUR * 60;
+                    const end = ev.endTime
+                      ? timeToMinutes(ev.endTime)
+                      : start + 60;
+                    return { childId: ev.childId, start, end };
+                  });
+                  for (const s of daySchedules) {
+                    const start = timeToMinutes(s.startTime);
+                    const end = timeToMinutes(s.endTime);
+                    // Skip the planned block when the same child already has
+                    // logged work covering it — the work block supersedes it.
+                    const covered = workSpans.some(
+                      (w) =>
+                        w.childId === s.childId &&
+                        w.start < end &&
+                        start < w.end,
                     );
-                  })}
-                  {daySchedules.map((s) => {
-                    const top = posFromTime(s.startTime);
-                    const h = posFromTime(s.endTime) - posFromTime(s.startTime);
-                    const height = Math.max(h, 14);
-                    const name = childFirstName(s.childId);
-                    return (
-                      <div
-                        key={s.id}
-                        className="absolute left-0.5 right-0.5 rounded-sm border border-dashed border-muted-foreground/30 bg-muted/40 px-1 text-[9px] leading-tight text-muted-foreground"
-                        style={{ top, height }}
-                      >
-                        <div className="font-mono tabular-nums">
-                          {s.startTime}
-                        </div>
-                        {name && height >= 22 ? (
-                          <div className="truncate font-medium text-foreground/70">
-                            {name}
+                    if (covered) continue;
+                    blocks.push({
+                      kind: "schedule",
+                      id: `s-${s.id}`,
+                      start,
+                      end,
+                      data: s,
+                    });
+                  }
+                  for (const ev of dayWork) {
+                    const start = ev.startTime
+                      ? timeToMinutes(ev.startTime)
+                      : START_HOUR * 60;
+                    const end = ev.endTime
+                      ? timeToMinutes(ev.endTime)
+                      : start + 60;
+                    blocks.push({
+                      kind: "work",
+                      id: `w-${ev.id}`,
+                      start,
+                      end,
+                      data: ev,
+                    });
+                  }
+
+                  const layout = packColumns(blocks);
+
+                  return blocks.map((b, idx) => {
+                    const { col, cols } = layout[idx];
+                    const top = minutesToPos(b.start);
+                    const height = Math.max(minutesToPos(b.end) - top, 16);
+                    const width = `calc(${100 / cols}% - 3px)`;
+                    const left = `calc(${(100 / cols) * col}% + 1px)`;
+                    const style = { top, height, width, left };
+
+                    if (b.kind === "vertretung") {
+                      const v = b.data;
+                      return (
+                        <div
+                          key={b.id}
+                          className="absolute overflow-hidden rounded-md border border-amber-400 bg-amber-500/25 px-1 text-[10px] font-medium leading-tight text-amber-950"
+                          style={style}
+                        >
+                          <div className="font-mono tabular-nums">
+                            {v.startTime}–{v.endTime}
                           </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                  {dayWork.map((ev, k) => {
-                    const top = ev.startTime ? posFromTime(ev.startTime) : 0;
-                    const h =
-                      ev.startTime && ev.endTime
-                        ? posFromTime(ev.endTime) - posFromTime(ev.startTime)
-                        : HOUR_HEIGHT;
-                    const height = Math.max(h, 16);
-                    const width = `calc(${100 / Math.max(dayWork.length, 1)}% - 4px)`;
-                    const left = `calc(${(100 / Math.max(dayWork.length, 1)) * k}% + 2px)`;
+                          {height >= 26 ? (
+                            <div className="truncate text-[9px] font-semibold opacity-80">
+                              {v.childName}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    }
+
+                    if (b.kind === "schedule") {
+                      const s = b.data;
+                      const name = childFirstName(s.childId);
+                      return (
+                        <div
+                          key={b.id}
+                          className="absolute overflow-hidden rounded-sm border border-dashed border-muted-foreground/30 bg-muted/40 px-1 text-[9px] leading-tight text-muted-foreground"
+                          style={style}
+                        >
+                          <div className="font-mono tabular-nums">
+                            {s.startTime}
+                          </div>
+                          {name && height >= 22 ? (
+                            <div className="truncate font-medium text-foreground/70">
+                              {name}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    }
+
+                    const ev = b.data;
                     const name = childFirstName(ev.childId);
                     return (
                       <div
-                        key={ev.id}
+                        key={b.id}
                         className={cn(
-                          "absolute rounded-md border px-1 text-[10px] font-medium leading-tight",
+                          "absolute overflow-hidden rounded-md border px-1 text-[10px] font-medium leading-tight",
                           colorFor(ev.childId),
                         )}
-                        style={{
-                          top,
-                          height,
-                          width,
-                          left,
-                        }}
+                        style={style}
                       >
                         <div className="font-mono tabular-nums">
                           {ev.startTime}–{ev.endTime}
@@ -243,8 +346,8 @@ export function WeekGrid({
                         ) : null}
                       </div>
                     );
-                  })}
-                </>
+                  });
+                })()
               )}
             </div>
           );

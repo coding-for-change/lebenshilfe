@@ -213,6 +213,7 @@ export function SchoolAssistantApp({
             onSelectDay={jumpToDay}
             events={events}
             lockedMonths={lockedMonths}
+            childSchoolHolidays={childSchoolHolidays}
             substituteOn={substituteOn}
           />
         );

@@ -320,13 +320,13 @@ export function KinderWeekCalendar({
         <span className="text-sm font-medium">
           {germanWeekRangeLabel(weekStart)}
         </span>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <div className="grid grid-flow-col grid-rows-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
           {LEGEND_ITEMS.map(({ label, swatch }) => (
             <span
               key={label}
               className="flex items-center gap-1.5"
             >
-              <span className={cn("size-2.5 rounded-sm", swatch)} />
+              <span className={cn("size-2.5 shrink-0 rounded-sm", swatch)} />
               {label}
             </span>
           ))}
@@ -364,6 +364,14 @@ export function KinderWeekCalendar({
                 <div className="text-sm font-medium">
                   {date.getDate().toString().padStart(2, "0")}
                 </div>
+                {dayHoliday ? (
+                  <div
+                    className="w-full truncate rounded bg-emerald-700/20 px-1 py-0.5 text-center text-[10px] font-medium text-emerald-900"
+                    title={`${dayHoliday.name ?? "Schulferien"} · bis ${formatDate(dayHoliday.endDate)}`}
+                  >
+                    {dayHoliday.name ?? "Schulferien"}
+                  </div>
+                ) : null}
                 <DayQuickAddSection
                   weekday={weekday}
                   date={date}
@@ -402,7 +410,10 @@ export function KinderWeekCalendar({
             return (
               <div
                 key={label}
-                className="relative border-l select-none"
+                className={cn(
+                  "relative border-l select-none",
+                  dayHoliday && "bg-emerald-700/5",
+                )}
                 onPointerDown={(e) => handlePointerDown(e, weekday)}
                 style={{
                   height: HOURS.length * HOUR_HEIGHT,
@@ -439,17 +450,6 @@ export function KinderWeekCalendar({
                     />
                   ),
                 )}
-
-                {dayHoliday ? (
-                  <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center gap-0.5 bg-emerald-700/25 px-1 text-center backdrop-blur-[1px]">
-                    <span className="text-xs font-semibold text-emerald-900">
-                      Schulferien
-                    </span>
-                    <span className="text-[10px] text-emerald-900/80">
-                      bis {formatDate(dayHoliday.endDate)}
-                    </span>
-                  </div>
-                ) : null}
 
                 {dragSelection && dragSelection.weekday === weekday ? (
                   <Popover

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -11,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PageSection } from "@/components/page-section";
+import { RecordCard } from "@/components/record-card";
 import { SearchableTable } from "@/components/searchable-table";
 import { formatDate } from "@/lib/utils";
 import { WorkshopFormDialog } from "./workshop-form-dialog";
@@ -35,9 +37,22 @@ export function WorkshopsTable({ workshops }: { workshops: WorkshopRow[] }) {
       <PageSection
         title="Workshops"
         action={
-          <Button onClick={() => setDialogOpen(true)}>
-            + Neuen Workshop anlegen
-          </Button>
+          <>
+            <Button
+              onClick={() => setDialogOpen(true)}
+              size="icon"
+              className="md:hidden"
+              aria-label="Neuen Workshop anlegen"
+            >
+              <Plus />
+            </Button>
+            <Button
+              onClick={() => setDialogOpen(true)}
+              className="hidden md:inline-flex"
+            >
+              <Plus /> Neuen Workshop anlegen
+            </Button>
+          </>
         }
       >
         <div className="p-4">
@@ -53,6 +68,22 @@ export function WorkshopsTable({ workshops }: { workshops: WorkshopRow[] }) {
                 Noch keine Workshops angelegt.
               </div>
             }
+            getRowKey={(w) => w.id}
+            renderCard={(w) => (
+              <RecordCard
+                title={w.name}
+                subtitle={w.description ?? undefined}
+                meta={`Erstellt: ${formatDate(w.createdAt)}`}
+                action={
+                  <WorkshopsRowActions
+                    workshopId={w.id}
+                    name={w.name}
+                    onOpenDetails={() => setOpenWorkshopId(w.id)}
+                  />
+                }
+                onClick={() => setOpenWorkshopId(w.id)}
+              />
+            )}
           >
             {(filtered) => (
               <Table>

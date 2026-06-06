@@ -11,6 +11,14 @@ type SearchableTableProps<T> = {
   placeholder?: string;
   emptyState?: ReactNode;
   children: (filteredRows: T[]) => ReactNode;
+  /**
+   * Optional per-row mobile card renderer. When provided, the desktop table
+   * (`children`) is hidden below `md` and a vertical stack of cards is shown
+   * instead — so wide tables no longer force horizontal scrolling on phones.
+   */
+  renderCard?: (row: T) => ReactNode;
+  /** Stable key for each card; falls back to the array index. */
+  getRowKey?: (row: T) => string;
 };
 
 export function SearchableTable<T>({
@@ -19,6 +27,8 @@ export function SearchableTable<T>({
   placeholder = "Suchen…",
   emptyState,
   children,
+  renderCard,
+  getRowKey,
 }: SearchableTableProps<T>) {
   const [query, setQuery] = useState("");
 
@@ -28,9 +38,11 @@ export function SearchableTable<T>({
     return rows.filter((row) => filterBy(row, trimmed));
   }, [rows, query, filterBy]);
 
+  const showEmpty = filtered.length === 0 && emptyState;
+
   return (
     <div className="space-y-3">
-      <div className="relative max-w-sm">
+      <div className="relative w-full md:max-w-sm">
         <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="search"
@@ -40,8 +52,19 @@ export function SearchableTable<T>({
           className="pl-9"
         />
       </div>
-      {filtered.length === 0 && emptyState ? (
+      {showEmpty ? (
         emptyState
+      ) : renderCard ? (
+        <>
+          <ul className="space-y-2 md:hidden">
+            {filtered.map((row, i) => (
+              <li key={getRowKey ? getRowKey(row) : i}>{renderCard(row)}</li>
+            ))}
+          </ul>
+          <ScrollHint className="hidden md:block">
+            {children(filtered)}
+          </ScrollHint>
+        </>
       ) : (
         <ScrollHint>{children(filtered)}</ScrollHint>
       )}

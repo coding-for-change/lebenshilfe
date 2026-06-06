@@ -15,9 +15,14 @@ import {
 } from "@/lib/dates";
 import { WeekStrip } from "./week-strip";
 import { deleteEventAction } from "../actions";
+import { deleteOwnVertretungRequestAction } from "@/features/vertretung-requests/actions";
 import type { Event, Schedule } from "@/generated/prisma";
 import type { ChildOption } from "./children-filter";
-import type { ChildAbsenceItem, VertretungDay } from "./timesheet-shell";
+import type {
+  ChildAbsenceItem,
+  PendingVertretungRequestItem,
+  VertretungDay,
+} from "./timesheet-shell";
 
 type EventWithChild = Event & {
   child: { firstName: string; lastName: string } | null;
@@ -34,6 +39,7 @@ type Props = {
   childAbsences: ChildAbsenceItem[];
   schedules: Schedule[];
   substituteOn?: VertretungDay[];
+  pendingVertretungRequests?: PendingVertretungRequestItem[];
 };
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -49,6 +55,7 @@ export function TabDay({
   childAbsences,
   schedules,
   substituteOn = [],
+  pendingVertretungRequests = [],
 }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -76,37 +83,14 @@ export function TabDay({
       .filter((a): a is ChildAbsenceItem & { child: ChildOption } => !!a.child);
   }, [childAbsences, selectedDateIso, childById]);
 
-  const substituteChildIds = useMemo(
-    () => new Set(substituteOn.map((v) => v.childId)),
-    [substituteOn],
-  );
-
   const daySchedules = useMemo(() => {
     const weekday = (selectedDate.getUTCDay() + 6) % 7;
-    const todaySubstituteChildIds = new Set(
-      substituteOn
-        .filter((v) => v.date === selectedDateIso)
-        .map((v) => v.childId),
-    );
     return schedules
-      .filter((s) => {
-        if (s.weekday !== weekday) return false;
-        if (substituteChildIds.has(s.childId)) {
-          return todaySubstituteChildIds.has(s.childId);
-        }
-        return true;
-      })
+      .filter((s) => s.weekday === weekday)
       .map((s) => ({ ...s, child: childById.get(s.childId) }))
       .filter((s): s is Schedule & { child: ChildOption } => !!s.child)
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
-  }, [
-    schedules,
-    selectedDate,
-    selectedDateIso,
-    childById,
-    substituteChildIds,
-    substituteOn,
-  ]);
+  }, [schedules, selectedDate, childById]);
 
   const dayVertretungenGrouped = useMemo(() => {
     const blocks = substituteOn.filter((v) => v.date === selectedDateIso);
@@ -135,6 +119,23 @@ export function TabDay({
     }
     return Array.from(map.values());
   }, [substituteOn, selectedDateIso]);
+
+  const dayPendingRequests = useMemo(
+    () => pendingVertretungRequests.filter((r) => r.date === selectedDateIso),
+    [pendingVertretungRequests, selectedDateIso],
+  );
+
+  const handleDeleteRequest = async (id: string) => {
+    setBusyId(id);
+    try {
+      await deleteOwnVertretungRequestAction(id);
+      toast.success("Antrag gelöscht.");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Löschen fehlgeschlagen.");
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const sickEvent = dayEvents.find((e) => e.type === "SICK");
   const workEvents = dayEvents.filter((e) => e.type === "WORK");
@@ -290,6 +291,37 @@ export function TabDay({
           </div>
         </Card>
       ))}
+
+      {dayPendingRequests
+        .filter((r) => r.status === "PENDING")
+        .map((req) => (
+          <Card
+            key={req.id}
+            className="border-amber-200 bg-amber-500/5 p-4"
+          >
+            <div className="flex items-start gap-3">
+              <div className="grid place-items-center size-10 shrink-0 rounded-full bg-amber-500/15 text-amber-700">
+                <UserCheck className="size-5" />
+              </div>
+              <div className="flex-1 space-y-0.5">
+                <p className="font-semibold text-amber-900">Vertretung</p>
+                <p className="text-sm text-amber-900/80">{req.childNameText}</p>
+                <p className="font-mono text-xs text-amber-700">
+                  {req.startTime}–{req.endTime}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleDeleteRequest(req.id)}
+                disabled={busyId === req.id}
+                className="text-muted-foreground"
+              >
+                Löschen
+              </Button>
+            </div>
+          </Card>
+        ))}
 
       {sickEvent && (
         <Card className="border-rose-200 bg-rose-500/10 p-4">

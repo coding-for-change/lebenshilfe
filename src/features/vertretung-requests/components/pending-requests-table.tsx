@@ -32,8 +32,6 @@ type Request = {
   date: string;
   startTime: string;
   endTime: string;
-  matchedChildId: string | null;
-  matchConfidence: number | null;
   substituteUser: { id: string; name: string; email: string };
 };
 
@@ -49,9 +47,7 @@ function RequestRow({
   request: Request;
   childOptions: ChildOption[];
 }) {
-  const [selectedChildId, setSelectedChildId] = useState(
-    request.matchedChildId ?? "",
-  );
+  const [selectedChildId, setSelectedChildId] = useState("");
   const [pending, startTransition] = useTransition();
 
   const handleResolve = () => {
@@ -88,13 +84,6 @@ function RequestRow({
       <TableCell className="tabular-nums">{request.date}</TableCell>
       <TableCell className="tabular-nums">
         {request.startTime}–{request.endTime}
-      </TableCell>
-      <TableCell>
-        {request.matchConfidence !== null && (
-          <span className="text-xs text-muted-foreground">
-            {Math.round(request.matchConfidence * 100)}%
-          </span>
-        )}
       </TableCell>
       <TableCell className="min-w-48">
         <Select
@@ -158,7 +147,6 @@ export function PendingRequestsTable({ requests, childOptions }: Props) {
           <TableHead>Eingegebener Name</TableHead>
           <TableHead>Datum</TableHead>
           <TableHead>Zeiten</TableHead>
-          <TableHead>Konfidenz</TableHead>
           <TableHead>Kind zuordnen</TableHead>
           <TableHead />
         </TableRow>

@@ -61,3 +61,34 @@ export async function countPendingRequests() {
     where: { status: PendingVertretungStatus.PENDING },
   });
 }
+
+export async function listRequestsForUser(
+  substituteUserId: string,
+  from: Date,
+  to: Date,
+) {
+  return prisma.pendingVertretungRequest.findMany({
+    where: {
+      substituteUserId,
+      status: {
+        in: [PendingVertretungStatus.PENDING, PendingVertretungStatus.RESOLVED],
+      },
+      date: { gte: from, lt: to },
+    },
+    orderBy: { date: "asc" },
+  });
+}
+
+export async function deleteOwnRequest(id: string, substituteUserId: string) {
+  const request = await prisma.pendingVertretungRequest.findUnique({
+    where: { id },
+  });
+  if (!request) throw new Error("Antrag nicht gefunden.");
+  if (request.substituteUserId !== substituteUserId) {
+    throw new Error("Keine Berechtigung.");
+  }
+  if (request.status !== PendingVertretungStatus.PENDING) {
+    throw new Error("Nur offene Anträge können gelöscht werden.");
+  }
+  await prisma.pendingVertretungRequest.delete({ where: { id } });
+}

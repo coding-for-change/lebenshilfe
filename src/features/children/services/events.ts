@@ -75,14 +75,9 @@ export async function updateWorkEventAsAdmin(
 export async function deleteWorkEventAsAdmin(id: string) {
   const existing = await prisma.event.findUniqueOrThrow({ where: { id } });
   if (existing.signatureKey) {
-    return prisma.event.update({
-      where: { id },
-      data: { deleted: true },
-    });
+    await prisma.event.update({ where: { id }, data: { deleted: true } });
   } else {
-    return prisma.event.delete({
-      where: { id },
-    });
+    await prisma.event.delete({ where: { id } });
   }
 }
 
@@ -99,7 +94,12 @@ export async function listWorkEventsForChildInRange(
   to: Date,
 ): Promise<ChildWorkEvent[]> {
   return prisma.event.findMany({
-    where: { childId, type: EventType.WORK, date: { gte: from, lte: to } },
+    where: {
+      childId,
+      type: EventType.WORK,
+      deleted: false,
+      date: { gte: from, lte: to },
+    },
     include: { user: true },
     orderBy: { date: "asc" },
   });

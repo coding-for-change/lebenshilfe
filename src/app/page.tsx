@@ -4,6 +4,7 @@ import { isAdmin } from "@/lib/roles";
 import { TimesheetFacade, SchoolAssistantApp } from "@/features/timesheet";
 import { SchoolAssistantsFacade } from "@/features/school-assistants";
 import { ChildrenFacade } from "@/features/children";
+import { VertretungRequestsFacade } from "@/features/vertretung-requests";
 import { getAssignedChildrenForUser } from "@/use-cases/get-assigned-children";
 
 export default async function LandingPage() {
@@ -42,6 +43,7 @@ export default async function LandingPage() {
     childAbsences,
     assignmentsByWeekday,
     vertretungenAsSubstitute,
+    pendingVertretungRequests,
   ] = await Promise.all([
     TimesheetFacade.getEventsInRange(user.id, rangeStart, rangeEnd),
     TimesheetFacade.getSchedulesForChildren(childIds),
@@ -58,6 +60,7 @@ export default async function LandingPage() {
       rangeStart,
       rangeEnd,
     ),
+    VertretungRequestsFacade.listForUser(user.id, rangeStart, rangeEnd),
   ]);
 
   return (
@@ -84,6 +87,14 @@ export default async function LandingPage() {
         childName: `${v.child.firstName} ${v.child.lastName}`,
         startTime: v.startTime,
         endTime: v.endTime,
+      }))}
+      pendingVertretungRequests={pendingVertretungRequests.map((r) => ({
+        id: r.id,
+        date: r.date.toISOString().slice(0, 10),
+        childNameText: r.childNameText,
+        startTime: r.startTime,
+        endTime: r.endTime,
+        status: r.status as "PENDING" | "RESOLVED",
       }))}
     />
   );

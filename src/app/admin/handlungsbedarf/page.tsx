@@ -18,8 +18,6 @@ export default async function HandlungsbedarfPage() {
     date: r.date.toISOString().slice(0, 10),
     startTime: r.startTime,
     endTime: r.endTime,
-    matchedChildId: r.matchedChildId,
-    matchConfidence: r.matchConfidence,
     substituteUser: r.substituteUser,
   }));
 

@@ -60,6 +60,15 @@ export type VertretungDay = {
   endTime: string;
 };
 
+export type PendingVertretungRequestItem = {
+  id: string;
+  date: string; // YYYY-MM-DD
+  childNameText: string;
+  startTime: string;
+  endTime: string;
+  status: "PENDING" | "RESOLVED";
+};
+
 type Props = {
   currentUser: { id: string; name: string; email: string };
   assignedChildren: ChildOption[];
@@ -70,6 +79,8 @@ type Props = {
   assignmentsByWeekday: AssignmentsByWeekday;
   /** Days this user steps in as substitute Schulbegleiter. */
   substituteOn?: VertretungDay[];
+  /** Own pending Vertretung requests (submitted but not yet resolved by admin). */
+  pendingVertretungRequests?: PendingVertretungRequestItem[];
 };
 
 const NAV_ITEMS: Array<{
@@ -101,6 +112,7 @@ export function SchoolAssistantApp({
   childAbsences,
   assignmentsByWeekday,
   substituteOn = [],
+  pendingVertretungRequests = [],
 }: Props) {
   const today = useMemo(() => startOfDayUtc(new Date()), []);
   const [activeTab, setActiveTab] = useState<Exclude<TabId, "mehr">>("tag");
@@ -174,6 +186,7 @@ export function SchoolAssistantApp({
             childAbsences={childAbsences}
             schedules={schedules}
             substituteOn={substituteOn}
+            pendingVertretungRequests={pendingVertretungRequests}
           />
         );
       case "woche":

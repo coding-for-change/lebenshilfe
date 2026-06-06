@@ -51,8 +51,6 @@ export function WeekGrid({
   const monday = startOfWeekUtc(anchorDate);
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
 
-  const substituteChildIds = new Set(substituteOn.map((v) => v.childId));
-
   const colorFor = (childId: string | null | undefined) => {
     if (!childId) return "bg-rose-500/15 border-rose-400 text-rose-950";
     const idx = childList.findIndex((c) => c.id === childId);
@@ -143,7 +141,7 @@ export function WeekGrid({
             (s) =>
               s.weekday === wd &&
               selectedChildIds.includes(s.childId) &&
-              !substituteChildIds.has(s.childId),
+              !dayVertretungen.some((v) => v.childId === s.childId),
           );
 
           return (

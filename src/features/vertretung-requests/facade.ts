@@ -1,10 +1,7 @@
 import { randomUUID } from "crypto";
 import { uploadSignaturePng } from "@/lib/storage";
 import { prisma } from "@/lib/prisma";
-import {
-  fuzzyMatchChild,
-  MATCH_AUTO_THRESHOLD,
-} from "@/features/children/services/fuzzy-match";
+import { exactMatchChild } from "@/features/children/services/fuzzy-match";
 import {
   CreateVertretungRequestSchema,
   ResolveVertretungRequestSchema,
@@ -13,8 +10,10 @@ import {
 } from "./schemas";
 import {
   createPendingVertretungRequest,
+  deleteOwnRequest,
   findRequestById,
   listPendingRequests,
+  listRequestsForUser,
   rejectRequest,
   resolveRequest,
   countPendingRequests,
@@ -33,14 +32,11 @@ export const VertretungRequestsFacade = {
     const signatureKey = `signatures/vertretung-requests/${randomUUID()}.png`;
     await uploadSignaturePng(signatureKey, parsed.signaturePngBase64);
 
-    const match = await fuzzyMatchChild(parsed.childNameText);
-    const autoResolved =
-      match !== null && match.confidence >= MATCH_AUTO_THRESHOLD;
-
+    const match = await exactMatchChild(parsed.childNameText);
     const date = parseDateOnly(parsed.date);
 
-    if (autoResolved && match) {
-      // High confidence — create ChildVertretung immediately and store as RESOLVED.
+    if (match) {
+      // Exact name match — create ChildVertretung immediately and store as RESOLVED.
       const weekday = (date.getUTCDay() + 6) % 7;
       const schedules = await prisma.schedule.findMany({
         where: { childId: match.childId, weekday },
@@ -55,6 +51,9 @@ export const VertretungRequestsFacade = {
             }))
           : [{ startTime: parsed.startTime, endTime: parsed.endTime }];
 
+      await prisma.childVertretung.deleteMany({
+        where: { childId: match.childId, date, substituteUserId },
+      });
       await prisma.childVertretung.createMany({
         data: timeBlocks.map((b) => ({
           childId: match.childId,
@@ -65,6 +64,19 @@ export const VertretungRequestsFacade = {
         })),
       });
 
+      await prisma.event.create({
+        data: {
+          childId: match.childId,
+          userId: substituteUserId,
+          type: "WORK",
+          date,
+          startTime: parsed.startTime,
+          endTime: parsed.endTime,
+          signatureKey,
+          deleted: false,
+        },
+      });
+
       return createPendingVertretungRequest({
         substituteUserId,
         childNameText: parsed.childNameText,
@@ -73,11 +85,12 @@ export const VertretungRequestsFacade = {
         endTime: parsed.endTime,
         signatureKey,
         matchedChildId: match.childId,
-        matchConfidence: match.confidence,
+        matchConfidence: null,
         status: PendingVertretungStatus.RESOLVED,
       });
     }
 
+    // No exact match — goes to admin queue.
     return createPendingVertretungRequest({
       substituteUserId,
       childNameText: parsed.childNameText,
@@ -85,8 +98,8 @@ export const VertretungRequestsFacade = {
       startTime: parsed.startTime,
       endTime: parsed.endTime,
       signatureKey,
-      matchedChildId: match?.childId ?? null,
-      matchConfidence: match?.confidence ?? null,
+      matchedChildId: null,
+      matchConfidence: null,
       status: PendingVertretungStatus.PENDING,
     });
   },
@@ -124,6 +137,13 @@ export const VertretungRequestsFacade = {
         ? schedules.map((s) => ({ startTime: s.startTime, endTime: s.endTime }))
         : [{ startTime: request.startTime, endTime: request.endTime }];
 
+    await prisma.childVertretung.deleteMany({
+      where: {
+        childId: parsed.childId,
+        date,
+        substituteUserId: request.substituteUserId,
+      },
+    });
     await prisma.childVertretung.createMany({
       data: timeBlocks.map((b) => ({
         childId: parsed.childId,
@@ -134,7 +154,30 @@ export const VertretungRequestsFacade = {
       })),
     });
 
+    // Create a signed work Event so the Einsatz appears in the child's calendar.
+    // The SB already signed the request — reuse the same signatureKey.
+    await prisma.event.create({
+      data: {
+        childId: parsed.childId,
+        userId: request.substituteUserId,
+        type: "WORK",
+        date,
+        startTime: request.startTime,
+        endTime: request.endTime,
+        signatureKey: request.signatureKey,
+        deleted: false,
+      },
+    });
+
     return resolveRequest(id, parsed.childId, adminUserId);
+  },
+
+  async listForUser(userId: string, from: Date, to: Date) {
+    return listRequestsForUser(userId, from, to);
+  },
+
+  async deleteOwn(id: string, userId: string) {
+    return deleteOwnRequest(id, userId);
   },
 
   async reject(id: string, adminUserId: string) {

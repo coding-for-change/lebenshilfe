@@ -23,10 +23,17 @@ export async function resolveVertretungRequestAction(
   const admin = await requireAdmin();
   await VertretungRequestsFacade.resolve(id, admin.id, input);
   revalidatePath("/admin/handlungsbedarf");
+  revalidatePath("/admin/children");
 }
 
 export async function rejectVertretungRequestAction(id: string) {
   const admin = await requireAdmin();
   await VertretungRequestsFacade.reject(id, admin.id);
   revalidatePath("/admin/handlungsbedarf");
+}
+
+export async function deleteOwnVertretungRequestAction(id: string) {
+  const user = await requireAuth();
+  await VertretungRequestsFacade.deleteOwn(id, user.id);
+  revalidatePath("/");
 }

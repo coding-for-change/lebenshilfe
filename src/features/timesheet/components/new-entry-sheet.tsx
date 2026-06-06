@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, Stethoscope, UserCheck } from "lucide-react";
+import { Briefcase, Stethoscope, UserCheck, UserPlus } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { EventType, type Schedule } from "@/generated/prisma";
 import { SignaturePadDialog } from "./signature-pad-dialog";
 import { createEventAction } from "../actions";
+import { createVertretungRequestAction } from "@/features/vertretung-requests/actions";
 import {
   formatDuration,
   parseIsoDate,
@@ -75,11 +76,12 @@ export function NewEntrySheet({
   lastEntry,
   substituteOn = [],
 }: Props) {
-  const [type, setType] = useState<EventType>(EventType.WORK);
+  const [type, setType] = useState<EventType | "VERTRETUNG">(EventType.WORK);
   const [date, setDate] = useState(formatIsoDateUtc(defaultDate));
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("17:00");
   const [note, setNote] = useState("");
+  const [vertretungChildName, setVertretungChildName] = useState("");
 
   // Vertretungen for the currently selected date
   const dayVertretungen = useMemo(
@@ -112,6 +114,7 @@ export function NewEntrySheet({
       setStartTime("08:00");
       setEndTime("17:00");
       setNote("");
+      setVertretungChildName("");
     }
   }, [open, defaultDate]);
 
@@ -136,7 +139,11 @@ export function NewEntrySheet({
   }, [startTime, endTime]);
 
   const canProceed =
-    type === EventType.SICK ? true : childIds.length >= 1 && Boolean(duration);
+    type === "VERTRETUNG"
+      ? vertretungChildName.trim().length >= 2 && Boolean(duration)
+      : type === EventType.SICK
+        ? true
+        : childIds.length >= 1 && Boolean(duration);
 
   const toggleChild = (id: string) => {
     setChildIds((cur) =>
@@ -213,22 +220,33 @@ export function NewEntrySheet({
   const submitWithSignature = async (pngBase64: string) => {
     setSubmitting(true);
     try {
-      await createEventAction({
-        type,
-        date,
-        childIds: type === EventType.WORK ? childIds : [],
-        startTime: type === EventType.WORK ? startTime : undefined,
-        endTime: type === EventType.WORK ? endTime : undefined,
-        note: note.trim() || undefined,
-        signaturePngBase64: pngBase64,
-      });
-      toast.success(
-        type === EventType.WORK
-          ? `Eintrag gespeichert (${childIds.length} Kind${
-              childIds.length === 1 ? "" : "er"
-            })`
-          : "Krankheit gespeichert",
-      );
+      if (type === "VERTRETUNG") {
+        await createVertretungRequestAction({
+          childNameText: vertretungChildName.trim(),
+          date,
+          startTime,
+          endTime,
+          signaturePngBase64: pngBase64,
+        });
+        toast.success("Vertretungs-Antrag eingereicht.");
+      } else {
+        await createEventAction({
+          type,
+          date,
+          childIds: type === EventType.WORK ? childIds : [],
+          startTime: type === EventType.WORK ? startTime : undefined,
+          endTime: type === EventType.WORK ? endTime : undefined,
+          note: note.trim() || undefined,
+          signaturePngBase64: pngBase64,
+        });
+        toast.success(
+          type === EventType.WORK
+            ? `Eintrag gespeichert (${childIds.length} Kind${
+                childIds.length === 1 ? "" : "er"
+              })`
+            : "Krankheit gespeichert",
+        );
+      }
       setSigOpen(false);
       onOpenChange(false);
     } catch (e: unknown) {
@@ -239,9 +257,11 @@ export function NewEntrySheet({
   };
 
   const signerSubtitle =
-    type === EventType.WORK
-      ? `${date} · ${startTime}–${endTime}${duration ? ` · ${duration}` : ""}`
-      : `${date} · Krank · ganztägig`;
+    type === "VERTRETUNG"
+      ? `${date} · Vertretung · ${startTime}–${endTime}`
+      : type === EventType.WORK
+        ? `${date} · ${startTime}–${endTime}${duration ? ` · ${duration}` : ""}`
+        : `${date} · Krank · ganztägig`;
 
   return (
     <>
@@ -279,7 +299,7 @@ export function NewEntrySheet({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <Button
                 type="button"
                 variant={type === EventType.WORK ? "default" : "outline"}
@@ -300,7 +320,70 @@ export function NewEntrySheet({
               >
                 <Stethoscope className="size-4" /> Krank
               </Button>
+              <Button
+                type="button"
+                variant={type === "VERTRETUNG" ? "default" : "outline"}
+                onClick={() => setType("VERTRETUNG")}
+                className={cn(
+                  "h-12",
+                  type === "VERTRETUNG" &&
+                    "bg-amber-600 hover:bg-amber-700 text-white",
+                )}
+              >
+                <UserPlus className="size-4" /> Vertretung
+              </Button>
             </div>
+
+            {type === "VERTRETUNG" && (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="vertretung-child">Name des Kindes</Label>
+                  <Input
+                    id="vertretung-child"
+                    value={vertretungChildName}
+                    onChange={(e) => setVertretungChildName(e.target.value)}
+                    placeholder="Vor- und Nachname"
+                    autoComplete="off"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Bitte den Namen so genau wie möglich eingeben.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-end">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="v-start">Start</Label>
+                    <Input
+                      id="v-start"
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className="h-14 text-xl font-mono tabular-nums"
+                    />
+                  </div>
+                  <span className="pb-3 text-muted-foreground">→</span>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="v-end">Ende</Label>
+                    <Input
+                      id="v-end"
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className="h-14 text-xl font-mono tabular-nums"
+                    />
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {duration
+                    ? `Dauer: ${duration}`
+                    : "Ende muss nach Start liegen"}
+                </p>
+
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  Der Antrag wird einem Admin zur Zuordnung weitergeleitet.
+                </div>
+              </>
+            )}
 
             {type === EventType.WORK && (
               <>
@@ -454,9 +537,11 @@ export function NewEntrySheet({
         open={sigOpen}
         onOpenChange={setSigOpen}
         title={
-          type === EventType.WORK
-            ? "Arbeitszeit bestätigen"
-            : "Krankheit bestätigen"
+          type === "VERTRETUNG"
+            ? "Vertretung bestätigen"
+            : type === EventType.WORK
+              ? "Arbeitszeit bestätigen"
+              : "Krankheit bestätigen"
         }
         subtitle={signerSubtitle}
         signerLabel={`${currentUserName} (Mitarbeiter)`}

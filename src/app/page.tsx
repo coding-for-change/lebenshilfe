@@ -80,14 +80,22 @@ export default async function LandingPage() {
         note: a.note,
       }))}
       assignmentsByWeekday={assignmentsByWeekday}
-      substituteOn={vertretungenAsSubstitute.map((v) => ({
-        id: v.id,
-        date: v.date.toISOString().slice(0, 10),
-        childId: v.childId,
-        childName: `${v.child.firstName} ${v.child.lastName}`,
-        startTime: v.startTime,
-        endTime: v.endTime,
-      }))}
+      substituteOn={vertretungenAsSubstitute.map((v) => {
+        const sbRequest = pendingVertretungRequests.find(
+          (r) =>
+            r.date.getTime() === v.date.getTime() &&
+            (r.matchedChildId === v.childId || r.resolvedChildId === v.childId),
+        );
+        return {
+          id: v.id,
+          date: v.date.toISOString().slice(0, 10),
+          childId: v.childId,
+          childName: `${v.child.firstName} ${v.child.lastName}`,
+          startTime: v.startTime,
+          endTime: v.endTime,
+          sbRequestId: sbRequest?.id ?? null,
+        };
+      })}
       pendingVertretungRequests={pendingVertretungRequests.map((r) => ({
         id: r.id,
         date: r.date.toISOString().slice(0, 10),

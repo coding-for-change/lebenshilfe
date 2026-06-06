@@ -58,6 +58,10 @@ export type VertretungDay = {
   childName: string;
   startTime: string;
   endTime: string;
+  /** When set, this Vertretung was created by the SB via free-text (auto-matched
+   *  or admin-resolved). The id points at the originating PendingVertretungRequest
+   *  so the SB can fully undo it from the dashboard. */
+  sbRequestId?: string | null;
 };
 
 export type PendingVertretungRequestItem = {
@@ -379,6 +383,7 @@ export function SchoolAssistantApp({
           currentUserName={currentUser.name}
           schedules={schedules}
           substituteOn={substituteOn}
+          events={events}
           lastEntry={
             lastWorkEntry
               ? {

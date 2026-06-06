@@ -8,12 +8,22 @@ import type {
   ResolveVertretungRequestInput,
 } from "./schemas";
 
+const VERTRETUNG_REVALIDATE_PATHS = [
+  "/",
+  "/admin/handlungsbedarf",
+  "/admin/children",
+];
+
+function revalidateVertretungPaths() {
+  for (const p of VERTRETUNG_REVALIDATE_PATHS) revalidatePath(p);
+}
+
 export async function createVertretungRequestAction(
   input: CreateVertretungRequestInput,
 ) {
   const user = await requireAuth();
   await VertretungRequestsFacade.create(user.id, input);
-  revalidatePath("/");
+  revalidateVertretungPaths();
 }
 
 export async function resolveVertretungRequestAction(
@@ -22,18 +32,23 @@ export async function resolveVertretungRequestAction(
 ) {
   const admin = await requireAdmin();
   await VertretungRequestsFacade.resolve(id, admin.id, input);
-  revalidatePath("/admin/handlungsbedarf");
-  revalidatePath("/admin/children");
+  revalidateVertretungPaths();
 }
 
 export async function rejectVertretungRequestAction(id: string) {
   const admin = await requireAdmin();
   await VertretungRequestsFacade.reject(id, admin.id);
-  revalidatePath("/admin/handlungsbedarf");
+  revalidateVertretungPaths();
 }
 
 export async function deleteOwnVertretungRequestAction(id: string) {
   const user = await requireAuth();
   await VertretungRequestsFacade.deleteOwn(id, user.id);
-  revalidatePath("/");
+  revalidateVertretungPaths();
+}
+
+export async function deleteOwnVertretungAction(id: string) {
+  const user = await requireAuth();
+  await VertretungRequestsFacade.deleteOwnVertretung(id, user.id);
+  revalidateVertretungPaths();
 }

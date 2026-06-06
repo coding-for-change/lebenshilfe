@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, Stethoscope, UserCheck, UserPlus } from "lucide-react";
+import { Briefcase, Stethoscope, UserPlus } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { EventType, type Schedule } from "@/generated/prisma";
+import { EventType, type Event, type Schedule } from "@/generated/prisma";
 import { SignaturePadDialog } from "./signature-pad-dialog";
 import { createEventAction } from "../actions";
 import { createVertretungRequestAction } from "@/features/vertretung-requests/actions";
@@ -29,6 +29,8 @@ import type { ChildOption } from "./children-filter";
 import { childIdsForDate, type AssignmentsByWeekday } from "../weekday";
 import { cn, formatIsoDateUtc } from "@/lib/utils";
 import type { VertretungDay } from "./timesheet-shell";
+
+type EventLike = Pick<Event, "id" | "type" | "date" | "childId">;
 
 type LastEntry = {
   startTime: string | null;
@@ -51,8 +53,10 @@ type Props = {
   currentUserName: string;
   schedules: Schedule[];
   lastEntry: LastEntry | null;
-  /** Vertretung days for the current user — so substitute children appear in the form. */
+  /** Vertretung days for the current user — listed in the Vertretung tab. */
   substituteOn?: VertretungDay[];
+  /** Existing events — used to hide Vertretungen that already have an Eintrag. */
+  events?: EventLike[];
 };
 
 function addMinutes(time: string, minutes: number): string {
@@ -75,6 +79,7 @@ export function NewEntrySheet({
   schedules,
   lastEntry,
   substituteOn = [],
+  events = [],
 }: Props) {
   const [type, setType] = useState<EventType | "VERTRETUNG">(EventType.WORK);
   const [date, setDate] = useState(formatIsoDateUtc(defaultDate));
@@ -83,23 +88,58 @@ export function NewEntrySheet({
   const [note, setNote] = useState("");
   const [vertretungChildName, setVertretungChildName] = useState("");
 
-  // Vertretungen for the currently selected date
-  const dayVertretungen = useMemo(
-    () => substituteOn.filter((v) => v.date === date),
-    [substituteOn, date],
-  );
+  // Child IDs that already have a work Event for this date — used to hide
+  // Vertretungen the SB has already submitted an Eintrag for. Filtering by
+  // childId is correct because one Event represents one Vertretung (regardless
+  // of how many time blocks the ChildVertretung was split into).
+  const usedChildIdsForDate = useMemo(() => {
+    const out = new Set<string>();
+    for (const e of events) {
+      if (e.type !== "WORK" || !e.childId) continue;
+      if (formatIsoDateUtc(e.date) === date) out.add(e.childId);
+    }
+    return out;
+  }, [events, date]);
 
+  // Regular weekday-based assignments (Vertretungen live on the Vertretung tab now)
   const dayAssignedChildren = useMemo(() => {
-    // Regular weekday-based assignments
     const regularIds = new Set(
       childIdsForDate(assignmentsByWeekday, parseIsoDate(date)),
     );
-    // Date-specific Vertretung children
-    for (const v of dayVertretungen) regularIds.add(v.childId);
-
     if (regularIds.size === 0) return [] as ChildOption[];
     return assignedChildren.filter((c) => regularIds.has(c.id));
-  }, [date, assignmentsByWeekday, assignedChildren, dayVertretungen]);
+  }, [date, assignmentsByWeekday, assignedChildren]);
+
+  // Vertretungen for the day, grouped by child, excluding ones already used
+  const availableVertretungen = useMemo(() => {
+    const blocks = substituteOn.filter(
+      (v) => v.date === date && !usedChildIdsForDate.has(v.childId),
+    );
+    const map = new Map<
+      string,
+      {
+        childId: string;
+        childName: string;
+        timeBlocks: { startTime: string; endTime: string }[];
+      }
+    >();
+    for (const v of blocks) {
+      if (!map.has(v.childId)) {
+        map.set(v.childId, {
+          childId: v.childId,
+          childName: v.childName,
+          timeBlocks: [],
+        });
+      }
+      map
+        .get(v.childId)!
+        .timeBlocks.push({ startTime: v.startTime, endTime: v.endTime });
+    }
+    for (const entry of map.values()) {
+      entry.timeBlocks.sort((a, b) => a.startTime.localeCompare(b.startTime));
+    }
+    return Array.from(map.values());
+  }, [substituteOn, date, usedChildIdsForDate]);
 
   const [childIds, setChildIds] = useState<string[]>(
     dayAssignedChildren.length === 1 ? [dayAssignedChildren[0].id] : [],
@@ -161,16 +201,6 @@ export function NewEntrySheet({
       out.push(slot);
     };
 
-    // Vertretung time slot(s) — shown first so the substitute can quickly confirm
-    for (const v of dayVertretungen) {
-      push({
-        key: `vertretung-${v.childId}`,
-        label: `Vertretung (${v.childName.split(" ")[0]})`,
-        start: v.startTime,
-        end: v.endTime,
-      });
-    }
-
     const wd = weekdayIndex(parseIsoDate(date));
     const relevantChildIds =
       childIds.length > 0 ? childIds : dayAssignedChildren.map((c) => c.id);
@@ -208,14 +238,7 @@ export function NewEntrySheet({
     }
 
     return out;
-  }, [
-    date,
-    schedules,
-    dayAssignedChildren,
-    childIds,
-    lastEntry,
-    dayVertretungen,
-  ]);
+  }, [date, schedules, dayAssignedChildren, childIds, lastEntry]);
 
   const submitWithSignature = async (pngBase64: string) => {
     setSubmitting(true);
@@ -258,7 +281,9 @@ export function NewEntrySheet({
 
   const signerSubtitle =
     type === "VERTRETUNG"
-      ? `${date} · Vertretung · ${startTime}–${endTime}`
+      ? `${date} · Vertretung · ${startTime}–${endTime}${
+          duration ? ` · ${duration}` : ""
+        }`
       : type === EventType.WORK
         ? `${date} · ${startTime}–${endTime}${duration ? ` · ${duration}` : ""}`
         : `${date} · Krank · ganztägig`;
@@ -345,9 +370,6 @@ export function NewEntrySheet({
                     placeholder="Vor- und Nachname"
                     autoComplete="off"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Bitte den Namen so genau wie möglich eingeben.
-                  </p>
                 </div>
 
                 <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-end">
@@ -379,8 +401,76 @@ export function NewEntrySheet({
                     : "Ende muss nach Start liegen"}
                 </p>
 
+                {availableVertretungen.length > 0 && (
+                  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                    {availableVertretungen.flatMap((v) =>
+                      v.timeBlocks.map((b, i) => {
+                        const active =
+                          vertretungChildName === v.childName &&
+                          startTime === b.startTime &&
+                          endTime === b.endTime;
+                        return (
+                          <button
+                            key={`${v.childId}-${i}`}
+                            type="button"
+                            onClick={() => {
+                              setVertretungChildName(v.childName);
+                              setStartTime(b.startTime);
+                              setEndTime(b.endTime);
+                            }}
+                            className={cn(
+                              "flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors",
+                              active
+                                ? "border-amber-400 bg-amber-400/10 text-foreground"
+                                : "border-border bg-muted/40 hover:bg-accent",
+                            )}
+                          >
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Vertretung
+                              </span>
+                              <span className="font-medium">{v.childName}</span>
+                            </div>
+                            <span className="font-mono tabular-nums text-muted-foreground">
+                              {b.startTime}–{b.endTime}
+                            </span>
+                          </button>
+                        );
+                      }),
+                    )}
+                  </div>
+                )}
+
+                {quickSlots.length > 0 && (
+                  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+                    {quickSlots.map((slot) => (
+                      <button
+                        key={slot.key}
+                        type="button"
+                        onClick={() => {
+                          setStartTime(slot.start);
+                          setEndTime(slot.end);
+                        }}
+                        className={cn(
+                          "flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors",
+                          startTime === slot.start && endTime === slot.end
+                            ? "border-amber-400 bg-amber-400/10 text-foreground"
+                            : "border-border bg-muted/40 hover:bg-accent",
+                        )}
+                      >
+                        <span className="font-medium">{slot.label}</span>
+                        <span className="font-mono tabular-nums text-muted-foreground">
+                          {slot.start}–{slot.end}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                  Der Antrag wird einem Admin zur Zuordnung weitergeleitet.
+                  Bei exakter Übereinstimmung wird der Eintrag sofort
+                  gespeichert — sonst leiten wir den Antrag an einen Admin
+                  weiter.
                 </div>
               </>
             )}
@@ -398,14 +488,6 @@ export function NewEntrySheet({
                       {dayAssignedChildren[0].firstName}{" "}
                       {dayAssignedChildren[0].lastName}
                     </span>
-                    {dayVertretungen.some(
-                      (v) => v.childId === dayAssignedChildren[0].id,
-                    ) && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
-                        <UserCheck className="size-3" />
-                        Vertretung
-                      </span>
-                    )}
                   </div>
                 ) : (
                   <div className="space-y-1.5">
@@ -425,12 +507,6 @@ export function NewEntrySheet({
                           <span className="flex-1">
                             {c.firstName} {c.lastName}
                           </span>
-                          {dayVertretungen.some((v) => v.childId === c.id) && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
-                              <UserCheck className="size-3" />
-                              Vertretung
-                            </span>
-                          )}
                         </label>
                       ))}
                     </div>

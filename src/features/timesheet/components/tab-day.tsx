@@ -15,7 +15,10 @@ import {
 } from "@/lib/dates";
 import { WeekStrip } from "./week-strip";
 import { deleteEventAction } from "../actions";
-import { deleteOwnVertretungRequestAction } from "@/features/vertretung-requests/actions";
+import {
+  deleteOwnVertretungAction,
+  deleteOwnVertretungRequestAction,
+} from "@/features/vertretung-requests/actions";
 import type { Event, Schedule } from "@/generated/prisma";
 import type { ChildOption } from "./children-filter";
 import type {
@@ -100,6 +103,7 @@ export function TabDay({
         childId: string;
         childName: string;
         timeBlocks: { startTime: string; endTime: string }[];
+        sbRequestId: string | null;
       }
     >();
     for (const v of blocks) {
@@ -108,11 +112,12 @@ export function TabDay({
           childId: v.childId,
           childName: v.childName,
           timeBlocks: [],
+          sbRequestId: v.sbRequestId ?? null,
         });
       }
-      map
-        .get(v.childId)!
-        .timeBlocks.push({ startTime: v.startTime, endTime: v.endTime });
+      const entry = map.get(v.childId)!;
+      entry.timeBlocks.push({ startTime: v.startTime, endTime: v.endTime });
+      if (v.sbRequestId) entry.sbRequestId = v.sbRequestId;
     }
     for (const entry of map.values()) {
       entry.timeBlocks.sort((a, b) => a.startTime.localeCompare(b.startTime));
@@ -130,6 +135,18 @@ export function TabDay({
     try {
       await deleteOwnVertretungRequestAction(id);
       toast.success("Antrag gelöscht.");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Löschen fehlgeschlagen.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleDeleteVertretung = async (sbRequestId: string) => {
+    setBusyId(sbRequestId);
+    try {
+      await deleteOwnVertretungAction(sbRequestId);
+      toast.success("Vertretung gelöscht.");
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Löschen fehlgeschlagen.");
     } finally {
@@ -288,6 +305,17 @@ export function TabDay({
                   .join(", ")}
               </p>
             </div>
+            {g.sbRequestId && !locked && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleDeleteVertretung(g.sbRequestId!)}
+                disabled={busyId === g.sbRequestId}
+                className="text-muted-foreground"
+              >
+                Löschen
+              </Button>
+            )}
           </div>
         </Card>
       ))}

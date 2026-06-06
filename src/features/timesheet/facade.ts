@@ -1,5 +1,4 @@
 import { randomUUID } from "crypto";
-import { prisma } from "@/lib/prisma";
 import {
   ConfirmWorkEventsSchema,
   CreateEventSchema,
@@ -182,40 +181,6 @@ export const TimesheetFacade = {
     );
     assertMonthNotLocked(report);
     await deleteEventById(eventId);
-
-    if (event.childId) {
-      const weekday = (event.date.getUTCDay() + 6) % 7;
-      const schedule = await prisma.schedule.findFirst({
-        where: { childId: event.childId, weekday },
-        select: { id: true },
-      });
-      if (!schedule) {
-        await prisma.childVertretung.deleteMany({
-          where: {
-            childId: event.childId,
-            date: event.date,
-            substituteUserId: event.userId,
-          },
-        });
-        const sbRequest = await prisma.pendingVertretungRequest.findFirst({
-          where: {
-            substituteUserId: event.userId,
-            date: event.date,
-            status: { in: ["PENDING", "RESOLVED"] },
-            OR: [
-              { matchedChildId: event.childId },
-              { resolvedChildId: event.childId },
-            ],
-          },
-          select: { id: true },
-        });
-        if (sbRequest) {
-          await prisma.pendingVertretungRequest.delete({
-            where: { id: sbRequest.id },
-          });
-        }
-      }
-    }
   },
 
   async submitMonthlyReport(userId: string, input: SubmitMonthlyReportInput) {

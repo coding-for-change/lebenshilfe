@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -10,8 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FlagCell } from "@/components/flag-cell";
+import { FlagCell, FlagChip } from "@/components/flag-cell";
 import { PageSection } from "@/components/page-section";
+import { RecordCard } from "@/components/record-card";
 import { SearchableTable } from "@/components/searchable-table";
 import { ChildRowActions } from "./child-row-actions";
 import { ChildWizard } from "./child-wizard";
@@ -63,9 +65,22 @@ export function ChildrenTable({
       <PageSection
         title="Kinder"
         action={
-          <Button onClick={() => setWizardOpen(true)}>
-            + Neues Kind anlegen
-          </Button>
+          <>
+            <Button
+              onClick={() => setWizardOpen(true)}
+              size="icon"
+              className="md:hidden"
+              aria-label="Neues Kind anlegen"
+            >
+              <Plus />
+            </Button>
+            <Button
+              onClick={() => setWizardOpen(true)}
+              className="hidden md:inline-flex"
+            >
+              <Plus /> Neues Kind anlegen
+            </Button>
+          </>
         }
       >
         <div className="p-4">
@@ -81,6 +96,34 @@ export function ChildrenTable({
                 Keine Kinder gefunden.
               </div>
             }
+            getRowKey={(c) => c.id}
+            renderCard={(c) => (
+              <RecordCard
+                title={`${c.firstName} ${c.lastName}`}
+                subtitle={c.schoolName ?? undefined}
+                badges={
+                  <>
+                    <FlagChip
+                      label="Leos One"
+                      on={c.leosOne}
+                    />
+                    <FlagChip
+                      label="Schweigepflicht"
+                      on={c.schweigepflichtsentbindung}
+                    />
+                  </>
+                }
+                meta={`Kostenträger: ${c.costBearer?.name ?? "—"}`}
+                action={
+                  <ChildRowActions
+                    childId={c.id}
+                    childName={`${c.firstName} ${c.lastName}`}
+                    onOpenDetails={() => setOpenChildId(c.id)}
+                  />
+                }
+                onClick={() => setOpenChildId(c.id)}
+              />
+            )}
           >
             {(filtered) => (
               <Table>

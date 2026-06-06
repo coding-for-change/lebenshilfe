@@ -11,8 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FlagCell } from "@/components/flag-cell";
+import { FlagCell, FlagChip } from "@/components/flag-cell";
 import { PageSection } from "@/components/page-section";
+import { RecordCard } from "@/components/record-card";
 import { SearchableTable } from "@/components/searchable-table";
 import { SchoolAssistantRowActions } from "./school-assistant-row-actions";
 import { SchoolAssistantWizard } from "./school-assistant-wizard";
@@ -42,14 +43,14 @@ export function SchoolAssistantsTable({ profiles, workshops }: Props) {
             <Button
               onClick={() => setWizardOpen(true)}
               size="icon"
-              className="sm:hidden"
+              className="md:hidden"
               aria-label="Neuen Schulbegleiter anlegen"
             >
               <Plus />
             </Button>
             <Button
               onClick={() => setWizardOpen(true)}
-              className="hidden sm:inline-flex"
+              className="hidden md:inline-flex"
             >
               <Plus /> Neuen Schulbegleiter anlegen
             </Button>
@@ -69,6 +70,44 @@ export function SchoolAssistantsTable({ profiles, workshops }: Props) {
                 Keine Schulbegleiter gefunden.
               </div>
             }
+            getRowKey={(p) => p.id}
+            renderCard={(p) => (
+              <RecordCard
+                title={p.name}
+                subtitle={p.email}
+                badges={
+                  <>
+                    <StatusBadge status={p.status} />
+                    <FlagChip
+                      label="Leos One"
+                      on={p.leosOne}
+                    />
+                    <FlagChip
+                      label="Outlook"
+                      on={p.outlook}
+                    />
+                    <FlagChip
+                      label="ZV neu"
+                      on={p.zvNeuNachBescheid}
+                    />
+                  </>
+                }
+                meta={`Stunden: ${
+                  p.weeklyHours == null ? "—" : `${Number(p.weeklyHours)} h`
+                } · Einführung: ${
+                  p.introductionDay ? formatDate(p.introductionDay) : "—"
+                }`}
+                action={
+                  <SchoolAssistantRowActions
+                    profileId={p.id}
+                    name={p.name}
+                    status={p.status}
+                    onOpenDetails={() => setOpenProfileId(p.id)}
+                  />
+                }
+                onClick={() => setOpenProfileId(p.id)}
+              />
+            )}
           >
             {(filtered) => (
               <Table>

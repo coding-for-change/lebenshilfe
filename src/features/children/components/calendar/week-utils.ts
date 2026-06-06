@@ -86,6 +86,23 @@ export function parseTime(hhmm: string): number {
   return h + m / 60;
 }
 
+/**
+ * Whether a logged Einsatz falls outside a scheduled window — the calendar's
+ * coverage cross-check. Shared by the desktop grid block and the mobile day
+ * view so both flag over-runs identically.
+ */
+export function einsatzExceeds(
+  einsatz: { startTime: string | null; endTime: string | null },
+  scheduleStartHour: number,
+  scheduleEndHour: number,
+): boolean {
+  if (!einsatz.startTime || !einsatz.endTime) return false;
+  return (
+    parseTime(einsatz.startTime) < scheduleStartHour ||
+    parseTime(einsatz.endTime) > scheduleEndHour
+  );
+}
+
 // Column-pack overlapping events per weekday, like Google/Outlook calendars.
 // Step 1: greedy lane assignment (each event goes into the leftmost lane that
 // is free at its startHour). Step 2: union-find clusters of events connected

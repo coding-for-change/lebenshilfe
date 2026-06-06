@@ -298,7 +298,7 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
                     {rows.map((r) => (
                       <li
                         key={r.id}
-                        className={`grid grid-cols-[max-content_1fr_max-content_max-content] items-center gap-3 px-4 py-2 text-sm hover:bg-muted/30 ${
+                        className={`grid grid-cols-1 gap-1.5 px-4 py-3 text-sm hover:bg-muted/30 md:grid-cols-[max-content_1fr_max-content_max-content] md:items-center md:gap-3 md:py-2 ${
                           r.deleted ? "opacity-60" : ""
                         }`}
                       >

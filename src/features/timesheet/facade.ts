@@ -201,6 +201,7 @@ export const TimesheetFacade = {
           where: {
             substituteUserId: event.userId,
             date: event.date,
+            status: { in: ["PENDING", "RESOLVED"] },
             OR: [
               { matchedChildId: event.childId },
               { resolvedChildId: event.childId },

@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { uploadSignaturePng } from "@/lib/storage";
 import { prisma } from "@/lib/prisma";
-import { exactMatchChild } from "@/features/children/services/fuzzy-match";
+import { exactMatchChild } from "@/lib/child-matching";
 import {
   CreateVertretungRequestSchema,
   ResolveVertretungRequestSchema,

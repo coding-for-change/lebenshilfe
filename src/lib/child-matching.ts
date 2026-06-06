@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 
-export type MatchResult = {
+export type ChildMatchResult = {
   childId: string;
 };
 
@@ -10,7 +10,7 @@ function normalize(s: string): string {
 
 export async function exactMatchChild(
   nameText: string,
-): Promise<MatchResult | null> {
+): Promise<ChildMatchResult | null> {
   const query = normalize(nameText);
   const children = await prisma.child.findMany({
     select: { id: true, firstName: true, lastName: true },

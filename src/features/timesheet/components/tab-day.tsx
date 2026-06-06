@@ -438,16 +438,7 @@ export function TabDay({
         </Card>
       )}
 
-      {!locked && dayEvents.length > 0 && (
-        <Button
-          onClick={onRequestNewEntry}
-          className="fixed bottom-24 right-4 size-14 rounded-full shadow-lg sm:bottom-6"
-          aria-label="Neuer Eintrag"
-        >
-          <Plus className="size-6" />
-        </Button>
-      )}
-      {!locked && dayEvents.length === 0 && (
+      {!locked && (
         <Button
           onClick={onRequestNewEntry}
           className="fixed bottom-24 right-4 size-14 rounded-full shadow-lg sm:bottom-6"

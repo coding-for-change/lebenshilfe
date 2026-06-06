@@ -220,6 +220,11 @@ function ReadyAutocomplete({ value, onChange, id, ariaInvalid }: Props) {
           <Input
             id={id}
             role="combobox"
+            // Suppress the browser's own form-history dropdown so it can't
+            // cover our Google Places suggestions.
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
             aria-expanded={showList}
             aria-controls={listId}
             aria-autocomplete="list"

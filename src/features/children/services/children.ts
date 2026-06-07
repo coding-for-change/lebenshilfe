@@ -30,6 +30,41 @@ export async function findChildById(id: string) {
   return prisma.child.findUnique({ where: { id }, include: childInclude });
 }
 
+// Lightweight existence check (no relations) for callers that only need to
+// know a child id is valid before referencing it.
+export async function childExists(id: string) {
+  const child = await prisma.child.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+  return child !== null;
+}
+
+// Restricts the search to children currently assigned to this Schulbegleiter
+// — a user must never be able to look up the names of children outside their
+// own caseload. Note: assignments are hard-deleted, so an unassigned child
+// drops out of the results immediately (there is no "previously assigned").
+export async function searchAssignedChildrenByName(
+  userId: string,
+  query: string,
+  limit = 10,
+) {
+  const trimmed = query.trim();
+  if (trimmed.length < 1) return [];
+  return prisma.child.findMany({
+    where: {
+      assignments: { some: { userId } },
+      OR: [
+        { firstName: { contains: trimmed } },
+        { lastName: { contains: trimmed } },
+      ],
+    },
+    select: { id: true, firstName: true, lastName: true },
+    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    take: limit,
+  });
+}
+
 type ChildFields = {
   firstName?: string;
   lastName?: string;

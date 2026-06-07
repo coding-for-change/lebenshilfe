@@ -2,9 +2,10 @@
  * Use case: Create a timesheet event (Eintrag).
  *
  * Coordinates two feature facades:
- *  1. ChildrenFacade.assertChildrenAccessForUser — validates that the user is
- *     allowed to log work for the requested children on the given date
- *     (regular assignment OR Vertretung).
+ *  1. ChildrenFacade — validates child access/existence (children domain):
+ *     - assertChildrenAccessForUser: the user may log WORK for the requested
+ *       children on the given date (regular assignment OR Vertretung).
+ *     - assertChildExists: the child referenced by an INDIRECT entry exists.
  *  2. TimesheetFacade.createEvent — performs the actual event creation.
  *
  * The cross-feature validation lives here rather than inside either facade
@@ -37,6 +38,12 @@ export async function createTimesheetEvent(
       input.childIds,
       date,
     );
+  }
+
+  // INDIRECT entries reference a single child that must exist.
+  if (input.type === "INDIRECT") {
+    const childId = input.childIds[0];
+    if (childId) await ChildrenFacade.assertChildExists(childId);
   }
 
   return TimesheetFacade.createEvent(userId, input);

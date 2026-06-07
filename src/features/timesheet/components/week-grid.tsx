@@ -134,10 +134,13 @@ export function WeekGrid({
           const dayVertretungen = substituteOn.filter((v) => v.date === iso);
           const dayWork = events.filter(
             (e) =>
-              e.type === "WORK" &&
+              (e.type === "WORK" || e.type === "INDIRECT") &&
               isSameUtcDay(e.date, d) &&
+              // Indirekte Leistungen ohne Kind-Verknüpfung werden unabhängig
+              // vom Kinder-Filter angezeigt, da sie nicht kindgebunden sind.
               (selectedChildIds.length === 0 ||
-                (e.childId && selectedChildIds.includes(e.childId))),
+                !e.childId ||
+                selectedChildIds.includes(e.childId)),
           );
           const daySchedules = schedules.filter(
             (s) =>

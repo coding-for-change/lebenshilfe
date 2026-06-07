@@ -10,7 +10,10 @@ export async function listWorkEventsForChild(
   childId: string,
 ): Promise<ChildWorkEvent[]> {
   return prisma.event.findMany({
-    where: { childId, type: EventType.WORK },
+    where: {
+      childId,
+      type: { in: [EventType.WORK, EventType.INDIRECT] },
+    },
     include: { user: true },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
   });

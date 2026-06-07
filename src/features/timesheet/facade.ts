@@ -18,6 +18,7 @@ import {
   getEventsForUserInMonth,
   getEventsForUserInRange,
   getSchedulesForChildren,
+  insertIndirectEvent,
   insertMonthlyReport,
   insertSickEvent,
   insertWorkEvents,
@@ -108,6 +109,7 @@ export const TimesheetFacade = {
     assertMonthNotLocked(report);
 
     if (parsed.type === "WORK") {
+      const variant = parsed.workVariant ?? "OWN";
       const batchId = randomUUID();
       const signatureKey = `signatures/events/${userId}/${batchId}.png`;
       await uploadSignature(signatureKey, parsed.signaturePngBase64);
@@ -119,8 +121,26 @@ export const TimesheetFacade = {
         endTime: parsed.endTime!,
         note: parsed.note ?? null,
         signatureKey,
+        isSubstitute: variant === "SUBSTITUTE",
       });
       return { createdCount: parsed.childIds.length, signatureKey };
+    }
+
+    if (parsed.type === "INDIRECT") {
+      const childId = parsed.childIds[0];
+      const eventId = randomUUID();
+      const signatureKey = `signatures/events/${userId}/${eventId}.png`;
+      await uploadSignature(signatureKey, parsed.signaturePngBase64);
+      await insertIndirectEvent({
+        userId,
+        childId,
+        date,
+        startTime: parsed.startTime!,
+        endTime: parsed.endTime!,
+        note: parsed.note!,
+        signatureKey,
+      });
+      return { createdCount: 1, signatureKey };
     }
 
     const eventId = randomUUID();

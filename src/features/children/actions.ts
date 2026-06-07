@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth-guards";
+import { requireAdmin, requireAuth } from "@/lib/auth-guards";
 import { ChildrenFacade } from "./facade";
 import type {
   AbsenceInput,
@@ -16,6 +16,14 @@ import type {
 } from "./schemas";
 
 const ROUTE = "/admin/children";
+
+// Search children assigned to the current Schulbegleiter. Lives in the
+// children feature because it queries child data; the timesheet entry form
+// calls it to pick a child for Einspringen/indirect work.
+export async function searchAssignedChildrenAction(query: string) {
+  const { id: userId } = await requireAuth();
+  return ChildrenFacade.searchAssignedChildren(userId, query);
+}
 
 export async function createChildAction(input: CreateChildInput) {
   await requireAdmin();
@@ -115,6 +123,8 @@ export async function listWorkEventsForChildAction(childId: string) {
     startTime: e.startTime,
     endTime: e.endTime,
     note: e.note,
+    type: e.type,
+    isSubstitute: e.isSubstitute,
     userName: e.user.name,
     userId: e.userId,
     deleted: e.deleted,

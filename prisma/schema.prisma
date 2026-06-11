@@ -230,7 +230,6 @@ model Event {
   startTime    String?
   endTime      String?
   note         String?   @db.Text
-  isSubstitute Boolean   @default(false)
   signatureKey String?   // !null -> by school assistant, null -> by admin
   deleted      Boolean   @default(false) // soft delete only for signed events; admin-created events are hard deleted
   createdAt    DateTime  @default(now())

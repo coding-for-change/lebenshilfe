@@ -36,7 +36,7 @@ import { cn, formatIsoDateUtc } from "@/lib/utils";
 import type { VertretungDay } from "./timesheet-shell";
 
 type EventLike = Pick<Event, "id" | "type" | "date" | "childId">;
-type WorkVariant = "OWN" | "SUBSTITUTE" | "INDIRECT";
+type WorkVariant = "OWN" | "INDIRECT";
 
 function isWeekend(iso: string) {
   const d = parseIsoDate(iso);
@@ -205,10 +205,6 @@ export function NewEntrySheet({
       if (dateIsWeekend) return false;
       return childIds.length >= 1 && Boolean(duration);
     }
-    if (workVariant === "SUBSTITUTE") {
-      if (dateIsWeekend) return false;
-      return Boolean(otherChild) && Boolean(duration);
-    }
     // INDIRECT
     return Boolean(otherChild) && note.trim().length >= 3 && Boolean(duration);
   }, [
@@ -301,7 +297,6 @@ export function NewEntrySheet({
       } else if (workVariant === "OWN") {
         await createEventAction({
           type: EventType.WORK,
-          workVariant: "OWN",
           date,
           childIds,
           startTime,
@@ -314,18 +309,6 @@ export function NewEntrySheet({
             childIds.length === 1 ? "" : "er"
           })`,
         );
-      } else if (workVariant === "SUBSTITUTE") {
-        await createEventAction({
-          type: EventType.WORK,
-          workVariant: "SUBSTITUTE",
-          date,
-          childIds: otherChild ? [otherChild.id] : [],
-          startTime,
-          endTime,
-          note: note.trim() || undefined,
-          signaturePngBase64: pngBase64,
-        });
-        toast.success("Einspringen gespeichert");
       } else {
         await createEventAction({
           type: EventType.INDIRECT,
@@ -545,7 +528,7 @@ export function NewEntrySheet({
 
             {type === EventType.WORK && (
               <>
-                <div className="grid grid-cols-3 gap-1.5">
+                <div className="grid grid-cols-2 gap-1.5">
                   <Button
                     type="button"
                     variant={workVariant === "OWN" ? "default" : "outline"}
@@ -553,16 +536,6 @@ export function NewEntrySheet({
                     className="h-10 text-xs sm:text-sm"
                   >
                     <Briefcase className="size-3.5" /> Eigenes Kind
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={
-                      workVariant === "SUBSTITUTE" ? "default" : "outline"
-                    }
-                    onClick={() => setWorkVariant("SUBSTITUTE")}
-                    className="h-10 text-xs sm:text-sm"
-                  >
-                    <UserPlus className="size-3.5" /> Einspringen
                   </Button>
                   <Button
                     type="button"
@@ -615,21 +588,6 @@ export function NewEntrySheet({
                     </div>
                   ))}
 
-                {workVariant === "SUBSTITUTE" && (
-                  <div className="space-y-1.5">
-                    <Label htmlFor="other-child">Kind (Einspringen)</Label>
-                    <ChildSearchCombobox
-                      id="other-child"
-                      value={otherChild}
-                      onChange={setOtherChild}
-                      placeholder="Kind suchen…"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Suche nach dem Kind, für das du einspringst.
-                    </p>
-                  </div>
-                )}
-
                 {workVariant === "INDIRECT" && (
                   <div className="space-y-1.5">
                     <Label htmlFor="other-child">Kind</Label>
@@ -645,13 +603,12 @@ export function NewEntrySheet({
                   </div>
                 )}
 
-                {(workVariant === "OWN" || workVariant === "SUBSTITUTE") &&
-                  dateIsWeekend && (
-                    <p className="rounded-lg border border-amber-400/50 bg-amber-50/50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-                      Diese Tätigkeit ist nur an Werktagen möglich. Für
-                      Wochenend-Tätigkeiten bitte &bdquo;Indirekt&ldquo; wählen.
-                    </p>
-                  )}
+                {workVariant === "OWN" && dateIsWeekend && (
+                  <p className="rounded-lg border border-amber-400/50 bg-amber-50/50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                    Diese Tätigkeit ist nur an Werktagen möglich. Für
+                    Wochenend-Tätigkeiten bitte &bdquo;Indirekt&ldquo; wählen.
+                  </p>
+                )}
 
                 <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-end">
                   <div className="space-y-1.5">
@@ -771,10 +728,6 @@ export function NewEntrySheet({
                 .with(
                   { workVariant: "INDIRECT" },
                   () => "Indirekte Leistung bestätigen",
-                )
-                .with(
-                  { workVariant: "SUBSTITUTE" },
-                  () => "Einspringen bestätigen",
                 )
                 .otherwise(() => "Arbeitszeit bestätigen")
         }

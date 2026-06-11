@@ -53,7 +53,7 @@ export function clampHours(h: number): number {
 }
 
 export type EventLayer = "schedule" | "assignment" | "absence" | "event";
-export type EventKind = "work" | "substitute" | "indirect";
+export type EventKind = "work" | "indirect";
 
 export type CalendarEvent = {
   layer: EventLayer;
@@ -70,8 +70,8 @@ export type CalendarEvent = {
   sublabel?: string;
   // Assignment-only
   tandem?: boolean;
-  // Event-only: distinguishes regular work, substitute (Einspringen) and
-  // indirect (Lehrergespräch/Workshop) entries so EventBlock can color them.
+  // Event-only: distinguishes regular work from indirect
+  // (Lehrergespräch/Workshop) entries so EventBlock can color them.
   eventKind?: EventKind;
 };
 

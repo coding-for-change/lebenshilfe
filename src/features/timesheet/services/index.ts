@@ -88,7 +88,6 @@ export async function insertWorkEvents(args: {
   endTime: string;
   note?: string | null;
   signatureKey: string;
-  isSubstitute?: boolean;
 }) {
   return prisma.event.createMany({
     data: args.childIds.map((childId) => ({
@@ -100,7 +99,6 @@ export async function insertWorkEvents(args: {
       endTime: args.endTime,
       note: args.note ?? null,
       signatureKey: args.signatureKey,
-      isSubstitute: args.isSubstitute ?? false,
     })),
   });
 }

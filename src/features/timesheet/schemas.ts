@@ -15,9 +15,6 @@ const signatureSchema = z
     "Ungültige Signatur.",
   );
 
-export const WorkVariantSchema = z.enum(["OWN", "SUBSTITUTE", "INDIRECT"]);
-export type WorkVariant = z.infer<typeof WorkVariantSchema>;
-
 function isWeekend(dateString: string) {
   const d = new Date(`${dateString}T00:00:00`);
   const dow = d.getDay();
@@ -32,7 +29,6 @@ export const CreateEventSchema = z
     startTime: timeStringSchema.optional(),
     endTime: timeStringSchema.optional(),
     note: z.string().max(2000).optional(),
-    workVariant: WorkVariantSchema.optional(),
     signaturePngBase64: signatureSchema,
   })
   .superRefine((val, ctx) => {
@@ -58,41 +54,18 @@ export const CreateEventSchema = z
     };
 
     if (val.type === "WORK") {
-      const variant = val.workVariant ?? "OWN";
-      if (variant === "OWN") {
-        if (val.childIds.length < 1)
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["childIds"],
-            message: "Mindestens ein Kind auswählen.",
-          });
-        if (isWeekend(val.date))
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["date"],
-            message: "Reguläre Arbeit ist nur an Werktagen möglich.",
-          });
-      } else if (variant === "SUBSTITUTE") {
-        if (val.childIds.length !== 1)
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["childIds"],
-            message: "Genau ein Kind auswählen.",
-          });
-        if (isWeekend(val.date))
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["date"],
-            message: "Einspringen ist nur an Werktagen möglich.",
-          });
-      } else {
+      if (val.childIds.length < 1)
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          path: ["workVariant"],
-          message:
-            "Indirekte Leistung muss mit type=INDIRECT übermittelt werden.",
+          path: ["childIds"],
+          message: "Mindestens ein Kind auswählen.",
         });
-      }
+      if (isWeekend(val.date))
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["date"],
+          message: "Reguläre Arbeit ist nur an Werktagen möglich.",
+        });
       requireTimes();
     }
 

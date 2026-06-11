@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { PendingVertretungStatus } from "@/generated/prisma";
+import { EventType, PendingVertretungStatus } from "@/generated/prisma";
 
 export async function createPendingVertretungRequest(data: {
   substituteUserId: string;
@@ -91,4 +91,98 @@ export async function deleteOwnRequest(id: string, substituteUserId: string) {
     throw new Error("Nur offene Anträge können gelöscht werden.");
   }
   await prisma.pendingVertretungRequest.delete({ where: { id } });
+}
+
+export async function deletePendingVertretungRequestById(id: string) {
+  return prisma.pendingVertretungRequest.delete({ where: { id } });
+}
+
+export async function findExistingVertretungForSubstitute(args: {
+  childId: string;
+  date: Date;
+  substituteUserId: string;
+}) {
+  return prisma.childVertretung.findFirst({
+    where: {
+      childId: args.childId,
+      date: args.date,
+      substituteUserId: args.substituteUserId,
+    },
+    select: { id: true },
+  });
+}
+
+export async function getScheduleTimeBlocks(childId: string, weekday: number) {
+  return prisma.schedule.findMany({
+    where: { childId, weekday },
+    select: { startTime: true, endTime: true },
+  });
+}
+
+export async function insertChildVertretungBlocks(args: {
+  childId: string;
+  substituteUserId: string;
+  date: Date;
+  blocks: { startTime: string; endTime: string }[];
+}) {
+  return prisma.childVertretung.createMany({
+    data: args.blocks.map((b) => ({
+      childId: args.childId,
+      substituteUserId: args.substituteUserId,
+      date: args.date,
+      startTime: b.startTime,
+      endTime: b.endTime,
+    })),
+  });
+}
+
+export async function deleteChildVertretungForSubstitute(args: {
+  childId: string;
+  substituteUserId: string;
+  date: Date;
+}) {
+  return prisma.childVertretung.deleteMany({
+    where: {
+      childId: args.childId,
+      substituteUserId: args.substituteUserId,
+      date: args.date,
+    },
+  });
+}
+
+export async function insertVertretungWorkEvent(args: {
+  childId: string;
+  userId: string;
+  date: Date;
+  startTime: string;
+  endTime: string;
+  signatureKey: string;
+}) {
+  return prisma.event.create({
+    data: {
+      childId: args.childId,
+      userId: args.userId,
+      type: EventType.WORK,
+      date: args.date,
+      startTime: args.startTime,
+      endTime: args.endTime,
+      signatureKey: args.signatureKey,
+      deleted: false,
+    },
+  });
+}
+
+export async function deleteWorkEventsForSubstituteOnDate(args: {
+  userId: string;
+  childId: string;
+  date: Date;
+}) {
+  return prisma.event.deleteMany({
+    where: {
+      userId: args.userId,
+      childId: args.childId,
+      date: args.date,
+      type: EventType.WORK,
+    },
+  });
 }

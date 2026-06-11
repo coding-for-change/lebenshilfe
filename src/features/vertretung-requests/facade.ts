@@ -1,6 +1,5 @@
 import { randomUUID } from "crypto";
 import { uploadSignaturePng } from "@/lib/storage";
-import { prisma } from "@/lib/prisma";
 import { exactMatchChild } from "@/lib/child-matching";
 import {
   CreateVertretungRequestSchema,
@@ -9,42 +8,27 @@ import {
   type ResolveVertretungRequestInput,
 } from "./schemas";
 import {
+  countPendingRequests,
   createPendingVertretungRequest,
+  deleteChildVertretungForSubstitute,
   deleteOwnRequest,
+  deletePendingVertretungRequestById,
+  deleteWorkEventsForSubstituteOnDate,
+  findExistingVertretungForSubstitute,
   findRequestById,
+  getScheduleTimeBlocks,
+  insertChildVertretungBlocks,
+  insertVertretungWorkEvent,
   listPendingRequests,
   listRequestsForUser,
   rejectRequest,
   resolveRequest,
-  countPendingRequests,
 } from "./services";
 import { PendingVertretungStatus } from "@/generated/prisma";
 
 function parseDateOnly(dateStr: string): Date {
   const [y, m, d] = dateStr.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d));
-}
-
-function createWorkEvent(args: {
-  childId: string;
-  userId: string;
-  date: Date;
-  startTime: string;
-  endTime: string;
-  signatureKey: string;
-}) {
-  return prisma.event.create({
-    data: {
-      childId: args.childId,
-      userId: args.userId,
-      type: "WORK",
-      date: args.date,
-      startTime: args.startTime,
-      endTime: args.endTime,
-      signatureKey: args.signatureKey,
-      deleted: false,
-    },
-  });
 }
 
 export const VertretungRequestsFacade = {
@@ -62,12 +46,13 @@ export const VertretungRequestsFacade = {
       // it was either set up by the admin or by a prior SB submission. Just
       // create the work Event and skip the request entirely. This preserves
       // the admin's assignment intact (no overwriting, no delete button).
-      const existingVertretung = await prisma.childVertretung.findFirst({
-        where: { childId: match.childId, date, substituteUserId },
-        select: { id: true },
+      const existingVertretung = await findExistingVertretungForSubstitute({
+        childId: match.childId,
+        date,
+        substituteUserId,
       });
       if (existingVertretung) {
-        await createWorkEvent({
+        await insertVertretungWorkEvent({
           childId: match.childId,
           userId: substituteUserId,
           date,
@@ -82,10 +67,7 @@ export const VertretungRequestsFacade = {
       // and store the request as RESOLVED so the SB can later undo from the
       // dashboard if it was a mistake.
       const weekday = (date.getUTCDay() + 6) % 7;
-      const schedules = await prisma.schedule.findMany({
-        where: { childId: match.childId, weekday },
-        select: { startTime: true, endTime: true },
-      });
+      const schedules = await getScheduleTimeBlocks(match.childId, weekday);
 
       const timeBlocks =
         schedules.length > 0
@@ -95,17 +77,14 @@ export const VertretungRequestsFacade = {
             }))
           : [{ startTime: parsed.startTime, endTime: parsed.endTime }];
 
-      await prisma.childVertretung.createMany({
-        data: timeBlocks.map((b) => ({
-          childId: match.childId,
-          substituteUserId,
-          date,
-          startTime: b.startTime,
-          endTime: b.endTime,
-        })),
+      await insertChildVertretungBlocks({
+        childId: match.childId,
+        substituteUserId,
+        date,
+        blocks: timeBlocks,
       });
 
-      await createWorkEvent({
+      await insertVertretungWorkEvent({
         childId: match.childId,
         userId: substituteUserId,
         date,
@@ -164,36 +143,28 @@ export const VertretungRequestsFacade = {
 
     const date = request.date;
     const weekday = (date.getUTCDay() + 6) % 7;
-    const schedules = await prisma.schedule.findMany({
-      where: { childId: parsed.childId, weekday },
-      select: { startTime: true, endTime: true },
-    });
+    const schedules = await getScheduleTimeBlocks(parsed.childId, weekday);
 
     const timeBlocks =
       schedules.length > 0
         ? schedules.map((s) => ({ startTime: s.startTime, endTime: s.endTime }))
         : [{ startTime: request.startTime, endTime: request.endTime }];
 
-    await prisma.childVertretung.deleteMany({
-      where: {
-        childId: parsed.childId,
-        date,
-        substituteUserId: request.substituteUserId,
-      },
+    await deleteChildVertretungForSubstitute({
+      childId: parsed.childId,
+      substituteUserId: request.substituteUserId,
+      date,
     });
-    await prisma.childVertretung.createMany({
-      data: timeBlocks.map((b) => ({
-        childId: parsed.childId,
-        substituteUserId: request.substituteUserId,
-        date,
-        startTime: b.startTime,
-        endTime: b.endTime,
-      })),
+    await insertChildVertretungBlocks({
+      childId: parsed.childId,
+      substituteUserId: request.substituteUserId,
+      date,
+      blocks: timeBlocks,
     });
 
     // Create a signed work Event so the Einsatz appears in the child's calendar.
     // The SB already signed the request — reuse the same signatureKey.
-    await createWorkEvent({
+    await insertVertretungWorkEvent({
       childId: parsed.childId,
       userId: request.substituteUserId,
       date,
@@ -219,9 +190,7 @@ export const VertretungRequestsFacade = {
    * block(s), and the PendingVertretungRequest record itself.
    */
   async deleteOwnVertretung(requestId: string, userId: string) {
-    const request = await prisma.pendingVertretungRequest.findUnique({
-      where: { id: requestId },
-    });
+    const request = await findRequestById(requestId);
     if (!request) throw new Error("Antrag nicht gefunden.");
     if (request.substituteUserId !== userId) {
       throw new Error("Keine Berechtigung.");
@@ -229,24 +198,19 @@ export const VertretungRequestsFacade = {
 
     const childId = request.resolvedChildId ?? request.matchedChildId;
     if (childId) {
-      await prisma.event.deleteMany({
-        where: {
-          userId,
-          childId,
-          date: request.date,
-          type: "WORK",
-        },
+      await deleteWorkEventsForSubstituteOnDate({
+        userId,
+        childId,
+        date: request.date,
       });
-      await prisma.childVertretung.deleteMany({
-        where: {
-          substituteUserId: userId,
-          childId,
-          date: request.date,
-        },
+      await deleteChildVertretungForSubstitute({
+        childId,
+        substituteUserId: userId,
+        date: request.date,
       });
     }
 
-    await prisma.pendingVertretungRequest.delete({ where: { id: requestId } });
+    await deletePendingVertretungRequestById(requestId);
   },
 
   async reject(id: string, adminUserId: string) {

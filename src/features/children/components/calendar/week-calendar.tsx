@@ -218,6 +218,7 @@ export function KinderWeekCalendar({
   );
 
   async function handleDelete(layer: CalendarEvent["layer"], id: string) {
+    if (layer === "event") return;
     try {
       if (layer === "assignment") await deleteAssignmentAction(id);
       else if (layer === "schedule") await deleteScheduleAction(id);

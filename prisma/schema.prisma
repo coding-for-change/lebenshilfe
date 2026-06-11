@@ -17,6 +17,7 @@ enum Role {
 enum EventType {
   WORK
   SICK
+  INDIRECT
 }
 
 enum SchulbegleiterStatus {
@@ -229,7 +230,8 @@ model Event {
   startTime    String?
   endTime      String?
   note         String?   @db.Text
-  signatureKey String? // !null -> by school assistant, null -> by admin
+  isSubstitute Boolean   @default(false)
+  signatureKey String?   // !null -> by school assistant, null -> by admin
   deleted      Boolean   @default(false) // soft delete only for signed events; admin-created events are hard deleted
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -237,6 +239,7 @@ model Event {
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
+  @@index([childId, date])
   @@map("event")
 }
 

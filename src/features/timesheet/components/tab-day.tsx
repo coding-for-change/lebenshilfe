@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { match } from "ts-pattern";
 import { Clock, Lock, Plus, Stethoscope, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -155,7 +156,9 @@ export function TabDay({
   };
 
   const sickEvent = dayEvents.find((e) => e.type === "SICK");
-  const workEvents = dayEvents.filter((e) => e.type === "WORK");
+  const workEvents = dayEvents.filter(
+    (e) => e.type === "WORK" || e.type === "INDIRECT",
+  );
   const monthKey = `${selectedDate.getUTCFullYear()}-${
     selectedDate.getUTCMonth() + 1
   }`;
@@ -385,6 +388,14 @@ export function TabDay({
               ev.startTime && ev.endTime
                 ? formatDuration(ev.startTime, ev.endTime)
                 : "";
+            const childName = child
+              ? `${child.firstName} ${child.lastName}`
+              : null;
+            const title = match(ev.type)
+              .with("INDIRECT", () =>
+                childName ? `Indirekt — ${childName}` : "Indirekte Leistung",
+              )
+              .otherwise(() => childName ?? "Arbeit");
             return (
               <Card
                 key={ev.id}
@@ -392,12 +403,8 @@ export function TabDay({
               >
                 <div className="flex items-center gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">
-                      {child
-                        ? `${child.firstName} ${child.lastName}`
-                        : "Arbeit"}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                    <p className="font-medium truncate">{title}</p>
+                    <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted-foreground">
                       <Badge
                         variant="secondary"
                         className="font-mono"

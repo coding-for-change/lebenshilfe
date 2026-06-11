@@ -176,7 +176,10 @@ export function HandoverDialog({
                       const wd = WEEKDAYS_SHORT[weekdayIndex(date)];
                       const sick = dayEvents.find((e) => e.type === "SICK");
                       const workEvents = dayEvents.filter(
-                        (e) => e.type === "WORK" && e.startTime && e.endTime,
+                        (e) =>
+                          (e.type === "WORK" || e.type === "INDIRECT") &&
+                          e.startTime &&
+                          e.endTime,
                       );
                       const workMins = workEvents.reduce(
                         (sum, e) =>

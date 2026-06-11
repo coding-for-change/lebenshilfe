@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, X } from "lucide-react";
+import { Check, ChevronsUpDown, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,12 +13,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import {
   resolveVertretungRequestAction,
   rejectVertretungRequestAction,
@@ -39,6 +46,77 @@ type Props = {
   requests: Request[];
   childOptions: ChildOption[];
 };
+
+function ChildPicker({
+  childOptions,
+  value,
+  onChange,
+  defaultQuery,
+}: {
+  childOptions: ChildOption[];
+  value: string;
+  onChange: (id: string) => void;
+  defaultQuery: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = childOptions.find((c) => c.id === value);
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={setOpen}
+    >
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          size="sm"
+          className="h-8 w-full justify-between font-normal"
+        >
+          <span className={cn(!selected && "text-muted-foreground")}>
+            {selected
+              ? `${selected.firstName} ${selected.lastName}`
+              : "Kind wählen…"}
+          </span>
+          <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-(--radix-popover-trigger-width) min-w-(--radix-popover-trigger-width) p-0"
+        align="start"
+      >
+        <Command defaultValue={defaultQuery}>
+          <CommandInput placeholder="Vor- oder Nachname tippen…" />
+          <CommandList>
+            <CommandEmpty>Keine Treffer.</CommandEmpty>
+            <CommandGroup>
+              {childOptions.map((c) => (
+                <CommandItem
+                  key={c.id}
+                  value={`${c.firstName} ${c.lastName}`}
+                  onSelect={() => {
+                    onChange(c.id === value ? "" : c.id);
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 size-4",
+                      value === c.id ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                  {c.firstName} {c.lastName}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 function RequestRow({
   request,
@@ -86,24 +164,12 @@ function RequestRow({
         {request.startTime}–{request.endTime}
       </TableCell>
       <TableCell className="min-w-48">
-        <Select
+        <ChildPicker
+          childOptions={childOptions}
           value={selectedChildId}
-          onValueChange={setSelectedChildId}
-        >
-          <SelectTrigger className="h-8 text-sm">
-            <SelectValue placeholder="Kind wählen…" />
-          </SelectTrigger>
-          <SelectContent>
-            {childOptions.map((c) => (
-              <SelectItem
-                key={c.id}
-                value={c.id}
-              >
-                {c.firstName} {c.lastName}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          onChange={setSelectedChildId}
+          defaultQuery={request.childNameText}
+        />
       </TableCell>
       <TableCell>
         <div className="flex gap-1">

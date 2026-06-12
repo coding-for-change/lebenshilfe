@@ -12,6 +12,8 @@ import {
 import type { Event, Schedule } from "@/generated/prisma";
 import type { ChildOption } from "./children-filter";
 import type { VertretungDay } from "./timesheet-shell";
+import { childIdsForDate } from "../weekday";
+import type { AssignmentsByWeekday } from "../weekday";
 
 type Props = {
   anchorDate: Date;
@@ -22,6 +24,7 @@ type Props = {
     Pick<Event, "id" | "date" | "type" | "startTime" | "endTime" | "childId">
   >;
   schedules: Schedule[];
+  assignmentsByWeekday: AssignmentsByWeekday;
   onSelectDay: (date: Date) => void;
   substituteOn?: VertretungDay[];
 };
@@ -45,13 +48,12 @@ export function WeekGrid({
   selectedChildIds,
   events,
   schedules,
+  assignmentsByWeekday,
   onSelectDay,
   substituteOn = [],
 }: Props) {
   const monday = startOfWeekUtc(anchorDate);
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
-
-  const substituteChildIds = new Set(substituteOn.map((v) => v.childId));
 
   const colorFor = (childId: string | null | undefined) => {
     if (!childId) return "bg-rose-500/15 border-rose-400 text-rose-950";
@@ -142,11 +144,18 @@ export function WeekGrid({
                 !e.childId ||
                 selectedChildIds.includes(e.childId)),
           );
+          // Only the children this user actually covers on this weekday get a
+          // Stundenplan block. Substitute coverage is rendered separately as
+          // its own amber Vertretung block, so pure-substitute children are
+          // naturally excluded here (they aren't in the regular assignment).
+          const assignedToday = new Set(
+            childIdsForDate(assignmentsByWeekday, d),
+          );
           const daySchedules = schedules.filter(
             (s) =>
               s.weekday === wd &&
               selectedChildIds.includes(s.childId) &&
-              !substituteChildIds.has(s.childId),
+              assignedToday.has(s.childId),
           );
 
           return (

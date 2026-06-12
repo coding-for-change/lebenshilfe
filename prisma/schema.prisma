@@ -213,24 +213,31 @@ model Schedule {
 }
 
 model Event {
-  id           String    @id @default(cuid())
-  childId      String?
-  userId       String
-  type         EventType
-  date         DateTime  @db.Date
-  startTime    String?
-  endTime      String?
-  note         String?   @db.Text
-  isSubstitute Boolean   @default(false)
-  signatureKey String?   // !null -> by school assistant, null -> by admin
-  deleted      Boolean   @default(false) // soft delete only for signed events; admin-created events are hard deleted
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  child        Child?    @relation(fields: [childId], references: [id])
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String    @id @default(cuid())
+  childId         String?
+  userId          String
+  type            EventType
+  date            DateTime  @db.Date
+  startTime       String?
+  endTime         String?
+  note            String?   @db.Text
+  isSubstitute    Boolean   @default(false)
+  signatureKey    String?   // !null -> by school assistant, null -> by admin
+  deleted         Boolean   @default(false) // soft delete only for signed events; admin-created events are hard deleted
+  // Set when an admin edits a signed event: the new (unsigned) row points at
+  // the soft-deleted original. Lets `restore` undo the edit by also removing
+  // the replacement.
+  replacesEventId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  child           Child?    @relation(fields: [childId], references: [id])
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replaces        Event?    @relation("EventReplacement", fields: [replacesEventId], references: [id], onDelete: SetNull)
+  replacedBy      Event[]   @relation("EventReplacement")
 
   @@index([userId, date])
   @@index([childId, date])
+  @@index([replacesEventId])
   @@map("event")
 }
 

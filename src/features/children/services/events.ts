@@ -59,6 +59,7 @@ export async function updateWorkEventAsAdmin(
         note: input.note !== undefined ? input.note : existing.note,
         signatureKey: null,
         deleted: false,
+        replacesEventId: existing.id,
       },
     });
   } else {
@@ -90,9 +91,17 @@ export async function deleteWorkEventAsAdmin(id: string) {
 }
 
 export async function restoreWorkEventAsAdmin(id: string) {
-  return prisma.event.update({
-    where: { id },
-    data: { deleted: false },
+  // Undoing an edit: remove any unsigned replacement that was created when
+  // this row was soft-deleted, otherwise both versions would appear in the
+  // calendar.
+  return prisma.$transaction(async (tx) => {
+    await tx.event.deleteMany({
+      where: { replacesEventId: id, signatureKey: null },
+    });
+    return tx.event.update({
+      where: { id },
+      data: { deleted: false },
+    });
   });
 }
 
@@ -102,7 +111,12 @@ export async function listWorkEventsForChildInRange(
   to: Date,
 ): Promise<ChildWorkEvent[]> {
   return prisma.event.findMany({
-    where: { childId, type: EventType.WORK, date: { gte: from, lte: to } },
+    where: {
+      childId,
+      type: EventType.WORK,
+      date: { gte: from, lte: to },
+      deleted: false,
+    },
     include: { user: true },
     orderBy: { date: "asc" },
   });

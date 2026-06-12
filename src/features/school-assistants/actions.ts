@@ -27,6 +27,9 @@ export async function updateSchoolAssistantAction(
   await requireAdmin();
   await SchoolAssistantsFacade.update(profileId, input);
   revalidatePath(ROUTE);
+  // A rename also affects the assignment chips and Einsatz labels in the
+  // child calendar (which read user.name), so refresh that route too.
+  revalidatePath("/admin/children");
   return { success: true };
 }
 

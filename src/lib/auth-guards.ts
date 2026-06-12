@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { auth } from "./auth";
 import { isAdmin, isOwner } from "./roles";
 
@@ -9,23 +10,33 @@ export async function getSession() {
 export async function requireAuth() {
   const session = await getSession();
   if (!session) {
-    throw new Error("Unauthorized: Must be logged in.");
+    redirect("/login?error=" + encodeURIComponent("Bitte melde dich an."));
   }
   return session.user;
 }
 
 export async function requireAdmin() {
   const session = await getSession();
-  if (!session || !isAdmin(session.user.role)) {
-    throw new Error("Unauthorized: Admin role required.");
+  if (!session) {
+    redirect("/login?error=" + encodeURIComponent("Bitte melde dich an."));
+  }
+  if (!isAdmin(session.user.role)) {
+    redirect(
+      "/login?error=" + encodeURIComponent("Admin-Rechte erforderlich."),
+    );
   }
   return session.user;
 }
 
 export async function requireOwner() {
   const session = await getSession();
-  if (!session || !isOwner(session.user.role)) {
-    throw new Error("Unauthorized: Owner role required.");
+  if (!session) {
+    redirect("/login?error=" + encodeURIComponent("Bitte melde dich an."));
+  }
+  if (!isOwner(session.user.role)) {
+    redirect(
+      "/login?error=" + encodeURIComponent("Inhaber-Rechte erforderlich."),
+    );
   }
   return session.user;
 }

@@ -1,0 +1,13 @@
+name: "Setup SSH"
+description: "Sets up the SSH deploy key and known hosts from decrypted secrets"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup SSH
+      shell: bash
+      run: |
+        mkdir -p ~/.ssh
+        jq -r '.VPS_DEPLOY_KEY // empty' decrypted.json > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        ssh-keyscan -H codingforchange.com >> ~/.ssh/known_hosts

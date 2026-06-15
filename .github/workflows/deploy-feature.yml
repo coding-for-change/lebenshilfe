@@ -15,55 +15,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Decrypt Secrets
-        run: |
-          if ! command -v ansible-playbook &> /dev/null; then
-            pipx install ansible-core
-          fi
-          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault_pass
-
-          cat << 'EOF' > dump.yml
-          - hosts: localhost
-            gather_facts: false
-            vars_files:
-              - .config/secrets.yml
-            tasks:
-              - copy:
-                  dest: decrypted.json
-                  content: >
-                    {{ {
-                      "REGISTRY_USERNAME": REGISTRY_USERNAME | default(""),
-                      "REGISTRY_PASSWORD": REGISTRY_PASSWORD | default(""),
-                      "DATABASE_URL": DATABASE_URL | default(""),
-                      "BETTER_AUTH_SECRET": BETTER_AUTH_SECRET | default(""),
-                      "RESEND_API_KEY": RESEND_API_KEY | default(""),
-                      "S3_ENDPOINT": S3_ENDPOINT | default(""),
-                      "S3_REGION": S3_REGION | default(""),
-                      "S3_ACCESS_KEY_ID": S3_ACCESS_KEY_ID | default(""),
-                      "S3_SECRET_ACCESS_KEY": S3_SECRET_ACCESS_KEY | default(""),
-                      "S3_BUCKET": S3_BUCKET | default(""),
-                      "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY": NEXT_PUBLIC_GOOGLE_MAPS_API_KEY | default(""),
-                      "VPS_DEPLOY_KEY": VPS_DEPLOY_KEY | default("")
-                    } | to_json }}
-                no_log: true
-          EOF
-
-          ansible-playbook dump.yml --vault-password-file .vault_pass
-
-          # Mask single-line secrets
-          echo "::add-mask::$(jq -r '.REGISTRY_USERNAME // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.REGISTRY_PASSWORD // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.DATABASE_URL // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.BETTER_AUTH_SECRET // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.RESEND_API_KEY // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.S3_ACCESS_KEY_ID // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.S3_SECRET_ACCESS_KEY // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY // empty' decrypted.json)"
-
-          # IMPORTANT: We purposefully DO NOT use echo "::add-mask::..." for VPS_DEPLOY_KEY.
-          # Attempting to mask a multiline string using echo causes bash to expand it into multiple lines.
-          # GitHub Actions only masks the first line (the "BEGIN OPENSSH PRIVATE KEY" header), 
-          # and then logs the remaining lines in plain text, causing the key to leak.
-          # Since the key is only written to a file later and never printed, it is safe without this command.
+        uses: ./.github/actions/decrypt-secrets
+        with:
+          vault_password: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
 
       - name: Set Safe Branch Name
         run: |
@@ -88,11 +42,7 @@ jobs:
           docker push registry.infra.codingforchange.com/lebenshilfe-${{ env.BRANCH_NAME_SAFE }}:latest
 
       - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          jq -r '.VPS_DEPLOY_KEY // empty' decrypted.json > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H codingforchange.com >> ~/.ssh/known_hosts
+        uses: ./.github/actions/setup-ssh
 
       - name: Generate Configs and Environment
         run: |
@@ -143,7 +93,8 @@ jobs:
 
           $SSH $SSH_TARGET "cd ${TARGET_DIR} && \
             docker compose pull && \
-            docker compose up -d"
+            docker compose up -d && \
+            sudo systemctl reload caddy"
 
       - name: Clean up Secrets
         if: always()

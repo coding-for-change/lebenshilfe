@@ -41,9 +41,10 @@ export async function findChildForExport(
   };
 }
 
-export type ExportWorkEvent = Prisma.EventGetPayload<{
+export type ExportEvent = Prisma.EventGetPayload<{
   select: {
     id: true;
+    type: true;
     date: true;
     startTime: true;
     endTime: true;
@@ -55,22 +56,24 @@ export type ExportWorkEvent = Prisma.EventGetPayload<{
 }>;
 
 /**
- * All direct-service (WORK) events for a child within `[startInclusive,
- * endExclusive)`, joined with the Schulbegleiter who logged them.
+ * All WORK and INDIRECT events for a child within `[startInclusive,
+ * endExclusive)`, excluding soft-deleted entries.
  */
-export async function listWorkEventsForChildInRange(
+export async function listEventsForChildInRange(
   childId: string,
   startInclusive: Date,
   endExclusive: Date,
-): Promise<ExportWorkEvent[]> {
+): Promise<ExportEvent[]> {
   return prisma.event.findMany({
     where: {
       childId,
-      type: EventType.WORK,
+      type: { in: [EventType.WORK, EventType.INDIRECT] },
       date: { gte: startInclusive, lt: endExclusive },
+      deleted: false,
     },
     select: {
       id: true,
+      type: true,
       date: true,
       startTime: true,
       endTime: true,

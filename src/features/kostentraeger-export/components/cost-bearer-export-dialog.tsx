@@ -241,7 +241,7 @@ export function CostBearerExportDialog({
           <FlagRow
             id="export-fill-indirect"
             label="Stunden mit indirekter Leistung auffüllen"
-            description="Füllt fehlende Stunden über die Zeile „Indirekte Leistung“ bis zur genehmigten Monatssumme des Kindes auf."
+            description="Sicherheitsnetz: füllt die Zeile „Indirekte Leistung“ bis zur genehmigten Monatssumme des Kindes auf, falls die geloggten indirekten Stunden nicht reichen."
             checked={fillWithIndirect}
             onChange={setFillWithIndirect}
           />

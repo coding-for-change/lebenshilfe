@@ -7,8 +7,8 @@ import {
 } from "./schemas";
 import {
   findChildForExport,
-  listWorkEventsForChildInRange,
-  type ExportWorkEvent,
+  listEventsForChildInRange,
+  type ExportEvent,
 } from "./services";
 import {
   dateLabelShort,
@@ -43,25 +43,46 @@ function monthsInRange(
   return result;
 }
 
+function eventDuration(event: ExportEvent): number {
+  if (!event.startTime || !event.endTime) return 0;
+  return durationHours(event.startTime, event.endTime);
+}
+
 /**
  * Builds one month sheet, listing every calendar day.
  *
- * When `fillTarget` is set, the "Indirekte Leistung" row is computed so the
- * billed total reaches the approved monthly hours; otherwise it stays 0.
+ * The "Indirekte Leistung" row combines real logged INDIRECT hours with the
+ * optional "auffüllen" safety net: it never reports less than what was logged,
+ * and (when `fillTarget` is set) tops up to the approved monthly budget.
  */
 function buildMonth(
   year: number,
   month: number,
-  events: ExportWorkEvent[],
+  events: ExportEvent[],
   fillTarget: number | null,
 ): ExportMonth {
   const days: ExportDay[] = [];
   let directHours = 0;
+  let loggedIndirectHours = 0;
+
+  // Sum INDIRECT hours across the whole month up front; they don't appear in
+  // day rows, only in the "Indirekte Leistung" summary line.
+  for (const event of events) {
+    if (
+      event.type === "INDIRECT" &&
+      event.date.getUTCFullYear() === year &&
+      event.date.getUTCMonth() + 1 === month
+    ) {
+      loggedIndirectHours += eventDuration(event);
+    }
+  }
+  loggedIndirectHours = roundHours(loggedIndirectHours);
 
   for (let day = 1; day <= daysInMonth(year, month); day += 1) {
     const date = utcDate(year, month, day);
     const dayEvents = events.filter(
       (event) =>
+        event.type === "WORK" &&
         event.date.getUTCFullYear() === year &&
         event.date.getUTCMonth() + 1 === month &&
         event.date.getUTCDate() === day,
@@ -99,8 +120,9 @@ function buildMonth(
   }
 
   directHours = roundHours(directHours);
-  const indirectHours =
-    fillTarget == null ? 0 : Math.max(0, roundHours(fillTarget - directHours));
+  const fillAmount =
+    fillTarget == null ? 0 : Math.max(0, fillTarget - directHours);
+  const indirectHours = roundHours(Math.max(loggedIndirectHours, fillAmount));
 
   return {
     year,
@@ -144,7 +166,7 @@ export const CostBearerExportFacade = {
       1,
     );
 
-    const events = await listWorkEventsForChildInRange(
+    const events = await listEventsForChildInRange(
       request.childId,
       rangeStart,
       rangeEnd,
@@ -165,7 +187,7 @@ export const CostBearerExportFacade = {
     // per-assistant: group entries by the Schulbegleiter who logged them.
     const byAssistant = new Map<
       string,
-      { name: string; events: ExportWorkEvent[] }
+      { name: string; events: ExportEvent[] }
     >();
     for (const event of events) {
       const entry = byAssistant.get(event.userId) ?? {

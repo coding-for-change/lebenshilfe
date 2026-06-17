@@ -27,6 +27,8 @@ import type {
   PendingVertretungRequestItem,
   VertretungDay,
 } from "./timesheet-shell";
+import { childIdsForDate } from "../weekday";
+import type { AssignmentsByWeekday } from "../weekday";
 
 type EventWithChild = Event & {
   child: { firstName: string; lastName: string } | null;
@@ -42,6 +44,7 @@ type Props = {
   assignedChildren: ChildOption[];
   childAbsences: ChildAbsenceItem[];
   schedules: Schedule[];
+  assignmentsByWeekday: AssignmentsByWeekday;
   substituteOn?: VertretungDay[];
   pendingVertretungRequests?: PendingVertretungRequestItem[];
 };
@@ -58,6 +61,7 @@ export function TabDay({
   assignedChildren,
   childAbsences,
   schedules,
+  assignmentsByWeekday,
   substituteOn = [],
   pendingVertretungRequests = [],
 }: Props) {
@@ -89,12 +93,36 @@ export function TabDay({
 
   const daySchedules = useMemo(() => {
     const weekday = (selectedDate.getUTCDay() + 6) % 7;
+    const assignedToday = new Set(
+      childIdsForDate(assignmentsByWeekday, selectedDate),
+    );
+    const todaySubstituteChildIds = new Set(
+      substituteOn
+        .filter((v) => v.date === selectedDateIso)
+        .map((v) => v.childId),
+    );
     return schedules
-      .filter((s) => s.weekday === weekday)
+      .filter((s) => {
+        if (s.weekday !== weekday) return false;
+        // Only show a child's Stundenplan on days this user actually covers
+        // them — through a regular weekday assignment or by stepping in as
+        // today's substitute. Without this gate every assigned child would
+        // appear on every weekday, regardless of who is on duty.
+        return (
+          assignedToday.has(s.childId) || todaySubstituteChildIds.has(s.childId)
+        );
+      })
       .map((s) => ({ ...s, child: childById.get(s.childId) }))
       .filter((s): s is Schedule & { child: ChildOption } => !!s.child)
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
-  }, [schedules, selectedDate, childById]);
+  }, [
+    schedules,
+    selectedDate,
+    selectedDateIso,
+    childById,
+    assignmentsByWeekday,
+    substituteOn,
+  ]);
 
   const dayVertretungenGrouped = useMemo(() => {
     const blocks = substituteOn.filter((v) => v.date === selectedDateIso);

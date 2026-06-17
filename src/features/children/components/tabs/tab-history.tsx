@@ -256,7 +256,7 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
               onClick={() => setExportOpen(true)}
             >
               <FileDown />
-              PDF erstellen
+              Exportieren
             </Button>
             <Tooltip>
               <TooltipTrigger asChild>

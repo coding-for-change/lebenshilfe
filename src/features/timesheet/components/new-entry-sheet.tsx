@@ -18,11 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { EventType, type Event, type Schedule } from "@/generated/prisma";
 import { SignaturePadDialog } from "./signature-pad-dialog";
-import {
-  ChildSearchCombobox,
-  type ChildOption as SearchChildOption,
-} from "./child-search-combobox";
-import { createEventAction } from "../actions";
+import { createEventAction, createIndirectEventByNameAction } from "../actions";
 import { createVertretungRequestAction } from "@/features/vertretung-requests/actions";
 import {
   formatDuration,
@@ -36,25 +32,13 @@ import { cn, formatIsoDateUtc } from "@/lib/utils";
 import type { VertretungDay } from "./timesheet-shell";
 
 type EventLike = Pick<Event, "id" | "type" | "date" | "childId">;
-type WorkVariant = "OWN" | "INDIRECT";
+type WorkVariant = "OWN" | "VERTRETUNG" | "INDIRECT";
 
 function isWeekend(iso: string) {
   const d = parseIsoDate(iso);
   const dow = d.getDay();
   return dow === 0 || dow === 6;
 }
-
-type LastEntry = {
-  startTime: string | null;
-  endTime: string | null;
-};
-
-type QuickSlot = {
-  key: string;
-  label: string;
-  start: string;
-  end: string;
-};
 
 type Props = {
   open: boolean;
@@ -64,22 +48,11 @@ type Props = {
   assignmentsByWeekday: AssignmentsByWeekday;
   currentUserName: string;
   schedules: Schedule[];
-  lastEntry: LastEntry | null;
   /** Vertretung days for the current user — listed in the Vertretung tab. */
   substituteOn?: VertretungDay[];
   /** Existing events — used to hide Vertretungen that already have an Eintrag. */
   events?: EventLike[];
 };
-
-function addMinutes(time: string, minutes: number): string {
-  const total = Math.max(
-    0,
-    Math.min(24 * 60 - 1, timeToMinutes(time) + minutes),
-  );
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-}
 
 export function NewEntrySheet({
   open,
@@ -89,18 +62,17 @@ export function NewEntrySheet({
   assignmentsByWeekday,
   currentUserName,
   schedules,
-  lastEntry,
   substituteOn = [],
   events = [],
 }: Props) {
-  const [type, setType] = useState<EventType | "VERTRETUNG">(EventType.WORK);
+  const [type, setType] = useState<EventType>(EventType.WORK);
   const [workVariant, setWorkVariant] = useState<WorkVariant>("OWN");
   const [date, setDate] = useState(formatIsoDateUtc(defaultDate));
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("17:00");
   const [note, setNote] = useState("");
   const [vertretungChildName, setVertretungChildName] = useState("");
-  const [otherChild, setOtherChild] = useState<SearchChildOption | null>(null);
+  const [indirectChildName, setIndirectChildName] = useState("");
 
   // Child IDs that already have a work Event for this date — used to hide
   // Vertretungen the SB has already submitted an Eintrag for. Filtering by
@@ -170,7 +142,7 @@ export function NewEntrySheet({
       setEndTime("17:00");
       setNote("");
       setVertretungChildName("");
-      setOtherChild(null);
+      setIndirectChildName("");
     }
   }, [open, defaultDate]);
 
@@ -197,16 +169,20 @@ export function NewEntrySheet({
   const dateIsWeekend = isWeekend(date);
 
   const canProceed = useMemo(() => {
-    if (type === "VERTRETUNG") {
+    if (type === EventType.SICK) return true;
+    if (workVariant === "VERTRETUNG") {
       return vertretungChildName.trim().length >= 2 && Boolean(duration);
     }
-    if (type === EventType.SICK) return true;
     if (workVariant === "OWN") {
       if (dateIsWeekend) return false;
       return childIds.length >= 1 && Boolean(duration);
     }
     // INDIRECT
-    return Boolean(otherChild) && note.trim().length >= 3 && Boolean(duration);
+    return (
+      indirectChildName.trim().length >= 2 &&
+      note.trim().length >= 3 &&
+      Boolean(duration)
+    );
   }, [
     type,
     workVariant,
@@ -214,7 +190,7 @@ export function NewEntrySheet({
     dateIsWeekend,
     childIds.length,
     duration,
-    otherChild,
+    indirectChildName,
     note,
   ]);
 
@@ -224,59 +200,43 @@ export function NewEntrySheet({
     );
   };
 
-  const quickSlots = useMemo<QuickSlot[]>(() => {
-    const out: QuickSlot[] = [];
-    const seen = new Set<string>();
-    const push = (slot: QuickSlot) => {
-      const fp = `${slot.start}-${slot.end}`;
-      if (seen.has(fp)) return;
-      seen.add(fp);
-      out.push(slot);
-    };
-
+  // Times derived from the Schulbegleiter's assigned child(ren) Stundenplan for
+  // the chosen weekday. Earliest start + latest end across the relevant
+  // schedules. Null when no schedule covers the day — the SB then enters
+  // start/end manually.
+  const dayScheduleTimes = useMemo<{
+    start: string;
+    end: string;
+  } | null>(() => {
     const wd = weekdayIndex(parseIsoDate(date));
     const relevantChildIds =
       childIds.length > 0 ? childIds : dayAssignedChildren.map((c) => c.id);
     const daySchedules = schedules.filter(
       (s) => s.weekday === wd && relevantChildIds.includes(s.childId),
     );
-    if (daySchedules.length > 0) {
-      const start = daySchedules.reduce((acc, s) =>
-        timeToMinutes(s.startTime) < timeToMinutes(acc.startTime) ? s : acc,
-      ).startTime;
-      const end = daySchedules.reduce((acc, s) =>
-        timeToMinutes(s.endTime) > timeToMinutes(acc.endTime) ? s : acc,
-      ).endTime;
-      push({
-        key: "schedule",
-        label: "Stundenplan",
-        start,
-        end,
-      });
-    }
+    if (daySchedules.length === 0) return null;
+    const start = daySchedules.reduce((acc, s) =>
+      timeToMinutes(s.startTime) < timeToMinutes(acc.startTime) ? s : acc,
+    ).startTime;
+    const end = daySchedules.reduce((acc, s) =>
+      timeToMinutes(s.endTime) > timeToMinutes(acc.endTime) ? s : acc,
+    ).endTime;
+    return { start, end };
+  }, [date, schedules, dayAssignedChildren, childIds]);
 
-    if (lastEntry?.startTime && lastEntry?.endTime) {
-      push({
-        key: "last",
-        label: "Letzter Eintrag",
-        start: lastEntry.startTime,
-        end: lastEntry.endTime,
-      });
-      push({
-        key: "last-plus-15",
-        label: "Letzter +15m",
-        start: lastEntry.startTime,
-        end: addMinutes(lastEntry.endTime, 15),
-      });
-    }
-
-    return out;
-  }, [date, schedules, dayAssignedChildren, childIds, lastEntry]);
+  // Auto-fill Start/End from the Stundenplan when entering Arbeit/Eigenes Kind.
+  // The SB can still edit the times manually after the fill.
+  useEffect(() => {
+    if (type !== EventType.WORK || workVariant !== "OWN") return;
+    if (!dayScheduleTimes) return;
+    setStartTime(dayScheduleTimes.start);
+    setEndTime(dayScheduleTimes.end);
+  }, [type, workVariant, dayScheduleTimes]);
 
   const submitWithSignature = async (pngBase64: string) => {
     setSubmitting(true);
     try {
-      if (type === "VERTRETUNG") {
+      if (type === EventType.WORK && workVariant === "VERTRETUNG") {
         await createVertretungRequestAction({
           childNameText: vertretungChildName.trim(),
           date,
@@ -310,10 +270,9 @@ export function NewEntrySheet({
           })`,
         );
       } else {
-        await createEventAction({
-          type: EventType.INDIRECT,
+        await createIndirectEventByNameAction({
+          childNameText: indirectChildName.trim(),
           date,
-          childIds: otherChild ? [otherChild.id] : [],
           startTime,
           endTime,
           note: note.trim(),
@@ -331,7 +290,7 @@ export function NewEntrySheet({
   };
 
   const signerSubtitle =
-    type === "VERTRETUNG"
+    type === EventType.WORK && workVariant === "VERTRETUNG"
       ? `${date} · Vertretung · ${startTime}–${endTime}${
           duration ? ` · ${duration}` : ""
         }`
@@ -375,7 +334,7 @@ export function NewEntrySheet({
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <Button
                 type="button"
                 variant={type === EventType.WORK ? "default" : "outline"}
@@ -396,146 +355,32 @@ export function NewEntrySheet({
               >
                 <Stethoscope className="size-4" /> Krank
               </Button>
-              <Button
-                type="button"
-                variant={type === "VERTRETUNG" ? "default" : "outline"}
-                onClick={() => setType("VERTRETUNG")}
-                className={cn(
-                  "h-12",
-                  type === "VERTRETUNG" &&
-                    "bg-amber-600 hover:bg-amber-700 text-white",
-                )}
-              >
-                <UserPlus className="size-4" /> Vertretung
-              </Button>
             </div>
-
-            {type === "VERTRETUNG" && (
-              <>
-                <div className="space-y-1.5">
-                  <Label htmlFor="vertretung-child">Name des Kindes</Label>
-                  <Input
-                    id="vertretung-child"
-                    value={vertretungChildName}
-                    onChange={(e) => setVertretungChildName(e.target.value)}
-                    placeholder="Vor- und Nachname"
-                    autoComplete="off"
-                  />
-                </div>
-
-                <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-end">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="v-start">Start</Label>
-                    <Input
-                      id="v-start"
-                      type="time"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      className="h-14 text-xl font-mono tabular-nums"
-                    />
-                  </div>
-                  <span className="pb-3 text-muted-foreground">→</span>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="v-end">Ende</Label>
-                    <Input
-                      id="v-end"
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      className="h-14 text-xl font-mono tabular-nums"
-                    />
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {duration
-                    ? `Dauer: ${duration}`
-                    : "Ende muss nach Start liegen"}
-                </p>
-
-                {availableVertretungen.length > 0 && (
-                  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                    {availableVertretungen.flatMap((v) =>
-                      v.timeBlocks.map((b, i) => {
-                        const active =
-                          vertretungChildName === v.childName &&
-                          startTime === b.startTime &&
-                          endTime === b.endTime;
-                        return (
-                          <button
-                            key={`${v.childId}-${i}`}
-                            type="button"
-                            onClick={() => {
-                              setVertretungChildName(v.childName);
-                              setStartTime(b.startTime);
-                              setEndTime(b.endTime);
-                            }}
-                            className={cn(
-                              "flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors",
-                              active
-                                ? "border-amber-400 bg-amber-400/10 text-foreground"
-                                : "border-border bg-muted/40 hover:bg-accent",
-                            )}
-                          >
-                            <div className="flex flex-col">
-                              <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                Vertretung
-                              </span>
-                              <span className="font-medium">{v.childName}</span>
-                            </div>
-                            <span className="font-mono tabular-nums text-muted-foreground">
-                              {b.startTime}–{b.endTime}
-                            </span>
-                          </button>
-                        );
-                      }),
-                    )}
-                  </div>
-                )}
-
-                {quickSlots.length > 0 && (
-                  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
-                    {quickSlots.map((slot) => (
-                      <button
-                        key={slot.key}
-                        type="button"
-                        onClick={() => {
-                          setStartTime(slot.start);
-                          setEndTime(slot.end);
-                        }}
-                        className={cn(
-                          "flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors",
-                          startTime === slot.start && endTime === slot.end
-                            ? "border-amber-400 bg-amber-400/10 text-foreground"
-                            : "border-border bg-muted/40 hover:bg-accent",
-                        )}
-                      >
-                        <span className="font-medium">{slot.label}</span>
-                        <span className="font-mono tabular-nums text-muted-foreground">
-                          {slot.start}–{slot.end}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                  Bei exakter Übereinstimmung wird der Eintrag sofort
-                  gespeichert — sonst leiten wir den Antrag an einen Admin
-                  weiter.
-                </div>
-              </>
-            )}
 
             {type === EventType.WORK && (
               <>
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-3 gap-1.5">
                   <Button
                     type="button"
                     variant={workVariant === "OWN" ? "default" : "outline"}
                     onClick={() => setWorkVariant("OWN")}
                     className="h-10 text-xs sm:text-sm"
                   >
-                    <Briefcase className="size-3.5" /> Eigenes Kind
+                    <Briefcase className="size-3.5" /> Direkt
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={
+                      workVariant === "VERTRETUNG" ? "default" : "outline"
+                    }
+                    onClick={() => setWorkVariant("VERTRETUNG")}
+                    className={cn(
+                      "h-10 text-xs sm:text-sm",
+                      workVariant === "VERTRETUNG" &&
+                        "bg-amber-600 hover:bg-amber-700 text-white",
+                    )}
+                  >
+                    <UserPlus className="size-3.5" /> Vertretung
                   </Button>
                   <Button
                     type="button"
@@ -588,14 +433,28 @@ export function NewEntrySheet({
                     </div>
                   ))}
 
+                {workVariant === "VERTRETUNG" && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="vertretung-child">Name des Kindes</Label>
+                    <Input
+                      id="vertretung-child"
+                      value={vertretungChildName}
+                      onChange={(e) => setVertretungChildName(e.target.value)}
+                      placeholder="Vor- und Nachname"
+                      autoComplete="off"
+                    />
+                  </div>
+                )}
+
                 {workVariant === "INDIRECT" && (
                   <div className="space-y-1.5">
-                    <Label htmlFor="other-child">Kind</Label>
-                    <ChildSearchCombobox
-                      id="other-child"
-                      value={otherChild}
-                      onChange={setOtherChild}
-                      placeholder="Kind suchen…"
+                    <Label htmlFor="indirect-child">Name des Kindes</Label>
+                    <Input
+                      id="indirect-child"
+                      value={indirectChildName}
+                      onChange={(e) => setIndirectChildName(e.target.value)}
+                      placeholder="Vor- und Nachname"
+                      autoComplete="off"
                     />
                     <p className="text-xs text-muted-foreground">
                       Eine indirekte Leistung muss einem Kind zugeordnet werden.
@@ -640,35 +499,61 @@ export function NewEntrySheet({
                     : "Ende muss nach Start liegen"}
                 </p>
 
-                {workVariant === "OWN" && quickSlots.length > 0 && (
-                  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
-                    {quickSlots.map((slot) => (
-                      <button
-                        key={slot.key}
-                        type="button"
-                        onClick={() => {
-                          setStartTime(slot.start);
-                          setEndTime(slot.end);
-                        }}
-                        className={cn(
-                          "flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors",
-                          startTime === slot.start && endTime === slot.end
-                            ? "border-amber-400 bg-amber-400/10 text-foreground"
-                            : "border-border bg-muted/40 hover:bg-accent",
+                {workVariant === "VERTRETUNG" && (
+                  <>
+                    {availableVertretungen.length > 0 && (
+                      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                        {availableVertretungen.flatMap((v) =>
+                          v.timeBlocks.map((b, i) => {
+                            const active =
+                              vertretungChildName === v.childName &&
+                              startTime === b.startTime &&
+                              endTime === b.endTime;
+                            return (
+                              <button
+                                key={`${v.childId}-${i}`}
+                                type="button"
+                                onClick={() => {
+                                  setVertretungChildName(v.childName);
+                                  setStartTime(b.startTime);
+                                  setEndTime(b.endTime);
+                                }}
+                                className={cn(
+                                  "flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors",
+                                  active
+                                    ? "border-amber-400 bg-amber-400/10 text-foreground"
+                                    : "border-border bg-muted/40 hover:bg-accent",
+                                )}
+                              >
+                                <div className="flex flex-col">
+                                  <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Vertretung
+                                  </span>
+                                  <span className="font-medium">
+                                    {v.childName}
+                                  </span>
+                                </div>
+                                <span className="font-mono tabular-nums text-muted-foreground">
+                                  {b.startTime}–{b.endTime}
+                                </span>
+                              </button>
+                            );
+                          }),
                         )}
-                      >
-                        <span className="font-medium">{slot.label}</span>
-                        <span className="font-mono tabular-nums text-muted-foreground">
-                          {slot.start}–{slot.end}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
+                      </div>
+                    )}
+
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                      Bei exakter Übereinstimmung wird der Eintrag sofort
+                      gespeichert — sonst leiten wir den Antrag an einen Admin
+                      weiter.
+                    </div>
+                  </>
                 )}
               </>
             )}
 
-            {type !== "VERTRETUNG" &&
+            {!(type === EventType.WORK && workVariant === "VERTRETUNG") &&
               (() => {
                 const indirect =
                   type === EventType.WORK && workVariant === "INDIRECT";
@@ -716,21 +601,17 @@ export function NewEntrySheet({
       <SignaturePadDialog
         open={sigOpen}
         onOpenChange={setSigOpen}
-        title={
-          type === "VERTRETUNG"
-            ? "Vertretung bestätigen"
-            : match({ type, workVariant })
-                .with({ type: EventType.SICK }, () => "Krankheit bestätigen")
-                .with(
-                  { type: EventType.INDIRECT },
-                  () => "Indirekte Leistung bestätigen",
-                )
-                .with(
-                  { workVariant: "INDIRECT" },
-                  () => "Indirekte Leistung bestätigen",
-                )
-                .otherwise(() => "Arbeitszeit bestätigen")
-        }
+        title={match({ type, workVariant })
+          .with({ type: EventType.SICK }, () => "Krankheit bestätigen")
+          .with(
+            { type: EventType.WORK, workVariant: "VERTRETUNG" },
+            () => "Vertretung bestätigen",
+          )
+          .with(
+            { type: EventType.WORK, workVariant: "INDIRECT" },
+            () => "Indirekte Leistung bestätigen",
+          )
+          .otherwise(() => "Arbeitszeit bestätigen")}
         subtitle={signerSubtitle}
         signerLabel={`${currentUserName} (Mitarbeiter)`}
         onConfirm={submitWithSignature}

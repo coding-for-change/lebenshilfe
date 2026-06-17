@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth-guards";
 import { TimesheetFacade } from "./facade";
 import { createTimesheetEvent } from "@/use-cases/create-timesheet-event";
+import { createIndirectEventByName } from "@/use-cases/create-indirect-event-by-name";
 import type {
   ConfirmWorkEventsInput,
   CreateEventInput,
+  CreateIndirectByNameInput,
   SubmitMonthlyReportInput,
   UpdateEventInput,
 } from "./schemas";
@@ -14,6 +16,15 @@ import type {
 export async function createEventAction(input: CreateEventInput) {
   const { id: userId } = await requireAuth();
   const result = await createTimesheetEvent(userId, input);
+  revalidatePath("/");
+  return result;
+}
+
+export async function createIndirectEventByNameAction(
+  input: CreateIndirectByNameInput,
+) {
+  const { id: userId } = await requireAuth();
+  const result = await createIndirectEventByName(userId, input);
   revalidatePath("/");
   return result;
 }

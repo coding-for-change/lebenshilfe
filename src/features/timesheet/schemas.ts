@@ -135,3 +135,24 @@ export const ConfirmWorkEventsSchema = z.object({
 });
 
 export type ConfirmWorkEventsInput = z.infer<typeof ConfirmWorkEventsSchema>;
+
+// INDIRECT entry created by free-text child name. The SB types the child's
+// name (same UX as a Vertretung free-text entry). Server resolves it via
+// exact match and rejects if no child is found.
+export const CreateIndirectByNameSchema = z
+  .object({
+    childNameText: z.string().min(2, "Name muss mindestens 2 Zeichen haben."),
+    date: dateStringSchema,
+    startTime: timeStringSchema,
+    endTime: timeStringSchema,
+    note: z.string().min(3, "Notiz ist Pflicht (mind. 3 Zeichen).").max(2000),
+    signaturePngBase64: signatureSchema,
+  })
+  .refine((v) => v.endTime > v.startTime, {
+    message: "Ende muss nach Start liegen.",
+    path: ["endTime"],
+  });
+
+export type CreateIndirectByNameInput = z.infer<
+  typeof CreateIndirectByNameSchema
+>;

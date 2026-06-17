@@ -17,6 +17,7 @@ import {
   isWeekend,
   monthLabel,
   roundHours,
+  roundToHalf,
   weekdayShort,
 } from "./format";
 
@@ -89,7 +90,7 @@ function weightedFillTarget(
     .reduce((sum, hours) => sum + hours, 0);
 
   if (totalIndirect > 0) {
-    return fillTarget * (myIndirect / totalIndirect);
+    return roundToHalf(fillTarget * (myIndirect / totalIndirect));
   }
 
   const myDirect = sumHoursInMonth(myEvents, year, month, "WORK");
@@ -98,10 +99,10 @@ function weightedFillTarget(
     .reduce((sum, hours) => sum + hours, 0);
 
   if (totalDirect > 0) {
-    return fillTarget * (myDirect / totalDirect);
+    return roundToHalf(fillTarget * (myDirect / totalDirect));
   }
 
-  return fillTarget / allAssistants.length;
+  return roundToHalf(fillTarget / allAssistants.length);
 }
 
 /**

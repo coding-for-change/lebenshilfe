@@ -74,11 +74,6 @@ export function roundHours(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-/** Rounds to the nearest 0.5. */
-export function roundToHalf(value: number): number {
-  return Math.round(value * 2) / 2;
-}
-
 /** German decimal formatting, e.g. `1.5` -> `"1,50"`. */
 export function formatHoursDe(value: number): string {
   return value.toFixed(2).replace(".", ",");

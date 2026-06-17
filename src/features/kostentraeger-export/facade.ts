@@ -17,7 +17,6 @@ import {
   isWeekend,
   monthLabel,
   roundHours,
-  roundToHalf,
   weekdayShort,
 } from "./format";
 
@@ -70,39 +69,73 @@ function sumHoursInMonth(
 }
 
 /**
- * In per-assistant scope, the approved indirect topup must be split across
- * Schulbegleiter so the combined billed indirect hours match what the
- * Kostenträger approved. Weight each assistant by their share of logged
- * INDIRECT hours; fall back to logged WORK hours; finally equal-split.
+ * Distributes `total` across slots in proportion to `weights`, with each
+ * share rounded to a multiple of 0.5. Uses the largest-remainder method so
+ * the rounded shares still sum to `total` (when `total` lies on the 0.5
+ * grid; otherwise the sum lands on the nearest 0.5).
  */
-function weightedFillTarget(
+function distributeToHalfPreserveSum(
+  total: number,
+  weights: number[],
+): number[] {
+  if (weights.length === 0) return [];
+
+  const sumWeights = weights.reduce((sum, w) => sum + w, 0);
+  const raw =
+    sumWeights > 0
+      ? weights.map((w) => total * (w / sumWeights))
+      : weights.map(() => total / weights.length);
+
+  const floors = raw.map((share) => Math.floor(share * 2) / 2);
+  const sumFloors = floors.reduce((sum, value) => sum + value, 0);
+  const gridded = Math.round(total * 2) / 2;
+  const extras = Math.max(0, Math.round((gridded - sumFloors) * 2));
+  if (extras === 0) return floors;
+
+  const order = raw
+    .map((share, index) => ({ index, remainder: share - floors[index] }))
+    .sort((a, b) => b.remainder - a.remainder);
+
+  const result = [...floors];
+  for (let k = 0; k < extras && k < order.length; k += 1) {
+    result[order[k].index] += 0.5;
+  }
+  return result;
+}
+
+/**
+ * Per-month, per-Schulbegleiter share of the auffüllen budget. Weighted by
+ * each assistant's logged INDIRECT hours; falls back to logged WORK hours;
+ * finally an equal split. Rounded to 0.5 via largest-remainder so the shares
+ * still sum to the approved indirect target.
+ */
+function monthlyFillTargets(
   fillTarget: number | null,
   year: number,
   month: number,
-  myEvents: ExportEvent[],
-  allAssistants: { events: ExportEvent[] }[],
-): number | null {
-  if (fillTarget == null || fillTarget <= 0) return fillTarget;
+  assistants: { events: ExportEvent[] }[],
+): (number | null)[] {
+  if (fillTarget == null || fillTarget <= 0) {
+    return assistants.map(() => fillTarget);
+  }
 
-  const myIndirect = sumHoursInMonth(myEvents, year, month, "INDIRECT");
-  const totalIndirect = allAssistants
-    .map((a) => sumHoursInMonth(a.events, year, month, "INDIRECT"))
-    .reduce((sum, hours) => sum + hours, 0);
+  const indirect = assistants.map((a) =>
+    sumHoursInMonth(a.events, year, month, "INDIRECT"),
+  );
+  const totalIndirect = indirect.reduce((sum, hours) => sum + hours, 0);
 
+  let weights: number[];
   if (totalIndirect > 0) {
-    return roundToHalf(fillTarget * (myIndirect / totalIndirect));
+    weights = indirect;
+  } else {
+    const direct = assistants.map((a) =>
+      sumHoursInMonth(a.events, year, month, "WORK"),
+    );
+    const totalDirect = direct.reduce((sum, hours) => sum + hours, 0);
+    weights = totalDirect > 0 ? direct : assistants.map(() => 1);
   }
 
-  const myDirect = sumHoursInMonth(myEvents, year, month, "WORK");
-  const totalDirect = allAssistants
-    .map((a) => sumHoursInMonth(a.events, year, month, "WORK"))
-    .reduce((sum, hours) => sum + hours, 0);
-
-  if (totalDirect > 0) {
-    return roundToHalf(fillTarget * (myDirect / totalDirect));
-  }
-
-  return roundToHalf(fillTarget / allAssistants.length);
+  return distributeToHalfPreserveSum(fillTarget, weights);
 }
 
 /**
@@ -266,21 +299,26 @@ export const CostBearerExportFacade = {
       a.name.localeCompare(b.name, "de"),
     );
 
-    return sortedAssistants.map((assistant) => ({
+    // Distribute the auffüllen budget across all assistants per month once,
+    // so the rounded per-sheet shares still sum to the approved target.
+    const targetsByMonth = months.map((marker) =>
+      monthlyFillTargets(
+        fillTarget,
+        marker.year,
+        marker.month,
+        sortedAssistants,
+      ),
+    );
+
+    return sortedAssistants.map((assistant, assistantIndex) => ({
       childName,
       schulbegleiterName: assistant.name,
-      months: months.map((marker) =>
+      months: months.map((marker, monthIndex) =>
         buildMonth(
           marker.year,
           marker.month,
           assistant.events,
-          weightedFillTarget(
-            fillTarget,
-            marker.year,
-            marker.month,
-            assistant.events,
-            sortedAssistants,
-          ),
+          targetsByMonth[monthIndex][assistantIndex],
         ),
       ),
     }));

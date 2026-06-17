@@ -53,7 +53,8 @@ function eventDuration(event: ExportEvent): number {
  *
  * The "Indirekte Leistung" row combines real logged INDIRECT hours with the
  * optional "auffüllen" safety net: it never reports less than what was logged,
- * and (when `fillTarget` is set) tops up to the approved monthly budget.
+ * and (when `fillTarget` is set) tops up to the approved indirect-service
+ * hours from the Bescheid.
  */
 function buildMonth(
   year: number,
@@ -120,9 +121,9 @@ function buildMonth(
   }
 
   directHours = roundHours(directHours);
-  const fillAmount =
-    fillTarget == null ? 0 : Math.max(0, fillTarget - directHours);
-  const indirectHours = roundHours(Math.max(loggedIndirectHours, fillAmount));
+  const indirectHours = roundHours(
+    Math.max(loggedIndirectHours, fillTarget ?? 0),
+  );
 
   return {
     year,
@@ -152,10 +153,10 @@ export const CostBearerExportFacade = {
     }
     const childName = `${child.firstName} ${child.lastName}`.trim();
 
-    // When "auffüllen" is on, top the billed hours up to the child's approved
-    // monthly budget (direct + indirect) via the "Indirekte Leistung" row.
+    // When "auffüllen" is on, ensure the "Indirekte Leistung" row reaches the
+    // child's approved indirect-service hours from the Bescheid.
     const fillTarget = request.fillWithIndirect
-      ? (child.approvedDirectHours ?? 0) + (child.approvedIndirectHours ?? 0)
+      ? (child.approvedIndirectHours ?? 0)
       : null;
 
     const months = monthsInRange(request.from, request.to);

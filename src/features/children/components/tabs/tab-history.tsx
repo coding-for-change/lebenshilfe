@@ -319,7 +319,14 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
                         <span className="text-muted-foreground flex flex-col gap-0.5">
                           <span className="flex items-center gap-2">
                             {r.userName}
-                            {r.signed ? (
+                            {r.signatureBase64 ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={`data:image/png;base64,${r.signatureBase64}`}
+                                alt="Unterschrift"
+                                className="h-5 max-w-[100px] rounded border bg-white object-contain"
+                              />
+                            ) : r.signed ? (
                               <span className="rounded bg-emerald-500/10 px-1 py-0.5 text-[10px] text-emerald-600">
                                 Unterschrieben
                               </span>

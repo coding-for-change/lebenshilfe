@@ -48,6 +48,62 @@ function eventDuration(event: ExportEvent): number {
   return durationHours(event.startTime, event.endTime);
 }
 
+/** Total hours of events of a given type that fall in a given calendar month. */
+function sumHoursInMonth(
+  events: ExportEvent[],
+  year: number,
+  month: number,
+  type: "WORK" | "INDIRECT",
+): number {
+  let total = 0;
+  for (const event of events) {
+    if (
+      event.type === type &&
+      event.date.getUTCFullYear() === year &&
+      event.date.getUTCMonth() + 1 === month
+    ) {
+      total += eventDuration(event);
+    }
+  }
+  return total;
+}
+
+/**
+ * In per-assistant scope, the approved indirect topup must be split across
+ * Schulbegleiter so the combined billed indirect hours match what the
+ * Kostenträger approved. Weight each assistant by their share of logged
+ * INDIRECT hours; fall back to logged WORK hours; finally equal-split.
+ */
+function weightedFillTarget(
+  fillTarget: number | null,
+  year: number,
+  month: number,
+  myEvents: ExportEvent[],
+  allAssistants: { events: ExportEvent[] }[],
+): number | null {
+  if (fillTarget == null || fillTarget <= 0) return fillTarget;
+
+  const myIndirect = sumHoursInMonth(myEvents, year, month, "INDIRECT");
+  const totalIndirect = allAssistants
+    .map((a) => sumHoursInMonth(a.events, year, month, "INDIRECT"))
+    .reduce((sum, hours) => sum + hours, 0);
+
+  if (totalIndirect > 0) {
+    return fillTarget * (myIndirect / totalIndirect);
+  }
+
+  const myDirect = sumHoursInMonth(myEvents, year, month, "WORK");
+  const totalDirect = allAssistants
+    .map((a) => sumHoursInMonth(a.events, year, month, "WORK"))
+    .reduce((sum, hours) => sum + hours, 0);
+
+  if (totalDirect > 0) {
+    return fillTarget * (myDirect / totalDirect);
+  }
+
+  return fillTarget / allAssistants.length;
+}
+
 /**
  * Builds one month sheet, listing every calendar day.
  *
@@ -205,14 +261,27 @@ export const CostBearerExportFacade = {
       );
     }
 
-    return [...byAssistant.values()]
-      .sort((a, b) => a.name.localeCompare(b.name, "de"))
-      .map((assistant) => ({
-        childName,
-        schulbegleiterName: assistant.name,
-        months: months.map((marker) =>
-          buildMonth(marker.year, marker.month, assistant.events, fillTarget),
+    const sortedAssistants = [...byAssistant.values()].sort((a, b) =>
+      a.name.localeCompare(b.name, "de"),
+    );
+
+    return sortedAssistants.map((assistant) => ({
+      childName,
+      schulbegleiterName: assistant.name,
+      months: months.map((marker) =>
+        buildMonth(
+          marker.year,
+          marker.month,
+          assistant.events,
+          weightedFillTarget(
+            fillTarget,
+            marker.year,
+            marker.month,
+            assistant.events,
+            sortedAssistants,
+          ),
         ),
-      }));
+      ),
+    }));
   },
 };

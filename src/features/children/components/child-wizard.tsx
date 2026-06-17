@@ -9,19 +9,12 @@ import {
   ButtonGroupSeparator,
 } from "@/components/ui/button-group";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { WizardDialog } from "@/components/wizard-dialog";
 import { createChildAction } from "../actions";
 import {
   CreateChildSchema,
@@ -32,7 +25,6 @@ import {
   type ChildWizardErrors,
   type ChildWizardFormState,
 } from "../schemas";
-import { ChildWizardProgress } from "./wizard-progress";
 import { StepBasicInfoChild } from "./steps/step-basic-info";
 import { StepAdministrationChild } from "./steps/step-administration";
 import { StepOverviewChild } from "./steps/step-overview";
@@ -177,30 +169,21 @@ export function ChildWizard({
   }, [step, form, errors, costBearerOptions, onCostBearerCreated]);
 
   return (
-    <Dialog
+    <WizardDialog
       open={open}
-      onOpenChange={(next) => !busy && onOpenChange(next)}
-    >
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Neues Kind anlegen</DialogTitle>
-          <DialogDescription>
-            Geführte Anlage in drei Schritten.
-          </DialogDescription>
-          <div className="pt-2">
-            <ChildWizardProgress
-              steps={totalSteps}
-              current={step}
-              labels={[...CHILD_STEP_LABELS]}
-            />
-          </div>
-        </DialogHeader>
-
-        <div className="min-h-[60vh] max-h-[75vh] overflow-y-auto px-1">
-          {stepBody}
-        </div>
-
-        <DialogFooter className="sm:justify-between">
+      onOpenChange={onOpenChange}
+      title="Neues Kind anlegen"
+      description="Geführte Anlage in drei Schritten."
+      steps={totalSteps}
+      current={step}
+      labels={CHILD_STEP_LABELS}
+      busy={busy}
+      onSubmit={() => {
+        if (step < totalSteps - 1) handleNext();
+        else void handleSubmit("close");
+      }}
+      footer={
+        <>
           <Button
             type="button"
             variant="outline"
@@ -211,8 +194,7 @@ export function ChildWizard({
           </Button>
           {step < totalSteps - 1 ? (
             <Button
-              type="button"
-              onClick={handleNext}
+              type="submit"
               disabled={busy}
             >
               Weiter
@@ -221,8 +203,8 @@ export function ChildWizard({
             <div className="flex flex-wrap items-center justify-end gap-2">
               <ButtonGroup>
                 <Button
-                  type="button"
-                  onClick={() => handleSubmit("close")}
+                  type="submit"
+                  loading={busy}
                   disabled={busy}
                 >
                   {busy ? "Wird gespeichert…" : "Anlegen"}
@@ -265,8 +247,10 @@ export function ChildWizard({
               </Button>
             </div>
           )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </>
+      }
+    >
+      {stepBody}
+    </WizardDialog>
   );
 }

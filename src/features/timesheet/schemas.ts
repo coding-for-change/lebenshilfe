@@ -15,6 +15,15 @@ const signatureSchema = z
     "Ungültige Signatur.",
   );
 
+export const WorkVariantSchema = z.enum(["OWN", "SUBSTITUTE", "INDIRECT"]);
+export type WorkVariant = z.infer<typeof WorkVariantSchema>;
+
+function isWeekend(dateString: string) {
+  const d = new Date(`${dateString}T00:00:00`);
+  const dow = d.getDay();
+  return dow === 0 || dow === 6;
+}
+
 export const CreateEventSchema = z
   .object({
     type: z.nativeEnum(EventType),
@@ -23,16 +32,11 @@ export const CreateEventSchema = z
     startTime: timeStringSchema.optional(),
     endTime: timeStringSchema.optional(),
     note: z.string().max(2000).optional(),
+    workVariant: WorkVariantSchema.optional(),
     signaturePngBase64: signatureSchema,
   })
   .superRefine((val, ctx) => {
-    if (val.type === "WORK") {
-      if (val.childIds.length < 1)
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["childIds"],
-          message: "Mindestens ein Kind auswählen.",
-        });
+    const requireTimes = () => {
       if (!val.startTime)
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -51,7 +55,63 @@ export const CreateEventSchema = z
           path: ["endTime"],
           message: "Ende muss nach Start liegen.",
         });
+    };
+
+    if (val.type === "WORK") {
+      const variant = val.workVariant ?? "OWN";
+      if (variant === "OWN") {
+        if (val.childIds.length < 1)
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["childIds"],
+            message: "Mindestens ein Kind auswählen.",
+          });
+        if (isWeekend(val.date))
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["date"],
+            message: "Reguläre Arbeit ist nur an Werktagen möglich.",
+          });
+      } else if (variant === "SUBSTITUTE") {
+        if (val.childIds.length !== 1)
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["childIds"],
+            message: "Genau ein Kind auswählen.",
+          });
+        if (isWeekend(val.date))
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["date"],
+            message: "Einspringen ist nur an Werktagen möglich.",
+          });
+      } else {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["workVariant"],
+          message:
+            "Indirekte Leistung muss mit type=INDIRECT übermittelt werden.",
+        });
+      }
+      requireTimes();
     }
+
+    if (val.type === "INDIRECT") {
+      if (val.childIds.length !== 1)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["childIds"],
+          message: "Für eine indirekte Leistung genau ein Kind auswählen.",
+        });
+      if (!val.note || val.note.trim().length < 3)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["note"],
+          message: "Notiz ist Pflicht (mind. 3 Zeichen).",
+        });
+      requireTimes();
+    }
+
     if (val.type === "SICK") {
       if (val.childIds.length !== 0)
         ctx.addIssue({
@@ -93,3 +153,12 @@ export const SubmitMonthlyReportSchema = z.object({
 export type SubmitMonthlyReportInput = z.infer<
   typeof SubmitMonthlyReportSchema
 >;
+
+// A Schulbegleiter confirms admin-created/edited work entries by re-signing
+// them. One signature applies to all listed (still-unconfirmed) entries.
+export const ConfirmWorkEventsSchema = z.object({
+  eventIds: z.array(z.string().min(1)).min(1, "Keine Einträge ausgewählt."),
+  signaturePngBase64: signatureSchema,
+});
+
+export type ConfirmWorkEventsInput = z.infer<typeof ConfirmWorkEventsSchema>;

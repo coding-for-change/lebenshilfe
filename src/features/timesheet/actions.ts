@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth-guards";
 import { TimesheetFacade } from "./facade";
+import { createTimesheetEvent } from "@/use-cases/create-timesheet-event";
 import type {
+  ConfirmWorkEventsInput,
   CreateEventInput,
   SubmitMonthlyReportInput,
   UpdateEventInput,
@@ -11,7 +13,7 @@ import type {
 
 export async function createEventAction(input: CreateEventInput) {
   const { id: userId } = await requireAuth();
-  const result = await TimesheetFacade.createEvent(userId, input);
+  const result = await createTimesheetEvent(userId, input);
   revalidatePath("/");
   return result;
 }
@@ -37,4 +39,11 @@ export async function submitMonthlyReportAction(
   const { id: userId } = await requireAuth();
   await TimesheetFacade.submitMonthlyReport(userId, input);
   revalidatePath("/");
+}
+
+export async function confirmWorkEventsAction(input: ConfirmWorkEventsInput) {
+  const { id: userId } = await requireAuth();
+  const result = await TimesheetFacade.confirmWorkEvents(userId, input);
+  revalidatePath("/");
+  return result;
 }

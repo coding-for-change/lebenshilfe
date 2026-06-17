@@ -17,6 +17,7 @@ enum Role {
 enum EventType {
   WORK
   SICK
+  INDIRECT
 }
 
 enum SchulbegleiterStatus {
@@ -42,6 +43,7 @@ model User {
   events        Event[]
   monthlyReports MonthlyReport[]
   profile       SchoolAssistantProfile?
+  vertretungenAsSubstitute  ChildVertretung[] @relation("SubstituteVertretung")
 
   @@unique([email])
   @@map("user")
@@ -133,6 +135,7 @@ model Child {
   schedules                  Schedule[]
   events                     Event[]
   absences                   ChildAbsence[]
+  vertretungen               ChildVertretung[]
 
   @@index([kostentraegerId])
   @@map("child")
@@ -153,6 +156,24 @@ model ChildAssignment {
   @@index([userId])
   @@index([childId, weekday])
   @@map("child_assignment")
+}
+
+model ChildVertretung {
+  id               String   @id @default(cuid())
+  childId          String
+  substituteUserId String
+  date             DateTime @db.Date
+  startTime        String
+  endTime          String
+  createdAt        DateTime @default(now())
+  child            Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  substituteUser   User     @relation("SubstituteVertretung", fields: [substituteUserId], references: [id], onDelete: Cascade)
+
+  /// Multiple rows per (childId, date) are intentional — one per time block,
+  /// mirroring how ChildAssignment models multiple blocks per (childId, weekday).
+  @@index([childId, date])
+  @@index([substituteUserId, date])
+  @@map("child_vertretung")
 }
 
 model Kostentraeger {
@@ -202,13 +223,16 @@ model Event {
   startTime    String?
   endTime      String?
   note         String?   @db.Text
-  signatureKey String
+  isSubstitute Boolean   @default(false)
+  signatureKey String?   // !null -> by school assistant, null -> by admin
+  deleted      Boolean   @default(false) // soft delete only for signed events; admin-created events are hard deleted
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   child        Child?    @relation(fields: [childId], references: [id])
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
+  @@index([childId, date])
   @@map("event")
 }
 

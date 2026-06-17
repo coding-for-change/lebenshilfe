@@ -1,14 +1,15 @@
 import { randomUUID } from "crypto";
 import {
+  ConfirmWorkEventsSchema,
   CreateEventSchema,
   SubmitMonthlyReportSchema,
   UpdateEventSchema,
+  type ConfirmWorkEventsInput,
   type CreateEventInput,
   type SubmitMonthlyReportInput,
   type UpdateEventInput,
 } from "./schemas";
 import {
-  assertChildrenAssignedToUser,
   deleteEventById,
   findEventById,
   findMonthlyReport,
@@ -17,10 +18,12 @@ import {
   getEventsForUserInMonth,
   getEventsForUserInRange,
   getSchedulesForChildren,
+  insertIndirectEvent,
   insertMonthlyReport,
   insertSickEvent,
   insertWorkEvents,
   listMonthlyReportsForUser,
+  signWorkEvents,
   updateEventFields,
   uploadSignature,
 } from "./services";
@@ -106,7 +109,7 @@ export const TimesheetFacade = {
     assertMonthNotLocked(report);
 
     if (parsed.type === "WORK") {
-      await assertChildrenAssignedToUser(userId, parsed.childIds, date);
+      const variant = parsed.workVariant ?? "OWN";
       const batchId = randomUUID();
       const signatureKey = `signatures/events/${userId}/${batchId}.png`;
       await uploadSignature(signatureKey, parsed.signaturePngBase64);
@@ -118,8 +121,26 @@ export const TimesheetFacade = {
         endTime: parsed.endTime!,
         note: parsed.note ?? null,
         signatureKey,
+        isSubstitute: variant === "SUBSTITUTE",
       });
       return { createdCount: parsed.childIds.length, signatureKey };
+    }
+
+    if (parsed.type === "INDIRECT") {
+      const childId = parsed.childIds[0];
+      const eventId = randomUUID();
+      const signatureKey = `signatures/events/${userId}/${eventId}.png`;
+      await uploadSignature(signatureKey, parsed.signaturePngBase64);
+      await insertIndirectEvent({
+        userId,
+        childId,
+        date,
+        startTime: parsed.startTime!,
+        endTime: parsed.endTime!,
+        note: parsed.note!,
+        signatureKey,
+      });
+      return { createdCount: 1, signatureKey };
     }
 
     const eventId = randomUUID();
@@ -202,5 +223,19 @@ export const TimesheetFacade = {
       supervisorName: parsed.supervisorName,
       supervisorSignatureKey: key,
     });
+  },
+
+  // The Schulbegleiter confirms admin-created/edited entries with a fresh
+  // signature. One signature is stored and attached to every confirmed entry.
+  async confirmWorkEvents(userId: string, input: ConfirmWorkEventsInput) {
+    const parsed = ConfirmWorkEventsSchema.parse(input);
+    const signatureKey = `signatures/events/${userId}/confirm-${randomUUID()}.png`;
+    await uploadSignature(signatureKey, parsed.signaturePngBase64);
+    const { count } = await signWorkEvents(
+      userId,
+      parsed.eventIds,
+      signatureKey,
+    );
+    return { confirmedCount: count };
   },
 };

@@ -4,21 +4,36 @@ import {
   CreateChildSchema,
   ScheduleSchema,
   UpdateChildSchema,
+  UpdateVertretungSchema,
+  VertretungSchema,
   type AbsenceInput,
   type AssignmentInput,
   type CreateChildInput,
   type ScheduleInput,
   type UpdateChildInput,
+  WorkEventSchema,
+  UpdateWorkEventSchema,
+  type UpdateVertretungInput,
+  type VertretungInput,
+  type WorkEventInput,
+  type UpdateWorkEventInput,
 } from "./schemas";
 import {
   createAssignment,
   createChild,
   createSchedule,
+  createVertretungBlocks,
   deleteAbsenceById,
   deleteAssignmentById,
   deleteChildById,
   deleteScheduleById,
+  deleteVertretungByChildAndDate,
+  updateVertretungSubstituteForDate,
+  childExists,
   findChildById,
+  searchAssignedChildrenByName,
+  getAssignmentCoverage,
+  getVertretungCoverage,
   listAbsencesForChild,
   listAbsencesForChildrenInRange,
   listAssignmentsForChild,
@@ -26,11 +41,18 @@ import {
   listChildren,
   listSchedulesForChild,
   listSchedulesForChildren,
+  listVertretungenForUserAsSubstitute,
   listWorkEventsForChild,
+  syncVertretungBlocksForChildWeekday,
+  listWorkEventsForChildInRange,
   updateAssignment,
   updateChild,
   updateSchedule,
   upsertAbsence,
+  createWorkEventAsAdmin,
+  updateWorkEventAsAdmin,
+  deleteWorkEventAsAdmin,
+  restoreWorkEventAsAdmin,
 } from "./services";
 
 function childFieldsFromCreate(input: CreateChildInput) {
@@ -92,6 +114,18 @@ export const ChildrenFacade = {
     return findChildById(id);
   },
 
+  async assertChildExists(childId: string) {
+    if (!(await childExists(childId))) {
+      throw new Error("Kind nicht gefunden.");
+    }
+  },
+
+  // Search children currently assigned to a given Schulbegleiter (used by the
+  // timesheet entry form to pick a child for Einspringen/indirect work).
+  async searchAssignedChildren(userId: string, query: string) {
+    return searchAssignedChildrenByName(userId, query);
+  },
+
   async create(input: CreateChildInput) {
     const parsed = CreateChildSchema.parse(input);
     return createChild(childFieldsFromCreate(parsed));
@@ -139,18 +173,23 @@ export const ChildrenFacade = {
 
   async createSchedule(input: ScheduleInput) {
     const parsed = ScheduleSchema.parse(input);
-    return createSchedule(parsed);
+    const created = await createSchedule(parsed);
+    await syncVertretungBlocksForChildWeekday(created.childId, created.weekday);
+    return created;
   },
 
   async updateSchedule(
     id: string,
     input: Partial<Omit<ScheduleInput, "childId">>,
   ) {
-    return updateSchedule(id, input);
+    const updated = await updateSchedule(id, input);
+    await syncVertretungBlocksForChildWeekday(updated.childId, updated.weekday);
+    return updated;
   },
 
   async deleteSchedule(id: string) {
-    await deleteScheduleById(id);
+    const deleted = await deleteScheduleById(id);
+    await syncVertretungBlocksForChildWeekday(deleted.childId, deleted.weekday);
   },
 
   async listAbsences(childId: string) {
@@ -180,5 +219,127 @@ export const ChildrenFacade = {
 
   async listWorkEventsForChild(childId: string) {
     return listWorkEventsForChild(childId);
+  },
+
+  async createVertretung(input: VertretungInput) {
+    const parsed = VertretungSchema.parse(input);
+    const date = new Date(`${parsed.date}T00:00:00.000Z`);
+    // Mon=0..Sun=6, matching Schedule.weekday convention.
+    const weekday = (date.getUTCDay() + 6) % 7;
+
+    // Copy each Stundenplan block for this child+weekday exactly as-is.
+    // The Schedule (Stundenplan) is the source of truth for WHEN the
+    // Schulbegleiter works — the Zuweisung only records WHO.
+    const allSchedules = await listSchedulesForChild(parsed.childId);
+    const dayBlocks = allSchedules
+      .filter((s) => s.weekday === weekday)
+      .map((s) => ({ startTime: s.startTime, endTime: s.endTime }));
+
+    // Fallback: if no schedule rows exist, create a single whole-day block.
+    const timeBlocks =
+      dayBlocks.length > 0
+        ? dayBlocks
+        : [{ startTime: "00:00", endTime: "23:59" }];
+
+    await createVertretungBlocks({
+      childId: parsed.childId,
+      substituteUserId: parsed.substituteUserId,
+      date,
+      timeBlocks,
+    });
+  },
+
+  async updateVertretung(
+    childId: string,
+    date: string,
+    input: UpdateVertretungInput,
+  ) {
+    const parsed = UpdateVertretungSchema.parse(input);
+    await updateVertretungSubstituteForDate(
+      childId,
+      new Date(`${date}T00:00:00.000Z`),
+      parsed.substituteUserId,
+    );
+  },
+
+  async deleteVertretung(childId: string, date: string) {
+    await deleteVertretungByChildAndDate(
+      childId,
+      new Date(`${date}T00:00:00.000Z`),
+    );
+  },
+
+  async listVertretungenForUserAsSubstitute(
+    userId: string,
+    from: Date,
+    to: Date,
+  ) {
+    return listVertretungenForUserAsSubstitute(userId, from, to);
+  },
+
+  /**
+   * Cross-feature access guard: verifies that every childId in the list is
+   * either regularly assigned to userId on that weekday OR covered by a
+   * Vertretung for that specific date. Throws if any child is uncovered.
+   *
+   * Called from the create-timesheet-event use case so that this validation
+   * stays within the children domain and off the timesheet service layer.
+   */
+  async assertChildrenAccessForUser(
+    userId: string,
+    childIds: string[],
+    date: Date,
+  ) {
+    if (childIds.length === 0) return;
+
+    // Mon=0..Sun=6, matching Schedule.weekday convention.
+    const weekday = (date.getUTCDay() + 6) % 7;
+    const coveredByAssignment = await getAssignmentCoverage(
+      userId,
+      childIds,
+      weekday,
+    );
+
+    const uncovered = childIds.filter((id) => !coveredByAssignment.has(id));
+    if (uncovered.length === 0) return;
+
+    // Normalise to UTC midnight to match @db.Date semantics.
+    const dateOnly = new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+    );
+    const coveredByVertretung = await getVertretungCoverage(
+      userId,
+      uncovered,
+      dateOnly,
+    );
+
+    const stillUncovered = uncovered.filter(
+      (id) => !coveredByVertretung.has(id),
+    );
+    if (stillUncovered.length > 0) {
+      throw new Error("Ein Kind ist diesem Konto nicht zugewiesen.");
+    }
+  },
+
+  async createWorkEventAsAdmin(input: WorkEventInput) {
+    const parsed = WorkEventSchema.parse(input);
+    return createWorkEventAsAdmin(parsed);
+  },
+
+  async updateWorkEventAsAdmin(id: string, input: UpdateWorkEventInput) {
+    const parsed = UpdateWorkEventSchema.parse(input);
+    return updateWorkEventAsAdmin(id, parsed);
+  },
+
+  async deleteWorkEventAsAdmin(id: string) {
+    return deleteWorkEventAsAdmin(id);
+  },
+
+  async restoreWorkEventAsAdmin(id: string) {
+    return restoreWorkEventAsAdmin(id);
+  },
+
+  async listWorkEventsForChildInRange(childId: string, from: Date, to: Date) {
+    return listWorkEventsForChildInRange(childId, from, to);
   },
 };

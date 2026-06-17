@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PageSection } from "@/components/page-section";
+import { RecordCard } from "@/components/record-card";
 import { SearchableTable } from "@/components/searchable-table";
 import { Role } from "@/generated/prisma";
 import { formatDate, getInitials } from "@/lib/utils";
@@ -89,10 +90,23 @@ export function UserManagementTable({
       <PageSection
         title="Benutzerverwaltung"
         action={
-          <Button onClick={() => setInviteOpen(true)}>
-            <UserPlus />
-            Neuen Admin einladen
-          </Button>
+          <>
+            <Button
+              onClick={() => setInviteOpen(true)}
+              size="icon"
+              className="md:hidden"
+              aria-label="Neuen Admin einladen"
+            >
+              <UserPlus />
+            </Button>
+            <Button
+              onClick={() => setInviteOpen(true)}
+              className="hidden md:inline-flex"
+            >
+              <UserPlus />
+              Neuen Admin einladen
+            </Button>
+          </>
         }
       >
         <div className="p-4">
@@ -118,6 +132,56 @@ export function UserManagementTable({
                 Keine Admins oder Einladungen gefunden.
               </div>
             }
+            getRowKey={(row) => row.key}
+            renderCard={(row) => {
+              const isSelf =
+                row.kind === "user" && row.data.id === currentUser.id;
+              return (
+                <RecordCard
+                  title={
+                    row.kind === "user"
+                      ? isSelf
+                        ? `${row.data.name} (du)`
+                        : row.data.name
+                      : "Ausstehende Einladung"
+                  }
+                  subtitle={row.data.email}
+                  badges={
+                    row.kind === "user" ? (
+                      <RoleBadge
+                        variant={
+                          row.data.role === Role.OWNER ? "OWNER" : "ADMIN"
+                        }
+                      />
+                    ) : (
+                      <>
+                        <RoleBadge variant="PENDING" />
+                        <RoleBadge
+                          variant={
+                            row.data.role === Role.OWNER ? "OWNER" : "ADMIN"
+                          }
+                        />
+                      </>
+                    )
+                  }
+                  meta={`Hinzugefügt: ${formatDate(row.data.createdAt)}`}
+                  action={
+                    row.kind === "user" ? (
+                      <AdminUserActions
+                        user={row.data}
+                        currentUser={currentUser}
+                        ownerCount={ownerCount}
+                      />
+                    ) : (
+                      <InvitationActions
+                        invitation={row.data}
+                        currentUser={currentUser}
+                      />
+                    )
+                  }
+                />
+              );
+            }}
           >
             {(filtered) => (
               <Table>

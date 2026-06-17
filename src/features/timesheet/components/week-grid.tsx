@@ -8,9 +8,12 @@ import {
   startOfWeekUtc,
   timeToMinutes,
   weekdayIndex,
-} from "./date-utils";
+} from "@/lib/dates";
 import type { Event, Schedule } from "@/generated/prisma";
 import type { ChildOption } from "./children-filter";
+import type { VertretungDay } from "./timesheet-shell";
+import { childIdsForDate } from "../weekday";
+import type { AssignmentsByWeekday } from "../weekday";
 
 type Props = {
   anchorDate: Date;
@@ -21,7 +24,9 @@ type Props = {
     Pick<Event, "id" | "date" | "type" | "startTime" | "endTime" | "childId">
   >;
   schedules: Schedule[];
+  assignmentsByWeekday: AssignmentsByWeekday;
   onSelectDay: (date: Date) => void;
+  substituteOn?: VertretungDay[];
 };
 
 const START_HOUR = 7;
@@ -43,7 +48,9 @@ export function WeekGrid({
   selectedChildIds,
   events,
   schedules,
+  assignmentsByWeekday,
   onSelectDay,
+  substituteOn = [],
 }: Props) {
   const monday = startOfWeekUtc(anchorDate);
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
@@ -52,6 +59,11 @@ export function WeekGrid({
     if (!childId) return "bg-rose-500/15 border-rose-400 text-rose-950";
     const idx = childList.findIndex((c) => c.id === childId);
     return CHILD_COLORS[(idx >= 0 ? idx : 0) % CHILD_COLORS.length];
+  };
+
+  const childFirstName = (childId: string | null | undefined) => {
+    if (!childId) return "";
+    return childList.find((c) => c.id === childId)?.firstName ?? "";
   };
 
   const totalHeight = (END_HOUR - START_HOUR) * HOUR_HEIGHT;
@@ -117,18 +129,33 @@ export function WeekGrid({
         </div>
         {days.map((d, i) => {
           const wd = weekdayIndex(d);
+          const iso = formatIsoDateUtc(d);
           const daySick = events.find(
             (e) => e.type === "SICK" && isSameUtcDay(e.date, d),
           );
+          const dayVertretungen = substituteOn.filter((v) => v.date === iso);
           const dayWork = events.filter(
             (e) =>
-              e.type === "WORK" &&
+              (e.type === "WORK" || e.type === "INDIRECT") &&
               isSameUtcDay(e.date, d) &&
+              // Indirekte Leistungen ohne Kind-Verknüpfung werden unabhängig
+              // vom Kinder-Filter angezeigt, da sie nicht kindgebunden sind.
               (selectedChildIds.length === 0 ||
-                (e.childId && selectedChildIds.includes(e.childId))),
+                !e.childId ||
+                selectedChildIds.includes(e.childId)),
+          );
+          // Only the children this user actually covers on this weekday get a
+          // Stundenplan block. Substitute coverage is rendered separately as
+          // its own amber Vertretung block, so pure-substitute children are
+          // naturally excluded here (they aren't in the regular assignment).
+          const assignedToday = new Set(
+            childIdsForDate(assignmentsByWeekday, d),
           );
           const daySchedules = schedules.filter(
-            (s) => s.weekday === wd && selectedChildIds.includes(s.childId),
+            (s) =>
+              s.weekday === wd &&
+              selectedChildIds.includes(s.childId) &&
+              assignedToday.has(s.childId),
           );
 
           return (
@@ -150,16 +177,47 @@ export function WeekGrid({
                 </div>
               ) : (
                 <>
+                  {dayVertretungen.map((v) => {
+                    const top = posFromTime(v.startTime);
+                    const blockH =
+                      posFromTime(v.endTime) - posFromTime(v.startTime);
+                    const height = Math.max(blockH, 16);
+                    return (
+                      <div
+                        key={v.id}
+                        className="absolute left-0.5 right-0.5 rounded-md border border-amber-400 bg-amber-500/25 px-1 text-[10px] font-medium leading-tight text-amber-950"
+                        style={{ top, height }}
+                      >
+                        <div className="font-mono tabular-nums">
+                          {v.startTime}–{v.endTime}
+                        </div>
+                        {height >= 26 ? (
+                          <div className="truncate text-[9px] font-semibold opacity-80">
+                            {v.childName}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                   {daySchedules.map((s) => {
                     const top = posFromTime(s.startTime);
                     const h = posFromTime(s.endTime) - posFromTime(s.startTime);
+                    const height = Math.max(h, 14);
+                    const name = childFirstName(s.childId);
                     return (
                       <div
                         key={s.id}
-                        className="absolute left-0.5 right-0.5 rounded-sm border border-dashed border-muted-foreground/30 bg-muted/40 text-[9px] text-muted-foreground px-1"
-                        style={{ top, height: Math.max(h, 14) }}
+                        className="absolute left-0.5 right-0.5 rounded-sm border border-dashed border-muted-foreground/30 bg-muted/40 px-1 text-[9px] leading-tight text-muted-foreground"
+                        style={{ top, height }}
                       >
-                        {s.startTime}
+                        <div className="font-mono tabular-nums">
+                          {s.startTime}
+                        </div>
+                        {name && height >= 22 ? (
+                          <div className="truncate font-medium text-foreground/70">
+                            {name}
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })}
@@ -169,23 +227,32 @@ export function WeekGrid({
                       ev.startTime && ev.endTime
                         ? posFromTime(ev.endTime) - posFromTime(ev.startTime)
                         : HOUR_HEIGHT;
+                    const height = Math.max(h, 16);
                     const width = `calc(${100 / Math.max(dayWork.length, 1)}% - 4px)`;
                     const left = `calc(${(100 / Math.max(dayWork.length, 1)) * k}% + 2px)`;
+                    const name = childFirstName(ev.childId);
                     return (
                       <div
                         key={ev.id}
                         className={cn(
-                          "absolute rounded-md border px-1 text-[10px] font-medium",
+                          "absolute rounded-md border px-1 text-[10px] font-medium leading-tight",
                           colorFor(ev.childId),
                         )}
                         style={{
                           top,
-                          height: Math.max(h, 16),
+                          height,
                           width,
                           left,
                         }}
                       >
-                        {ev.startTime}–{ev.endTime}
+                        <div className="font-mono tabular-nums">
+                          {ev.startTime}–{ev.endTime}
+                        </div>
+                        {name && height >= 26 ? (
+                          <div className="truncate text-[9px] font-semibold opacity-80">
+                            {name}
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })}

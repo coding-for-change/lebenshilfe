@@ -3,14 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { WizardDialog } from "@/components/wizard-dialog";
 import { createSchoolAssistantAction } from "../actions";
 import {
   CreateSchulbegleiterSchema,
@@ -18,7 +11,6 @@ import {
   VertragStepSchema,
   type CreateSchoolAssistantInput,
 } from "../schemas";
-import { WizardProgress } from "./wizard-progress";
 import { StepBasicInfo } from "./steps/step-basic-info";
 import { StepContract } from "./steps/step-contract";
 import { StepWorkshops } from "./steps/step-workshops";
@@ -241,29 +233,21 @@ export function SchoolAssistantWizard({
   }, [step, form, errors, workshops]);
 
   return (
-    <Dialog
+    <WizardDialog
       open={open}
-      onOpenChange={(next) => !busy && onOpenChange(next)}
-    >
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Neuen Schulbegleiter anlegen</DialogTitle>
-          <DialogDescription>
-            Geführte Anlage in vier Schritten — am Ende wird die Einladung
-            verschickt.
-          </DialogDescription>
-          <div className="pt-2">
-            <WizardProgress
-              steps={totalSteps}
-              current={step}
-              labels={[...STEP_LABELS]}
-            />
-          </div>
-        </DialogHeader>
-
-        <div className="max-h-[60vh] overflow-y-auto px-1">{stepBody}</div>
-
-        <DialogFooter className="sm:justify-between">
+      onOpenChange={onOpenChange}
+      title="Neuen Schulbegleiter anlegen"
+      description="Geführte Anlage in vier Schritten — am Ende wird die Einladung verschickt."
+      steps={totalSteps}
+      current={step}
+      labels={STEP_LABELS}
+      busy={busy}
+      onSubmit={() => {
+        if (step < totalSteps - 1) handleNext();
+        else void handleSubmit();
+      }}
+      footer={
+        <>
           <Button
             type="button"
             variant="outline"
@@ -274,23 +258,24 @@ export function SchoolAssistantWizard({
           </Button>
           {step < totalSteps - 1 ? (
             <Button
-              type="button"
-              onClick={handleNext}
+              type="submit"
               disabled={busy}
             >
               Weiter
             </Button>
           ) : (
             <Button
-              type="button"
-              onClick={handleSubmit}
+              type="submit"
+              loading={busy}
               disabled={busy}
             >
               {busy ? "Wird gespeichert…" : "Einladung senden"}
             </Button>
           )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </>
+      }
+    >
+      {stepBody}
+    </WizardDialog>
   );
 }

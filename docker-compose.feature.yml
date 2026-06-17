@@ -1,6 +1,6 @@
 services:
   app:
-    image: localhost:5000/lebenshilfe:${FEATURE_BRANCH}
+    image: localhost:5000/lebenshilfe-${BRANCH_NAME_SAFE}:latest
     restart: unless-stopped
     depends_on:
       - db
@@ -21,15 +21,6 @@ services:
       MYSQL_DATABASE: lebenshilfe
     volumes:
       - db_data:/var/lib/mysql
-
-  mailpit:
-    image: axllent/mailpit
-    restart: unless-stopped
-    ports:
-      - "${MAIL_PORT}:8025"
-    environment:
-      MP_SMTP_AUTH_ACCEPT_ANY: 1
-      MP_MAX_MESSAGES: 500
 
 volumes:
   db_data:

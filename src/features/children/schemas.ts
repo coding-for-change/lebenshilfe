@@ -58,21 +58,29 @@ export const SchoolSchema = z
 
 export type SchoolInput = z.infer<typeof SchoolSchema>;
 
+// Canonical child fields — WITHOUT `.default()`. Defaults survive `.partial()`
+// in Zod, so keeping them here would let a partial update overwrite untouched
+// boolean columns. Defaults live only on the create-specific schema below.
 const kindFieldsSchema = z.object({
-  leosOne: z.boolean().default(false),
+  leosOne: z.boolean(),
   bescheid: optionalText(5000),
   sbIb: optionalText(200),
   approvedDirectHours: optionalHours(),
   approvedIndirectHours: optionalHours(),
-  schweigepflichtsentbindung: z.boolean().default(false),
+  schweigepflichtsentbindung: z.boolean(),
   bemerkung: optionalText(5000),
-  kostentraegerId: z
-    .string()
-    .min(1)
-    .nullable()
-    .optional()
-    .transform((v) => (v === "" ? null : (v ?? null))),
+  // No trailing `.transform()`: a transform placed after `.optional()` runs
+  // on the `undefined` of an absent field and would coerce it to `null`,
+  // clearing the Kostenträger on every partial update. `childFieldsFromCreate`
+  // already maps a missing value to `null` for the create path.
+  kostentraegerId: z.string().min(1).nullable().optional(),
   school: SchoolSchema.optional(),
+});
+
+// Create accepts omitted booleans by falling back to defaults.
+const kindFieldsCreateSchema = kindFieldsSchema.extend({
+  leosOne: z.boolean().default(false),
+  schweigepflichtsentbindung: z.boolean().default(false),
 });
 
 const stammdatenSchema = z.object({
@@ -84,7 +92,7 @@ export const BasicInfoStepSchema = stammdatenSchema.merge(
   z.object({ school: SchoolSchema.optional() }),
 );
 
-export const AdministrationStepSchema = kindFieldsSchema.pick({
+export const AdministrationStepSchema = kindFieldsCreateSchema.pick({
   leosOne: true,
   bescheid: true,
   sbIb: true,
@@ -95,7 +103,7 @@ export const AdministrationStepSchema = kindFieldsSchema.pick({
   kostentraegerId: true,
 });
 
-export const CreateChildSchema = stammdatenSchema.merge(kindFieldsSchema);
+export const CreateChildSchema = stammdatenSchema.merge(kindFieldsCreateSchema);
 export type CreateChildInput = z.infer<typeof CreateChildSchema>;
 
 export const UpdateChildSchema = stammdatenSchema
@@ -127,6 +135,21 @@ export const AbsenceSchema = z.object({
   note: optionalText(2000),
 });
 export type AbsenceInput = z.infer<typeof AbsenceSchema>;
+
+export const VertretungSchema = z.object({
+  childId: z.string().min(1),
+  substituteUserId: z.string().min(1),
+  date: dateString,
+  // startTime / endTime are NOT provided by the caller — they are copied
+  // directly from the ChildAssignment rows for that child+weekday.
+});
+export type VertretungInput = z.infer<typeof VertretungSchema>;
+
+export const UpdateVertretungSchema = z.object({
+  // Only the substitute can be changed; times always mirror the Zuweisung.
+  substituteUserId: z.string().min(1),
+});
+export type UpdateVertretungInput = z.infer<typeof UpdateVertretungSchema>;
 
 // Kinder-Wizard UI state types — kept here per AGENTS.md ("Zod schemas and TS types").
 
@@ -191,3 +214,22 @@ export function parseHoursInput(raw: string): number | null {
   const value = Number(trimmed);
   return Number.isFinite(value) && value >= 0 ? value : null;
 }
+
+export const WorkEventSchema = z.object({
+  childId: z.string().min(1),
+  userId: z.string().min(1),
+  date: dateString,
+  startTime: timeString,
+  endTime: timeString,
+  note: optionalText(2000),
+});
+export type WorkEventInput = z.infer<typeof WorkEventSchema>;
+
+export const UpdateWorkEventSchema = z.object({
+  userId: z.string().min(1).optional(),
+  date: dateString.optional(),
+  startTime: timeString.optional(),
+  endTime: timeString.optional(),
+  note: optionalText(2000),
+});
+export type UpdateWorkEventInput = z.infer<typeof UpdateWorkEventSchema>;

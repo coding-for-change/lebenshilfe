@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, Stethoscope } from "lucide-react";
+import { match } from "ts-pattern";
+import {
+  Briefcase,
+  FileText,
+  Stethoscope,
+  UserCheck,
+  UserPlus,
+} from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -17,16 +24,29 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { EventType, type Schedule } from "@/generated/prisma";
 import { SignaturePadDialog } from "./signature-pad-dialog";
+import {
+  ChildSearchCombobox,
+  type ChildOption as SearchChildOption,
+} from "./child-search-combobox";
 import { createEventAction } from "../actions";
 import {
   formatDuration,
   parseIsoDate,
   timeToMinutes,
   weekdayIndex,
-} from "./date-utils";
+} from "@/lib/dates";
 import type { ChildOption } from "./children-filter";
 import { childIdsForDate, type AssignmentsByWeekday } from "../weekday";
 import { cn, formatIsoDateUtc } from "@/lib/utils";
+import type { VertretungDay } from "./timesheet-shell";
+
+type WorkVariant = "OWN" | "SUBSTITUTE" | "INDIRECT";
+
+function isWeekend(iso: string) {
+  const d = parseIsoDate(iso);
+  const dow = d.getDay();
+  return dow === 0 || dow === 6;
+}
 
 type LastEntry = {
   startTime: string | null;
@@ -49,6 +69,8 @@ type Props = {
   currentUserName: string;
   schedules: Schedule[];
   lastEntry: LastEntry | null;
+  /** Vertretung days for the current user — so substitute children appear in the form. */
+  substituteOn?: VertretungDay[];
 };
 
 function addMinutes(time: string, minutes: number): string {
@@ -70,19 +92,33 @@ export function NewEntrySheet({
   currentUserName,
   schedules,
   lastEntry,
+  substituteOn = [],
 }: Props) {
   const [type, setType] = useState<EventType>(EventType.WORK);
+  const [workVariant, setWorkVariant] = useState<WorkVariant>("OWN");
   const [date, setDate] = useState(formatIsoDateUtc(defaultDate));
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("17:00");
   const [note, setNote] = useState("");
+  const [otherChild, setOtherChild] = useState<SearchChildOption | null>(null);
+
+  // Vertretungen for the currently selected date
+  const dayVertretungen = useMemo(
+    () => substituteOn.filter((v) => v.date === date),
+    [substituteOn, date],
+  );
 
   const dayAssignedChildren = useMemo(() => {
-    const allowed = childIdsForDate(assignmentsByWeekday, parseIsoDate(date));
-    if (allowed.length === 0) return [] as ChildOption[];
-    const allowedSet = new Set(allowed);
-    return assignedChildren.filter((c) => allowedSet.has(c.id));
-  }, [date, assignmentsByWeekday, assignedChildren]);
+    // Regular weekday-based assignments
+    const regularIds = new Set(
+      childIdsForDate(assignmentsByWeekday, parseIsoDate(date)),
+    );
+    // Date-specific Vertretung children
+    for (const v of dayVertretungen) regularIds.add(v.childId);
+
+    if (regularIds.size === 0) return [] as ChildOption[];
+    return assignedChildren.filter((c) => regularIds.has(c.id));
+  }, [date, assignmentsByWeekday, assignedChildren, dayVertretungen]);
 
   const [childIds, setChildIds] = useState<string[]>(
     dayAssignedChildren.length === 1 ? [dayAssignedChildren[0].id] : [],
@@ -94,9 +130,11 @@ export function NewEntrySheet({
     if (open) {
       setDate(formatIsoDateUtc(defaultDate));
       setType(EventType.WORK);
+      setWorkVariant("OWN");
       setStartTime("08:00");
       setEndTime("17:00");
       setNote("");
+      setOtherChild(null);
     }
   }, [open, defaultDate]);
 
@@ -120,8 +158,29 @@ export function NewEntrySheet({
     return formatDuration(startTime, endTime);
   }, [startTime, endTime]);
 
-  const canProceed =
-    type === EventType.SICK ? true : childIds.length >= 1 && Boolean(duration);
+  const dateIsWeekend = isWeekend(date);
+
+  const canProceed = useMemo(() => {
+    if (type === EventType.SICK) return true;
+    if (workVariant === "OWN") {
+      if (dateIsWeekend) return false;
+      return childIds.length >= 1 && Boolean(duration);
+    }
+    if (workVariant === "SUBSTITUTE") {
+      if (dateIsWeekend) return false;
+      return Boolean(otherChild) && Boolean(duration);
+    }
+    // INDIRECT
+    return Boolean(otherChild) && note.trim().length >= 3 && Boolean(duration);
+  }, [
+    type,
+    workVariant,
+    dateIsWeekend,
+    childIds.length,
+    duration,
+    otherChild,
+    note,
+  ]);
 
   const toggleChild = (id: string) => {
     setChildIds((cur) =>
@@ -138,6 +197,16 @@ export function NewEntrySheet({
       seen.add(fp);
       out.push(slot);
     };
+
+    // Vertretung time slot(s) — shown first so the substitute can quickly confirm
+    for (const v of dayVertretungen) {
+      push({
+        key: `vertretung-${v.childId}`,
+        label: `Vertretung (${v.childName.split(" ")[0]})`,
+        start: v.startTime,
+        end: v.endTime,
+      });
+    }
 
     const wd = weekdayIndex(parseIsoDate(date));
     const relevantChildIds =
@@ -176,27 +245,67 @@ export function NewEntrySheet({
     }
 
     return out;
-  }, [date, schedules, dayAssignedChildren, childIds, lastEntry]);
+  }, [
+    date,
+    schedules,
+    dayAssignedChildren,
+    childIds,
+    lastEntry,
+    dayVertretungen,
+  ]);
 
   const submitWithSignature = async (pngBase64: string) => {
     setSubmitting(true);
     try {
-      await createEventAction({
-        type,
-        date,
-        childIds: type === EventType.WORK ? childIds : [],
-        startTime: type === EventType.WORK ? startTime : undefined,
-        endTime: type === EventType.WORK ? endTime : undefined,
-        note: note.trim() || undefined,
-        signaturePngBase64: pngBase64,
-      });
-      toast.success(
-        type === EventType.WORK
-          ? `Eintrag gespeichert (${childIds.length} Kind${
-              childIds.length === 1 ? "" : "er"
-            })`
-          : "Krankheit gespeichert",
-      );
+      if (type === EventType.SICK) {
+        await createEventAction({
+          type: EventType.SICK,
+          date,
+          childIds: [],
+          note: note.trim() || undefined,
+          signaturePngBase64: pngBase64,
+        });
+        toast.success("Krankheit gespeichert");
+      } else if (workVariant === "OWN") {
+        await createEventAction({
+          type: EventType.WORK,
+          workVariant: "OWN",
+          date,
+          childIds,
+          startTime,
+          endTime,
+          note: note.trim() || undefined,
+          signaturePngBase64: pngBase64,
+        });
+        toast.success(
+          `Eintrag gespeichert (${childIds.length} Kind${
+            childIds.length === 1 ? "" : "er"
+          })`,
+        );
+      } else if (workVariant === "SUBSTITUTE") {
+        await createEventAction({
+          type: EventType.WORK,
+          workVariant: "SUBSTITUTE",
+          date,
+          childIds: otherChild ? [otherChild.id] : [],
+          startTime,
+          endTime,
+          note: note.trim() || undefined,
+          signaturePngBase64: pngBase64,
+        });
+        toast.success("Einspringen gespeichert");
+      } else {
+        await createEventAction({
+          type: EventType.INDIRECT,
+          date,
+          childIds: otherChild ? [otherChild.id] : [],
+          startTime,
+          endTime,
+          note: note.trim(),
+          signaturePngBase64: pngBase64,
+        });
+        toast.success("Indirekte Leistung gespeichert");
+      }
       setSigOpen(false);
       onOpenChange(false);
     } catch (e: unknown) {
@@ -207,9 +316,9 @@ export function NewEntrySheet({
   };
 
   const signerSubtitle =
-    type === EventType.WORK
-      ? `${date} · ${startTime}–${endTime}${duration ? ` · ${duration}` : ""}`
-      : `${date} · Krank · ganztägig`;
+    type === EventType.SICK
+      ? `${date} · Krank · ganztägig`
+      : `${date} · ${startTime}–${endTime}${duration ? ` · ${duration}` : ""}`;
 
   return (
     <>
@@ -229,7 +338,13 @@ export function NewEntrySheet({
             </SheetDescription>
           </SheetHeader>
 
-          <div className="px-4 pb-6 space-y-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (canProceed && !submitting) setSigOpen(true);
+            }}
+            className="px-4 pb-6 space-y-4"
+          >
             <div className="space-y-1.5">
               <Label htmlFor="date">Datum</Label>
               <Input
@@ -266,43 +381,125 @@ export function NewEntrySheet({
 
             {type === EventType.WORK && (
               <>
-                {dayAssignedChildren.length === 0 ? (
-                  <p className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
-                    An diesem Tag ist dir kein Kind zugewiesen.
-                  </p>
-                ) : dayAssignedChildren.length === 1 ? (
-                  <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm">
-                    <span className="text-muted-foreground">Kind: </span>
-                    {dayAssignedChildren[0].firstName}{" "}
-                    {dayAssignedChildren[0].lastName}
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    <Label>Kinder</Label>
-                    <div className="space-y-1 rounded-lg border border-border p-2">
-                      {dayAssignedChildren.map((c) => (
-                        <label
-                          key={c.id}
-                          htmlFor={`child-${c.id}`}
-                          className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
-                        >
-                          <Checkbox
-                            id={`child-${c.id}`}
-                            checked={childIds.includes(c.id)}
-                            onCheckedChange={() => toggleChild(c.id)}
-                          />
-                          <span>
-                            {c.firstName} {c.lastName}
-                          </span>
-                        </label>
-                      ))}
+                <div className="grid grid-cols-3 gap-1.5">
+                  <Button
+                    type="button"
+                    variant={workVariant === "OWN" ? "default" : "outline"}
+                    onClick={() => setWorkVariant("OWN")}
+                    className="h-10 text-xs sm:text-sm"
+                  >
+                    <Briefcase className="size-3.5" /> Eigenes Kind
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={
+                      workVariant === "SUBSTITUTE" ? "default" : "outline"
+                    }
+                    onClick={() => setWorkVariant("SUBSTITUTE")}
+                    className="h-10 text-xs sm:text-sm"
+                  >
+                    <UserPlus className="size-3.5" /> Einspringen
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={workVariant === "INDIRECT" ? "default" : "outline"}
+                    onClick={() => setWorkVariant("INDIRECT")}
+                    className="h-10 text-xs sm:text-sm"
+                  >
+                    <FileText className="size-3.5" /> Indirekt
+                  </Button>
+                </div>
+
+                {workVariant === "OWN" &&
+                  (dayAssignedChildren.length === 0 ? (
+                    <p className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+                      An diesem Tag ist dir kein Kind zugewiesen.
+                    </p>
+                  ) : dayAssignedChildren.length === 1 ? (
+                    <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm flex items-center gap-2">
+                      <span className="text-muted-foreground">Kind: </span>
+                      <span>
+                        {dayAssignedChildren[0].firstName}{" "}
+                        {dayAssignedChildren[0].lastName}
+                      </span>
+                      {dayVertretungen.some(
+                        (v) => v.childId === dayAssignedChildren[0].id,
+                      ) && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                          <UserCheck className="size-3" />
+                          Vertretung
+                        </span>
+                      )}
                     </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <Label>Kinder</Label>
+                      <div className="space-y-1 rounded-lg border border-border p-2">
+                        {dayAssignedChildren.map((c) => (
+                          <label
+                            key={c.id}
+                            htmlFor={`child-${c.id}`}
+                            className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+                          >
+                            <Checkbox
+                              id={`child-${c.id}`}
+                              checked={childIds.includes(c.id)}
+                              onCheckedChange={() => toggleChild(c.id)}
+                            />
+                            <span className="flex-1">
+                              {c.firstName} {c.lastName}
+                            </span>
+                            {dayVertretungen.some(
+                              (v) => v.childId === c.id,
+                            ) && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                                <UserCheck className="size-3" />
+                                Vertretung
+                              </span>
+                            )}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                {workVariant === "SUBSTITUTE" && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="other-child">Kind (Einspringen)</Label>
+                    <ChildSearchCombobox
+                      id="other-child"
+                      value={otherChild}
+                      onChange={setOtherChild}
+                      placeholder="Kind suchen…"
+                    />
                     <p className="text-xs text-muted-foreground">
-                      Der Eintrag wird für jedes ausgewählte Kind separat
-                      gespeichert — mit derselben Unterschrift.
+                      Suche nach dem Kind, für das du einspringst.
                     </p>
                   </div>
                 )}
+
+                {workVariant === "INDIRECT" && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="other-child">Kind</Label>
+                    <ChildSearchCombobox
+                      id="other-child"
+                      value={otherChild}
+                      onChange={setOtherChild}
+                      placeholder="Kind suchen…"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Eine indirekte Leistung muss einem Kind zugeordnet werden.
+                    </p>
+                  </div>
+                )}
+
+                {(workVariant === "OWN" || workVariant === "SUBSTITUTE") &&
+                  dateIsWeekend && (
+                    <p className="rounded-lg border border-amber-400/50 bg-amber-50/50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                      Diese Tätigkeit ist nur an Werktagen möglich. Für
+                      Wochenend-Tätigkeiten bitte &bdquo;Indirekt&ldquo; wählen.
+                    </p>
+                  )}
 
                 <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-end">
                   <div className="space-y-1.5">
@@ -334,7 +531,7 @@ export function NewEntrySheet({
                     : "Ende muss nach Start liegen"}
                 </p>
 
-                {quickSlots.length > 0 && (
+                {workVariant === "OWN" && quickSlots.length > 0 && (
                   <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
                     {quickSlots.map((slot) => (
                       <button
@@ -362,20 +559,30 @@ export function NewEntrySheet({
               </>
             )}
 
-            <div className="space-y-1.5">
-              <Label htmlFor="note">Notiz (optional)</Label>
-              <Textarea
-                id="note"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder={
-                  type === EventType.WORK
-                    ? "z.B. besondere Vorkommnisse"
-                    : "z.B. Arzttermin"
-                }
-                rows={3}
-              />
-            </div>
+            {(() => {
+              const indirect =
+                type === EventType.WORK && workVariant === "INDIRECT";
+              return (
+                <div className="space-y-1.5">
+                  <Label htmlFor="note">
+                    {indirect ? "Notiz (Pflicht)" : "Notiz (optional)"}
+                  </Label>
+                  <Textarea
+                    id="note"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder={
+                      indirect
+                        ? "z.B. Lehrergespräch, Workshop, Vorbereitung"
+                        : type === EventType.SICK
+                          ? "z.B. Arzttermin"
+                          : "z.B. besondere Vorkommnisse"
+                    }
+                    rows={3}
+                  />
+                </div>
+              );
+            })()}
 
             <div className="flex items-center justify-between gap-2 pt-2">
               <Button
@@ -386,25 +593,27 @@ export function NewEntrySheet({
                 Abbrechen
               </Button>
               <Button
-                type="button"
+                type="submit"
                 disabled={!canProceed}
-                onClick={() => setSigOpen(true)}
               >
                 Speichern & signieren
               </Button>
             </div>
-          </div>
+          </form>
         </SheetContent>
       </Sheet>
 
       <SignaturePadDialog
         open={sigOpen}
         onOpenChange={setSigOpen}
-        title={
-          type === EventType.WORK
-            ? "Arbeitszeit bestätigen"
-            : "Krankheit bestätigen"
-        }
+        title={match({ type, workVariant })
+          .with({ type: EventType.SICK }, () => "Krankheit bestätigen")
+          .with(
+            { type: EventType.INDIRECT },
+            () => "Indirekte Leistung bestätigen",
+          )
+          .with({ workVariant: "SUBSTITUTE" }, () => "Einspringen bestätigen")
+          .otherwise(() => "Arbeitszeit bestätigen")}
         subtitle={signerSubtitle}
         signerLabel={`${currentUserName} (Mitarbeiter)`}
         onConfirm={submitWithSignature}

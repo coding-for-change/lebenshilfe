@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Clock, Lock, Plus, Stethoscope } from "lucide-react";
+import { match } from "ts-pattern";
+import { Clock, Lock, Plus, Stethoscope, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -12,12 +13,14 @@ import {
   isSameUtcDay,
   relativeLabel,
   timeToMinutes,
-} from "./date-utils";
+} from "@/lib/dates";
 import { WeekStrip } from "./week-strip";
 import { deleteEventAction } from "../actions";
 import type { Event, Schedule } from "@/generated/prisma";
 import type { ChildOption } from "./children-filter";
-import type { ChildAbsenceItem } from "./timesheet-shell";
+import type { ChildAbsenceItem, VertretungDay } from "./timesheet-shell";
+import { childIdsForDate } from "../weekday";
+import type { AssignmentsByWeekday } from "../weekday";
 
 type EventWithChild = Event & {
   child: { firstName: string; lastName: string } | null;
@@ -33,6 +36,8 @@ type Props = {
   assignedChildren: ChildOption[];
   childAbsences: ChildAbsenceItem[];
   schedules: Schedule[];
+  assignmentsByWeekday: AssignmentsByWeekday;
+  substituteOn?: VertretungDay[];
 };
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -47,6 +52,8 @@ export function TabDay({
   assignedChildren,
   childAbsences,
   schedules,
+  assignmentsByWeekday,
+  substituteOn = [],
 }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -75,16 +82,70 @@ export function TabDay({
   }, [childAbsences, selectedDateIso, childById]);
 
   const daySchedules = useMemo(() => {
-    // Convert UTC weekday (0=Sun..6=Sat) to Mon=0..Sun=6.
     const weekday = (selectedDate.getUTCDay() + 6) % 7;
+    const assignedToday = new Set(
+      childIdsForDate(assignmentsByWeekday, selectedDate),
+    );
+    const todaySubstituteChildIds = new Set(
+      substituteOn
+        .filter((v) => v.date === selectedDateIso)
+        .map((v) => v.childId),
+    );
     return schedules
-      .filter((s) => s.weekday === weekday)
+      .filter((s) => {
+        if (s.weekday !== weekday) return false;
+        // Only show a child's Stundenplan on days this user actually covers
+        // them — through a regular weekday assignment or by stepping in as
+        // today's substitute. Without this gate every assigned child would
+        // appear on every weekday, regardless of who is on duty.
+        return (
+          assignedToday.has(s.childId) || todaySubstituteChildIds.has(s.childId)
+        );
+      })
       .map((s) => ({ ...s, child: childById.get(s.childId) }))
       .filter((s): s is Schedule & { child: ChildOption } => !!s.child)
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
-  }, [schedules, selectedDate, childById]);
+  }, [
+    schedules,
+    selectedDate,
+    selectedDateIso,
+    childById,
+    assignmentsByWeekday,
+    substituteOn,
+  ]);
+
+  const dayVertretungenGrouped = useMemo(() => {
+    const blocks = substituteOn.filter((v) => v.date === selectedDateIso);
+    const map = new Map<
+      string,
+      {
+        childId: string;
+        childName: string;
+        timeBlocks: { startTime: string; endTime: string }[];
+      }
+    >();
+    for (const v of blocks) {
+      if (!map.has(v.childId)) {
+        map.set(v.childId, {
+          childId: v.childId,
+          childName: v.childName,
+          timeBlocks: [],
+        });
+      }
+      map
+        .get(v.childId)!
+        .timeBlocks.push({ startTime: v.startTime, endTime: v.endTime });
+    }
+    for (const entry of map.values()) {
+      entry.timeBlocks.sort((a, b) => a.startTime.localeCompare(b.startTime));
+    }
+    return Array.from(map.values());
+  }, [substituteOn, selectedDateIso]);
+
   const sickEvent = dayEvents.find((e) => e.type === "SICK");
-  const workEvents = dayEvents.filter((e) => e.type === "WORK");
+  const workEvents = dayEvents.filter(
+    (e) => e.type === "WORK" || e.type === "INDIRECT",
+  );
   const monthKey = `${selectedDate.getUTCFullYear()}-${
     selectedDate.getUTCMonth() + 1
   }`;
@@ -216,6 +277,28 @@ export function TabDay({
         </Card>
       )}
 
+      {dayVertretungenGrouped.map((g) => (
+        <Card
+          key={g.childId}
+          className="border-amber-200 bg-amber-500/5 p-4"
+        >
+          <div className="flex items-start gap-3">
+            <div className="grid place-items-center size-10 shrink-0 rounded-full bg-amber-500/15 text-amber-700">
+              <UserCheck className="size-5" />
+            </div>
+            <div className="flex-1 space-y-0.5">
+              <p className="font-semibold text-amber-900">Vertretung</p>
+              <p className="text-sm text-amber-900/80">{g.childName}</p>
+              <p className="font-mono text-xs text-amber-700">
+                {g.timeBlocks
+                  .map((b) => `${b.startTime}–${b.endTime}`)
+                  .join(", ")}
+              </p>
+            </div>
+          </div>
+        </Card>
+      ))}
+
       {sickEvent && (
         <Card className="border-rose-200 bg-rose-500/10 p-4">
           <div className="flex items-center gap-3">
@@ -250,6 +333,14 @@ export function TabDay({
               ev.startTime && ev.endTime
                 ? formatDuration(ev.startTime, ev.endTime)
                 : "";
+            const childName = child
+              ? `${child.firstName} ${child.lastName}`
+              : null;
+            const title = match(ev.type)
+              .with("INDIRECT", () =>
+                childName ? `Indirekt — ${childName}` : "Indirekte Leistung",
+              )
+              .otherwise(() => childName ?? "Arbeit");
             return (
               <Card
                 key={ev.id}
@@ -257,25 +348,31 @@ export function TabDay({
               >
                 <div className="flex items-center gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">
-                      {child
-                        ? `${child.firstName} ${child.lastName}`
-                        : "Arbeit"}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                    <p className="font-medium truncate">{title}</p>
+                    <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted-foreground">
                       <Badge
                         variant="secondary"
                         className="font-mono"
                       >
                         {dur}
                       </Badge>
-                      <Badge
-                        variant="outline"
-                        className="border-emerald-200 text-emerald-700"
-                      >
-                        Signiert
-                      </Badge>
-                      {assignedChildren.length > 1 &&
+                      {ev.signatureKey ? (
+                        <Badge
+                          variant="outline"
+                          className="border-emerald-200 text-emerald-700"
+                        >
+                          Signiert
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-200 text-amber-700"
+                        >
+                          Bestätigung ausstehend
+                        </Badge>
+                      )}
+                      {ev.signatureKey &&
+                        assignedChildren.length > 1 &&
                         workEvents.filter(
                           (w) =>
                             w.signatureKey === ev.signatureKey &&

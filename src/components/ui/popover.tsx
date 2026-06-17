@@ -31,10 +31,19 @@ function PopoverContent({
   className,
   align = "center",
   sideOffset = 4,
+  container,
   ...props
-}: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+}: React.ComponentProps<typeof PopoverPrimitive.Content> & {
+  /**
+   * Portal target for the content. Defaults to `document.body`. Pass the
+   * enclosing dialog/sheet content node when the popover lives inside a modal
+   * so it stays within that modal's scroll-lock subtree (otherwise mouse-wheel
+   * and touch scrolling inside the popover are swallowed by react-remove-scroll).
+   */
+  container?: React.ComponentProps<typeof PopoverPrimitive.Portal>["container"];
+}) {
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal container={container}>
       <PopoverPrimitive.Content
         data-slot="popover-content"
         align={align}

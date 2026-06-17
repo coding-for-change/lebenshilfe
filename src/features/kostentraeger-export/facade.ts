@@ -14,9 +14,11 @@ import {
   dateLabelShort,
   daysInMonth,
   durationHours,
+  hhmmToMinutes,
   isWeekend,
   monthLabel,
   roundHours,
+  shiftTime,
   weekdayShort,
 } from "./format";
 
@@ -151,6 +153,7 @@ function buildMonth(
   month: number,
   events: ExportEvent[],
   fillTarget: number | null,
+  quarterHour: { before: boolean; after: boolean },
 ): ExportMonth {
   const days: ExportDay[] = [];
   let directHours = 0;
@@ -179,22 +182,56 @@ function buildMonth(
         event.date.getUTCDate() === day,
     );
 
-    const ranges: string[] = [];
     const assistantNames = new Set<string>();
     const notes: string[] = [];
-    let hours = 0;
+    const blocks: { start: string; end: string }[] = [];
 
     for (const event of dayEvents) {
       if (event.startTime && event.endTime) {
-        ranges.push(`${event.startTime} - ${event.endTime}`);
-        hours += durationHours(event.startTime, event.endTime);
+        blocks.push({ start: event.startTime, end: event.endTime });
       }
       if (event.user?.name) assistantNames.add(event.user.name);
       const note = event.note?.trim();
       if (note) notes.push(note);
     }
 
-    hours = roundHours(hours);
+    // Vor-/Nachviertelstunde: widen the day's direct-service span by a quarter
+    // hour on each enabled side. Applied once per day — to the earliest start
+    // and the latest end, never per block — so a multi-block day still gains at
+    // most 15 min per side. This is a billing-only convention: the underlying
+    // Einträge/Historie stay untouched; the widening lives solely in the export.
+    if (blocks.length > 0) {
+      let earliestIndex = 0;
+      let latestIndex = 0;
+      blocks.forEach((block, index) => {
+        if (
+          hhmmToMinutes(block.start) <
+          hhmmToMinutes(blocks[earliestIndex].start)
+        ) {
+          earliestIndex = index;
+        }
+        if (hhmmToMinutes(block.end) > hhmmToMinutes(blocks[latestIndex].end)) {
+          latestIndex = index;
+        }
+      });
+      if (quarterHour.before) {
+        blocks[earliestIndex].start = shiftTime(
+          blocks[earliestIndex].start,
+          -15,
+        );
+      }
+      if (quarterHour.after) {
+        blocks[latestIndex].end = shiftTime(blocks[latestIndex].end, 15);
+      }
+    }
+
+    const ranges = blocks.map((block) => `${block.start} - ${block.end}`);
+    const hours = roundHours(
+      blocks.reduce(
+        (sum, block) => sum + durationHours(block.start, block.end),
+        0,
+      ),
+    );
     directHours += hours;
 
     days.push({
@@ -249,6 +286,12 @@ export const CostBearerExportFacade = {
       ? (child.approvedIndirectHours ?? 0)
       : null;
 
+    // Per-child billing convention, applied to every month sheet below.
+    const quarterHour = {
+      before: child.vorviertelstunde,
+      after: child.nachviertelstunde,
+    };
+
     const months = monthsInRange(request.from, request.to);
     const rangeStart = utcDate(request.from.year, request.from.month, 1);
     const rangeEnd = utcDate(
@@ -269,7 +312,13 @@ export const CostBearerExportFacade = {
           childName,
           schulbegleiterName: null,
           months: months.map((marker) =>
-            buildMonth(marker.year, marker.month, events, fillTarget),
+            buildMonth(
+              marker.year,
+              marker.month,
+              events,
+              fillTarget,
+              quarterHour,
+            ),
           ),
         },
       ];
@@ -319,6 +368,7 @@ export const CostBearerExportFacade = {
           marker.month,
           assistant.events,
           targetsByMonth[monthIndex][assistantIndex],
+          quarterHour,
         ),
       ),
     }));

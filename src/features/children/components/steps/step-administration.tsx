@@ -154,6 +154,27 @@ export function StepAdministrationChild({
           checked={value.schweigepflichtsentbindung}
           onChange={(v) => onChange({ schweigepflichtsentbindung: v })}
         />
+        <FlagRow
+          id="kind-vorviertelstunde"
+          label="Vorviertelstunde"
+          description="+15 Min. vor der direkten Leistung im Export."
+          checked={value.vorviertelstunde}
+          onChange={(v) => onChange({ vorviertelstunde: v })}
+        />
+        <FlagRow
+          id="kind-nachviertelstunde"
+          label="Nachviertelstunde"
+          description="+15 Min. nach der direkten Leistung im Export."
+          checked={value.nachviertelstunde}
+          onChange={(v) => onChange({ nachviertelstunde: v })}
+        />
+        <FlagRow
+          id="kind-ausflug"
+          label="Ausflüge & Schullandheim"
+          description="Nur Kennzeichnung, keine Auswirkung auf die Stunden."
+          checked={value.ausflugSchullandheim}
+          onChange={(v) => onChange({ ausflugSchullandheim: v })}
+        />
       </div>
 
       <Field>

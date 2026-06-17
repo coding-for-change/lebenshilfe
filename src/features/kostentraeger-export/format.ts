@@ -70,6 +70,20 @@ export function durationHours(start: string, end: string): number {
   return roundHours(minutes / 60);
 }
 
+/**
+ * Shifts a "HH:MM" time by `deltaMinutes`, clamped to a single day
+ * [00:00, 23:59]. Used for the Vor-/Nachviertelstunde billing convention.
+ */
+export function shiftTime(value: string, deltaMinutes: number): string {
+  const total = Math.max(
+    0,
+    Math.min(24 * 60 - 1, hhmmToMinutes(value) + deltaMinutes),
+  );
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
 export function roundHours(value: number): number {
   return Math.round(value * 100) / 100;
 }

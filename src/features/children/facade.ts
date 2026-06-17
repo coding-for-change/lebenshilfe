@@ -64,6 +64,9 @@ function childFieldsFromCreate(input: CreateChildInput) {
     sbIb: input.sbIb ?? null,
     approvedDirectHours: input.approvedDirectHours ?? null,
     approvedIndirectHours: input.approvedIndirectHours ?? null,
+    vorviertelstunde: input.vorviertelstunde ?? false,
+    nachviertelstunde: input.nachviertelstunde ?? false,
+    ausflugSchullandheim: input.ausflugSchullandheim ?? false,
     schweigepflichtsentbindung: input.schweigepflichtsentbindung ?? false,
     bemerkung: input.bemerkung ?? null,
     kostentraegerId: input.kostentraegerId ?? null,
@@ -87,6 +90,15 @@ function childFieldsFromUpdate(input: UpdateChildInput) {
   }
   if (input.approvedIndirectHours !== undefined) {
     out.approvedIndirectHours = input.approvedIndirectHours;
+  }
+  if (input.vorviertelstunde !== undefined) {
+    out.vorviertelstunde = input.vorviertelstunde;
+  }
+  if (input.nachviertelstunde !== undefined) {
+    out.nachviertelstunde = input.nachviertelstunde;
+  }
+  if (input.ausflugSchullandheim !== undefined) {
+    out.ausflugSchullandheim = input.ausflugSchullandheim;
   }
   if (input.schweigepflichtsentbindung !== undefined) {
     out.schweigepflichtsentbindung = input.schweigepflichtsentbindung;

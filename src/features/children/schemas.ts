@@ -67,6 +67,9 @@ const kindFieldsSchema = z.object({
   sbIb: optionalText(200),
   approvedDirectHours: optionalHours(),
   approvedIndirectHours: optionalHours(),
+  vorviertelstunde: z.boolean(),
+  nachviertelstunde: z.boolean(),
+  ausflugSchullandheim: z.boolean(),
   schweigepflichtsentbindung: z.boolean(),
   bemerkung: optionalText(5000),
   // No trailing `.transform()`: a transform placed after `.optional()` runs
@@ -80,6 +83,9 @@ const kindFieldsSchema = z.object({
 // Create accepts omitted booleans by falling back to defaults.
 const kindFieldsCreateSchema = kindFieldsSchema.extend({
   leosOne: z.boolean().default(false),
+  vorviertelstunde: z.boolean().default(false),
+  nachviertelstunde: z.boolean().default(false),
+  ausflugSchullandheim: z.boolean().default(false),
   schweigepflichtsentbindung: z.boolean().default(false),
 });
 
@@ -98,6 +104,9 @@ export const AdministrationStepSchema = kindFieldsCreateSchema.pick({
   sbIb: true,
   approvedDirectHours: true,
   approvedIndirectHours: true,
+  vorviertelstunde: true,
+  nachviertelstunde: true,
+  ausflugSchullandheim: true,
   schweigepflichtsentbindung: true,
   bemerkung: true,
   kostentraegerId: true,
@@ -170,6 +179,9 @@ export type ChildWizardFormState = {
   sbIb: string;
   approvedDirectHours: string;
   approvedIndirectHours: string;
+  vorviertelstunde: boolean;
+  nachviertelstunde: boolean;
+  ausflugSchullandheim: boolean;
   schweigepflichtsentbindung: boolean;
   bemerkung: string;
   kostentraegerId: string | null;
@@ -202,6 +214,9 @@ export const EMPTY_CHILD_FORM: ChildWizardFormState = {
   sbIb: "",
   approvedDirectHours: "",
   approvedIndirectHours: "",
+  vorviertelstunde: false,
+  nachviertelstunde: false,
+  ausflugSchullandheim: false,
   schweigepflichtsentbindung: false,
   bemerkung: "",
   kostentraegerId: null,

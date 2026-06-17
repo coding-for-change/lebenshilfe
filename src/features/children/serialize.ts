@@ -57,6 +57,9 @@ export type SerializedChild = {
   sbIb: string | null;
   approvedDirectHours: number | null;
   approvedIndirectHours: number | null;
+  vorviertelstunde: boolean;
+  nachviertelstunde: boolean;
+  ausflugSchullandheim: boolean;
   schweigepflichtsentbindung: boolean;
   bemerkung: string | null;
   schoolName: string | null;
@@ -83,6 +86,9 @@ export function serializeChild(c: ChildWithRelations): SerializedChild {
       c.approvedDirectHours == null ? null : Number(c.approvedDirectHours),
     approvedIndirectHours:
       c.approvedIndirectHours == null ? null : Number(c.approvedIndirectHours),
+    vorviertelstunde: c.vorviertelstunde,
+    nachviertelstunde: c.nachviertelstunde,
+    ausflugSchullandheim: c.ausflugSchullandheim,
     schweigepflichtsentbindung: c.schweigepflichtsentbindung,
     bemerkung: c.bemerkung,
     schoolName: c.schoolName,

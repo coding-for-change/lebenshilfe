@@ -72,9 +72,11 @@ export default async function LandingPage() {
       schedules={schedules}
       lockedMonthKeys={lockedMonthKeys}
       childAbsences={childAbsences.map((a) => ({
+        id: a.id,
         childId: a.childId,
         date: a.date.toISOString().slice(0, 10),
         note: a.note,
+        createdByUserId: a.createdByUserId,
       }))}
       assignmentsByWeekday={assignmentsByWeekday}
       substituteOn={vertretungenAsSubstitute.map((v) => ({

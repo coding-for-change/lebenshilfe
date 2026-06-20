@@ -30,6 +30,8 @@ import {
   deleteVertretungByChildAndDate,
   updateVertretungSubstituteForDate,
   childExists,
+  findAbsenceById,
+  findAbsenceByIdAndCreator,
   findChildById,
   searchAssignedChildrenByName,
   getAssignmentCoverage,
@@ -196,13 +198,22 @@ export const ChildrenFacade = {
     return listAbsencesForChildrenInRange(childIds, from, to);
   },
 
-  async saveAbsence(input: AbsenceInput) {
+  async saveAbsence(input: AbsenceInput, createdByUserId?: string | null) {
     const parsed = AbsenceSchema.parse(input);
     return upsertAbsence({
       childId: parsed.childId,
       date: new Date(`${parsed.date}T00:00:00.000Z`),
       note: parsed.note ?? null,
+      createdByUserId: createdByUserId ?? null,
     });
+  },
+
+  async getAbsenceById(id: string) {
+    return findAbsenceById(id);
+  },
+
+  async getAbsenceByIdForCreator(id: string, createdByUserId: string) {
+    return findAbsenceByIdAndCreator(id, createdByUserId);
   },
 
   async deleteAbsence(id: string) {

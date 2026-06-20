@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { match } from "ts-pattern";
 import {
+  Baby,
   Briefcase,
   FileText,
   Stethoscope,
+  User,
   UserCheck,
   UserPlus,
 } from "lucide-react";
@@ -29,6 +31,7 @@ import {
   type ChildOption as SearchChildOption,
 } from "./child-search-combobox";
 import { createEventAction } from "../actions";
+import { reportChildSickAction } from "@/features/children/actions";
 import {
   formatDuration,
   parseIsoDate,
@@ -96,6 +99,8 @@ export function NewEntrySheet({
 }: Props) {
   const [type, setType] = useState<EventType>(EventType.WORK);
   const [workVariant, setWorkVariant] = useState<WorkVariant>("OWN");
+  const [sickTarget, setSickTarget] = useState<"self" | "child" | null>(null);
+  const [sickChildId, setSickChildId] = useState<string | null>(null);
   const [date, setDate] = useState(formatIsoDateUtc(defaultDate));
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("17:00");
@@ -131,6 +136,8 @@ export function NewEntrySheet({
       setDate(formatIsoDateUtc(defaultDate));
       setType(EventType.WORK);
       setWorkVariant("OWN");
+      setSickTarget(null);
+      setSickChildId(null);
       setStartTime("08:00");
       setEndTime("17:00");
       setNote("");
@@ -161,7 +168,10 @@ export function NewEntrySheet({
   const dateIsWeekend = isWeekend(date);
 
   const canProceed = useMemo(() => {
-    if (type === EventType.SICK) return true;
+    if (type === EventType.SICK) {
+      if (sickTarget === "child") return false;
+      return sickTarget === "self";
+    }
     if (workVariant === "OWN") {
       if (dateIsWeekend) return false;
       return childIds.length >= 1 && Boolean(duration);
@@ -174,6 +184,7 @@ export function NewEntrySheet({
     return Boolean(otherChild) && note.trim().length >= 3 && Boolean(duration);
   }, [
     type,
+    sickTarget,
     workVariant,
     dateIsWeekend,
     childIds.length,
@@ -360,7 +371,11 @@ export function NewEntrySheet({
               <Button
                 type="button"
                 variant={type === EventType.WORK ? "default" : "outline"}
-                onClick={() => setType(EventType.WORK)}
+                onClick={() => {
+                  setType(EventType.WORK);
+                  setSickTarget(null);
+                  setSickChildId(null);
+                }}
                 className="h-12"
               >
                 <Briefcase className="size-4" /> Arbeit
@@ -368,7 +383,11 @@ export function NewEntrySheet({
               <Button
                 type="button"
                 variant={type === EventType.SICK ? "default" : "outline"}
-                onClick={() => setType(EventType.SICK)}
+                onClick={() => {
+                  setType(EventType.SICK);
+                  setSickTarget(null);
+                  setSickChildId(null);
+                }}
                 className={cn(
                   "h-12",
                   type === EventType.SICK &&
@@ -378,6 +397,130 @@ export function NewEntrySheet({
                 <Stethoscope className="size-4" /> Krank
               </Button>
             </div>
+
+            {type === EventType.SICK && (
+              <>
+                {sickTarget === null && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Wer ist krank?</p>
+                    <div className="grid gap-1.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-12 justify-start gap-3"
+                        onClick={() => setSickTarget("self")}
+                      >
+                        <div className="grid place-items-center size-8 rounded-full bg-rose-500/10 text-rose-600">
+                          <User className="size-4" />
+                        </div>
+                        <span>Ich (eigene Krankmeldung)</span>
+                      </Button>
+                      {dayAssignedChildren.map((c) => (
+                        <Button
+                          key={c.id}
+                          type="button"
+                          variant="outline"
+                          className="h-12 justify-start gap-3"
+                          onClick={() => {
+                            setSickTarget("child");
+                            setSickChildId(c.id);
+                          }}
+                        >
+                          <div className="grid place-items-center size-8 rounded-full bg-amber-500/10 text-amber-600">
+                            <Baby className="size-4" />
+                          </div>
+                          <span>
+                            {c.firstName} {c.lastName}
+                          </span>
+                        </Button>
+                      ))}
+                      {dayAssignedChildren.length === 0 && (
+                        <p className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+                          An diesem Tag ist dir kein Kind zugewiesen.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {sickTarget === "child" &&
+                  sickChildId &&
+                  (() => {
+                    const child = dayAssignedChildren.find(
+                      (c) => c.id === sickChildId,
+                    );
+                    if (!child) return null;
+                    return (
+                      <div className="space-y-3">
+                        <div className="rounded-lg border border-amber-200 bg-amber-500/5 px-3 py-2.5">
+                          <p className="text-sm font-medium">
+                            Kind krank melden
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {child.firstName} {child.lastName} · {date}
+                          </p>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="child-sick-note">
+                            Notiz (optional)
+                          </Label>
+                          <Textarea
+                            id="child-sick-note"
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                            placeholder="z.B. Eltern haben angerufen"
+                            rows={2}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2 pt-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => {
+                              setSickTarget(null);
+                              setSickChildId(null);
+                              setNote("");
+                            }}
+                          >
+                            Zurück
+                          </Button>
+                          <Button
+                            type="button"
+                            disabled={submitting}
+                            className="bg-rose-600 hover:bg-rose-700 text-white"
+                            onClick={async () => {
+                              setSubmitting(true);
+                              try {
+                                await reportChildSickAction({
+                                  childId: sickChildId,
+                                  date,
+                                  note: note.trim() || undefined,
+                                });
+                                toast.success(
+                                  `${child.firstName} wurde krank gemeldet.`,
+                                );
+                                onOpenChange(false);
+                              } catch (e: unknown) {
+                                toast.error(
+                                  e instanceof Error
+                                    ? e.message
+                                    : "Speichern fehlgeschlagen.",
+                                );
+                              } finally {
+                                setSubmitting(false);
+                              }
+                            }}
+                          >
+                            Krank melden
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+              </>
+            )}
 
             {type === EventType.WORK && (
               <>
@@ -559,46 +702,50 @@ export function NewEntrySheet({
               </>
             )}
 
-            {(() => {
-              const indirect =
-                type === EventType.WORK && workVariant === "INDIRECT";
-              return (
-                <div className="space-y-1.5">
-                  <Label htmlFor="note">
-                    {indirect ? "Notiz (Pflicht)" : "Notiz (optional)"}
-                  </Label>
-                  <Textarea
-                    id="note"
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    placeholder={
-                      indirect
-                        ? "z.B. Lehrergespräch, Workshop, Vorbereitung"
-                        : type === EventType.SICK
-                          ? "z.B. Arzttermin"
-                          : "z.B. besondere Vorkommnisse"
-                    }
-                    rows={3}
-                  />
-                </div>
-              );
-            })()}
+            {!(type === EventType.SICK && sickTarget !== "self") && (
+              <>
+                {(() => {
+                  const indirect =
+                    type === EventType.WORK && workVariant === "INDIRECT";
+                  return (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="note">
+                        {indirect ? "Notiz (Pflicht)" : "Notiz (optional)"}
+                      </Label>
+                      <Textarea
+                        id="note"
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        placeholder={
+                          indirect
+                            ? "z.B. Lehrergespräch, Workshop, Vorbereitung"
+                            : type === EventType.SICK
+                              ? "z.B. Arzttermin"
+                              : "z.B. besondere Vorkommnisse"
+                        }
+                        rows={3}
+                      />
+                    </div>
+                  );
+                })()}
 
-            <div className="flex items-center justify-between gap-2 pt-2">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => onOpenChange(false)}
-              >
-                Abbrechen
-              </Button>
-              <Button
-                type="submit"
-                disabled={!canProceed}
-              >
-                Speichern & signieren
-              </Button>
-            </div>
+                <div className="flex items-center justify-between gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => onOpenChange(false)}
+                  >
+                    Abbrechen
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={!canProceed}
+                  >
+                    Speichern & signieren
+                  </Button>
+                </div>
+              </>
+            )}
           </form>
         </SheetContent>
       </Sheet>

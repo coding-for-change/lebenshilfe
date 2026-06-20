@@ -48,7 +48,9 @@ type EventWithChild = Event & {
 
 // Date-Spalte ist `@db.Date`; serialisiert als YYYY-MM-DD über die RSC-Grenze.
 export type ChildAbsenceItem = Pick<ChildAbsence, "childId" | "note"> & {
+  id: string;
   date: string;
+  createdByUserId: string | null;
 };
 
 export type VertretungDay = {
@@ -164,6 +166,7 @@ export function SchoolAssistantApp({
       case "tag":
         return (
           <TabDay
+            currentUserId={currentUser.id}
             selectedDate={selectedDate}
             today={today}
             onSelectDate={setSelectedDate}

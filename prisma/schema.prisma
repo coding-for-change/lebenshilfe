@@ -44,6 +44,7 @@ model User {
   monthlyReports MonthlyReport[]
   profile       SchoolAssistantProfile?
   vertretungenAsSubstitute  ChildVertretung[] @relation("SubstituteVertretung")
+  createdChildAbsences      ChildAbsence[]    @relation("ChildAbsenceCreator")
 
   @@unique([email])
   @@map("user")
@@ -187,12 +188,14 @@ model Kostentraeger {
 }
 
 model ChildAbsence {
-  id        String   @id @default(cuid())
-  childId   String
-  date      DateTime @db.Date
-  note      String?  @db.Text
-  createdAt DateTime @default(now())
-  child     Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  id              String   @id @default(cuid())
+  childId         String
+  date            DateTime @db.Date
+  note            String?  @db.Text
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+  child           Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  createdByUser   User?    @relation("ChildAbsenceCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   @@unique([childId, date])
   @@index([childId, date])

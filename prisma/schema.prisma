@@ -25,6 +25,12 @@ enum SchulbegleiterStatus {
   ACCEPTED
 }
 
+enum PendingVertretungStatus {
+  PENDING
+  RESOLVED
+  REJECTED
+}
+
 model User {
   id            String    @id
   name          String
@@ -43,7 +49,9 @@ model User {
   events        Event[]
   monthlyReports MonthlyReport[]
   profile       SchoolAssistantProfile?
-  vertretungenAsSubstitute  ChildVertretung[] @relation("SubstituteVertretung")
+  vertretungenAsSubstitute    ChildVertretung[]            @relation("SubstituteVertretung")
+  pendingVertretungRequests   PendingVertretungRequest[]   @relation("PendingVertretungSubstitute")
+  resolvedVertretungRequests  PendingVertretungRequest[]   @relation("PendingVertretungResolver")
 
   @@unique([email])
   @@map("user")
@@ -132,8 +140,9 @@ model Child {
   assignments                ChildAssignment[]
   schedules                  Schedule[]
   events                     Event[]
-  absences                   ChildAbsence[]
-  vertretungen               ChildVertretung[]
+  absences                    ChildAbsence[]
+  vertretungen                ChildVertretung[]
+  pendingVertretungRequests   PendingVertretungRequest[]
 
   @@index([kostentraegerId])
   @@map("child")
@@ -221,7 +230,6 @@ model Event {
   startTime       String?
   endTime         String?
   note            String?   @db.Text
-  isSubstitute    Boolean   @default(false)
   signatureKey    String?   // !null -> by school assistant, null -> by admin
   deleted         Boolean   @default(false) // soft delete only for signed events; admin-created events are hard deleted
   // Set when an admin edits a signed event: the new (unsigned) row points at
@@ -299,4 +307,28 @@ model WorkshopAttendance {
   @@unique([workshopId, profileId])
   @@index([profileId])
   @@map("workshop_attendance")
+}
+
+model PendingVertretungRequest {
+  id               String                  @id @default(cuid())
+  substituteUserId String
+  childNameText    String
+  date             DateTime                @db.Date
+  startTime        String
+  endTime          String
+  signatureKey     String
+  matchedChildId   String?
+  matchConfidence  Float?
+  status           PendingVertretungStatus @default(PENDING)
+  resolvedChildId  String?
+  resolvedAt       DateTime?
+  resolvedByUserId String?
+  createdAt        DateTime                @default(now())
+  substituteUser   User                    @relation("PendingVertretungSubstitute", fields: [substituteUserId], references: [id], onDelete: Cascade)
+  resolvedChild    Child?                  @relation(fields: [resolvedChildId], references: [id], onDelete: SetNull)
+  resolvedByUser   User?                   @relation("PendingVertretungResolver", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([substituteUserId, status])
+  @@index([status, date])
+  @@map("pending_vertretung_request")
 }

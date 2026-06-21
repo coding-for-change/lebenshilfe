@@ -3,6 +3,7 @@ import {
   BookOpen,
   Home,
   ShieldCheck,
+  TriangleAlert,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -41,6 +42,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: "Workshops",
     description: "Fortbildungen anlegen und planen.",
     icon: BookOpen,
+  },
+  {
+    href: "/admin/handlungsbedarf",
+    label: "Handlungsbedarf",
+    description: "Offene Vertretungs-Anträge zuordnen.",
+    icon: TriangleAlert,
   },
 ];
 

@@ -79,14 +79,9 @@ export async function updateWorkEventAsAdmin(
 export async function deleteWorkEventAsAdmin(id: string) {
   const existing = await prisma.event.findUniqueOrThrow({ where: { id } });
   if (existing.signatureKey) {
-    return prisma.event.update({
-      where: { id },
-      data: { deleted: true },
-    });
+    await prisma.event.update({ where: { id }, data: { deleted: true } });
   } else {
-    return prisma.event.delete({
-      where: { id },
-    });
+    await prisma.event.delete({ where: { id } });
   }
 }
 

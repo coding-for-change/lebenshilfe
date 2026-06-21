@@ -1,0 +1,1 @@
+export { VertretungRequestsFacade } from "./facade";

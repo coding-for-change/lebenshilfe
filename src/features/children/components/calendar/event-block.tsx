@@ -65,11 +65,6 @@ export function EventBlock({ ev, col, cols, onDelete, onMove }: Props) {
   } else if (ev.layer === "event") {
     layerClasses = match(ev.eventKind)
       .with(
-        "substitute",
-        () =>
-          "z-30 bg-red-500/20 border border-red-500/60 text-red-900 ring-1 ring-red-500 dark:text-red-200",
-      )
-      .with(
         "indirect",
         () =>
           "z-30 bg-amber-500/20 border border-amber-500/60 text-amber-900 dark:text-amber-200",

@@ -12,6 +12,8 @@ import {
 import type { Event, Schedule } from "@/generated/prisma";
 import type { ChildOption } from "./children-filter";
 import type { ChildSchoolHolidayItem, VertretungDay } from "./timesheet-shell";
+import { childIdsForDate } from "../weekday";
+import type { AssignmentsByWeekday } from "../weekday";
 
 type Props = {
   anchorDate: Date;
@@ -22,6 +24,7 @@ type Props = {
     Pick<Event, "id" | "date" | "type" | "startTime" | "endTime" | "childId">
   >;
   schedules: Schedule[];
+  assignmentsByWeekday: AssignmentsByWeekday;
   onSelectDay: (date: Date) => void;
   childSchoolHolidays?: ChildSchoolHolidayItem[];
   substituteOn?: VertretungDay[];
@@ -88,14 +91,13 @@ export function WeekGrid({
   selectedChildIds,
   events,
   schedules,
+  assignmentsByWeekday,
   onSelectDay,
   childSchoolHolidays = [],
   substituteOn = [],
 }: Props) {
   const monday = startOfWeekUtc(anchorDate);
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
-
-  const substituteChildIds = new Set(substituteOn.map((v) => v.childId));
 
   // Distinct school-holiday names covering each weekday, limited to the
   // currently selected children (matching how schedules/work are filtered).
@@ -205,16 +207,26 @@ export function WeekGrid({
           const dayVertretungen = substituteOn.filter((v) => v.date === iso);
           const dayWork = events.filter(
             (e) =>
-              e.type === "WORK" &&
+              (e.type === "WORK" || e.type === "INDIRECT") &&
               isSameUtcDay(e.date, d) &&
+              // Indirekte Leistungen ohne Kind-Verknüpfung werden unabhängig
+              // vom Kinder-Filter angezeigt, da sie nicht kindgebunden sind.
               (selectedChildIds.length === 0 ||
-                (e.childId && selectedChildIds.includes(e.childId))),
+                !e.childId ||
+                selectedChildIds.includes(e.childId)),
+          );
+          // Only the children this user actually covers on this weekday get a
+          // Stundenplan block. Substitute coverage is rendered separately as
+          // its own amber Vertretung block, so pure-substitute children are
+          // naturally excluded here (they aren't in the regular assignment).
+          const assignedToday = new Set(
+            childIdsForDate(assignmentsByWeekday, d),
           );
           const daySchedules = schedules.filter(
             (s) =>
               s.weekday === wd &&
               selectedChildIds.includes(s.childId) &&
-              !substituteChildIds.has(s.childId),
+              assignedToday.has(s.childId),
           );
 
           const isHoliday = holidayNamesByIso.has(iso);

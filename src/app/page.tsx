@@ -4,6 +4,7 @@ import { isAdmin } from "@/lib/roles";
 import { TimesheetFacade, SchoolAssistantApp } from "@/features/timesheet";
 import { SchoolAssistantsFacade } from "@/features/school-assistants";
 import { ChildrenFacade, serializeChild } from "@/features/children";
+import { VertretungRequestsFacade } from "@/features/vertretung-requests";
 import { getAssignedChildrenForUser } from "@/use-cases/get-assigned-children";
 
 export default async function LandingPage() {
@@ -43,6 +44,7 @@ export default async function LandingPage() {
     assignmentsByWeekday,
     vertretungenAsSubstitute,
     allChildren,
+    pendingVertretungRequests,
   ] = await Promise.all([
     TimesheetFacade.getEventsInRange(user.id, rangeStart, rangeEnd),
     TimesheetFacade.getSchedulesForChildren(childIds),
@@ -60,6 +62,7 @@ export default async function LandingPage() {
       rangeEnd,
     ),
     ChildrenFacade.list(),
+    VertretungRequestsFacade.listForUser(user.id, rangeStart, rangeEnd),
   ]);
 
   // Resolve each assigned child's school holiday-plan ranges so the day view can
@@ -101,13 +104,29 @@ export default async function LandingPage() {
       }))}
       assignmentsByWeekday={assignmentsByWeekday}
       childSchoolHolidays={childSchoolHolidays}
-      substituteOn={vertretungenAsSubstitute.map((v) => ({
-        id: v.id,
-        date: v.date.toISOString().slice(0, 10),
-        childId: v.childId,
-        childName: `${v.child.firstName} ${v.child.lastName}`,
-        startTime: v.startTime,
-        endTime: v.endTime,
+      substituteOn={vertretungenAsSubstitute.map((v) => {
+        const sbRequest = pendingVertretungRequests.find(
+          (r) =>
+            r.date.getTime() === v.date.getTime() &&
+            (r.matchedChildId === v.childId || r.resolvedChildId === v.childId),
+        );
+        return {
+          id: v.id,
+          date: v.date.toISOString().slice(0, 10),
+          childId: v.childId,
+          childName: `${v.child.firstName} ${v.child.lastName}`,
+          startTime: v.startTime,
+          endTime: v.endTime,
+          sbRequestId: sbRequest?.id ?? null,
+        };
+      })}
+      pendingVertretungRequests={pendingVertretungRequests.map((r) => ({
+        id: r.id,
+        date: r.date.toISOString().slice(0, 10),
+        childNameText: r.childNameText,
+        startTime: r.startTime,
+        endTime: r.endTime,
+        status: r.status as "PENDING" | "RESOLVED",
       }))}
     />
   );

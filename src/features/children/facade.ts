@@ -29,7 +29,9 @@ import {
   deleteScheduleById,
   deleteVertretungByChildAndDate,
   updateVertretungSubstituteForDate,
+  childExists,
   findChildById,
+  searchAssignedChildrenByName,
   getAssignmentCoverage,
   getVertretungCoverage,
   listAbsencesForChild,
@@ -94,6 +96,18 @@ export const ChildrenFacade = {
 
   async getById(id: string) {
     return findChildById(id);
+  },
+
+  async assertChildExists(childId: string) {
+    if (!(await childExists(childId))) {
+      throw new Error("Kind nicht gefunden.");
+    }
+  },
+
+  // Search children currently assigned to a given Schulbegleiter (used by the
+  // timesheet entry form to pick a child for indirect work).
+  async searchAssignedChildren(userId: string, query: string) {
+    return searchAssignedChildrenByName(userId, query);
   },
 
   async create(input: CreateChildInput) {

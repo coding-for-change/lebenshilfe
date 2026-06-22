@@ -13,7 +13,7 @@ export function MapDateOverlay({
   loading: boolean;
 }) {
   return (
-    <div className="absolute top-4 right-4 z-10 flex items-center gap-2 rounded-lg border bg-popover/95 px-3 py-2 shadow-lg backdrop-blur">
+    <div className="absolute top-[4.5rem] right-4 z-10 flex items-center gap-2 rounded-lg border bg-popover/95 px-3 py-2 shadow-lg backdrop-blur md:top-4">
       <span className="text-xs font-medium text-muted-foreground">Datum</span>
       <div className="w-56">
         <DatePicker

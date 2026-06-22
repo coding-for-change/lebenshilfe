@@ -15,6 +15,12 @@ const signatureSchema = z
     "Ungültige Signatur.",
   );
 
+function isWeekend(dateString: string) {
+  const d = new Date(`${dateString}T00:00:00`);
+  const dow = d.getDay();
+  return dow === 0 || dow === 6;
+}
+
 export const CreateEventSchema = z
   .object({
     type: z.nativeEnum(EventType),
@@ -26,13 +32,7 @@ export const CreateEventSchema = z
     signaturePngBase64: signatureSchema,
   })
   .superRefine((val, ctx) => {
-    if (val.type === "WORK") {
-      if (val.childIds.length < 1)
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["childIds"],
-          message: "Mindestens ein Kind auswählen.",
-        });
+    const requireTimes = () => {
       if (!val.startTime)
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -51,7 +51,40 @@ export const CreateEventSchema = z
           path: ["endTime"],
           message: "Ende muss nach Start liegen.",
         });
+    };
+
+    if (val.type === "WORK") {
+      if (val.childIds.length < 1)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["childIds"],
+          message: "Mindestens ein Kind auswählen.",
+        });
+      if (isWeekend(val.date))
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["date"],
+          message: "Reguläre Arbeit ist nur an Werktagen möglich.",
+        });
+      requireTimes();
     }
+
+    if (val.type === "INDIRECT") {
+      if (val.childIds.length !== 1)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["childIds"],
+          message: "Für eine indirekte Leistung genau ein Kind auswählen.",
+        });
+      if (!val.note || val.note.trim().length < 3)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["note"],
+          message: "Notiz ist Pflicht (mind. 3 Zeichen).",
+        });
+      requireTimes();
+    }
+
     if (val.type === "SICK") {
       if (val.childIds.length !== 0)
         ctx.addIssue({
@@ -102,3 +135,24 @@ export const ConfirmWorkEventsSchema = z.object({
 });
 
 export type ConfirmWorkEventsInput = z.infer<typeof ConfirmWorkEventsSchema>;
+
+// INDIRECT entry created by free-text child name. The SB types the child's
+// name (same UX as a Vertretung free-text entry). Server resolves it via
+// exact match and rejects if no child is found.
+export const CreateIndirectByNameSchema = z
+  .object({
+    childNameText: z.string().min(2, "Name muss mindestens 2 Zeichen haben."),
+    date: dateStringSchema,
+    startTime: timeStringSchema,
+    endTime: timeStringSchema,
+    note: z.string().min(3, "Notiz ist Pflicht (mind. 3 Zeichen).").max(2000),
+    signaturePngBase64: signatureSchema,
+  })
+  .refine((v) => v.endTime > v.startTime, {
+    message: "Ende muss nach Start liegen.",
+    path: ["endTime"],
+  });
+
+export type CreateIndirectByNameInput = z.infer<
+  typeof CreateIndirectByNameSchema
+>;

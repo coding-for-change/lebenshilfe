@@ -87,7 +87,7 @@ export function ChildDetailSheet({
             onValueChange={(v) => onTabChange?.(v as DetailTab)}
             className="flex flex-1 flex-col gap-3 overflow-hidden"
           >
-            <TabsList>
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="general">Allgemeines</TabsTrigger>
               <TabsTrigger value="history">Historie</TabsTrigger>
               <TabsTrigger value="calendar">Kalender</TabsTrigger>

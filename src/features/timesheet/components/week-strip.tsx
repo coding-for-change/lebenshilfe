@@ -32,7 +32,7 @@ export function WeekStrip({
   for (const ev of events) {
     const iso = formatIsoDateUtc(ev.date);
     const cur = eventByIso.get(iso) ?? { work: false, sick: false };
-    if (ev.type === "WORK") cur.work = true;
+    if (ev.type === "WORK" || ev.type === "INDIRECT") cur.work = true;
     else cur.sick = true;
     eventByIso.set(iso, cur);
   }

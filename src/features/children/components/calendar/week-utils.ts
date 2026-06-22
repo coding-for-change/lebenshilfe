@@ -52,12 +52,14 @@ export function clampHours(h: number): number {
   return Math.max(START_HOUR, Math.min(END_HOUR, h));
 }
 
-export type EventLayer = "schedule" | "assignment" | "absence";
+export type EventLayer = "schedule" | "assignment" | "absence" | "event";
+export type EventKind = "work" | "indirect";
 
 export type CalendarEvent = {
   layer: EventLayer;
   // Schedule + Assignment are weekly recurring → weekday only.
-  // Absence is date-specific.
+  // Absence + Event are date-specific (still rendered on a single weekday column
+  // when the calendar's week happens to contain that date).
   weekday: number; // 0..6 (Mon..Sun)
   startHour: number; // for full-day absences: START_HOUR
   endHour: number; // for full-day absences: END_HOUR
@@ -68,6 +70,9 @@ export type CalendarEvent = {
   sublabel?: string;
   // Assignment-only
   tandem?: boolean;
+  // Event-only: distinguishes regular work from indirect
+  // (Lehrergespräch/Workshop) entries so EventBlock can color them.
+  eventKind?: EventKind;
 };
 
 export function germanWeekRangeLabel(weekStart: Date) {
@@ -84,6 +89,23 @@ export type PositionedEvent = CalendarEvent & { col: number; cols: number };
 export function parseTime(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);
   return h + m / 60;
+}
+
+/**
+ * Whether a logged Einsatz falls outside a scheduled window — the calendar's
+ * coverage cross-check. Shared by the desktop grid block and the mobile day
+ * view so both flag over-runs identically.
+ */
+export function einsatzExceeds(
+  einsatz: { startTime: string | null; endTime: string | null },
+  scheduleStartHour: number,
+  scheduleEndHour: number,
+): boolean {
+  if (!einsatz.startTime || !einsatz.endTime) return false;
+  return (
+    parseTime(einsatz.startTime) < scheduleStartHour ||
+    parseTime(einsatz.endTime) > scheduleEndHour
+  );
 }
 
 // Column-pack overlapping events per weekday, like Google/Outlook calendars.

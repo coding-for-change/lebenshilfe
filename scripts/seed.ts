@@ -263,16 +263,6 @@ function nthWeekdayBefore(n: number): Date {
   return dayOffset(i);
 }
 
-function nthWeekdayAfter(n: number): Date {
-  let count = 0;
-  let i = 0;
-  while (count < n) {
-    i += 1;
-    if (!isWeekend(dayOffset(i))) count += 1;
-  }
-  return dayOffset(i);
-}
-
 async function createUserViaAuth(user: SeedUser) {
   await prisma.invitation.deleteMany({ where: { email: user.email } });
   await prisma.invitation.create({
@@ -341,6 +331,9 @@ async function wipeSeedData() {
     where: { user: { email: { in: seedEmails } } },
   });
   await prisma.childAbsence.deleteMany({
+    where: { childId: { in: childIds } },
+  });
+  await prisma.childVertretung.deleteMany({
     where: { childId: { in: childIds } },
   });
   await prisma.schedule.deleteMany({ where: { childId: { in: childIds } } });
@@ -418,17 +411,55 @@ async function seedSchools() {
   }
 }
 
+// Per-child weekly Stundenplan (the child's school timetable). weekday uses
+// Mon=0..Sun=6, matching Schedule.weekday everywhere in the app. Multiple
+// blocks on the same weekday are intentional (e.g. a therapy gap) and mirror
+// what the data model and Vertretung copy logic already support.
+const CHILD_SCHEDULES: Record<
+  string,
+  { weekday: number; startTime: string; endTime: string }[]
+> = {
+  // Lena: Mon–Fri 08:00–13:00 (Anna covers the full window).
+  "seed-lena-fischer": [0, 1, 2, 3, 4].map((weekday) => ({
+    weekday,
+    startTime: "08:00",
+    endTime: "13:00",
+  })),
+  // Max: Mon–Fri 08:00–13:00 (Anna covers until 12:30).
+  "seed-max-huber": [0, 1, 2, 3, 4].map((weekday) => ({
+    weekday,
+    startTime: "08:00",
+    endTime: "13:00",
+  })),
+  // Mia: longer school days, Mon–Fri 08:00–14:00 (Ben covers 09:00–14:00).
+  "seed-mia-bauer": [0, 1, 2, 3, 4].map((weekday) => ({
+    weekday,
+    startTime: "08:00",
+    endTime: "14:00",
+  })),
+  // Paul: Mon–Fri 08:00–13:00, but Wednesday (weekday 2) is split around the
+  // 11–12 therapy slot that takes place outside of school.
+  "seed-paul-koch": [
+    { weekday: 0, startTime: "08:00", endTime: "13:00" },
+    { weekday: 1, startTime: "08:00", endTime: "13:00" },
+    { weekday: 2, startTime: "08:00", endTime: "11:00" },
+    { weekday: 2, startTime: "12:00", endTime: "13:00" },
+    { weekday: 3, startTime: "08:00", endTime: "13:00" },
+    { weekday: 4, startTime: "08:00", endTime: "13:00" },
+  ],
+};
+
 async function seedChildrenAndSchedules() {
   console.log("Seeding children & weekly schedules…");
   for (const c of CHILDREN) {
     await prisma.child.create({ data: c });
-    for (let weekday = 1; weekday <= 5; weekday++) {
+    for (const block of CHILD_SCHEDULES[c.id] ?? []) {
       await prisma.schedule.create({
         data: {
           childId: c.id,
-          weekday,
-          startTime: "08:00",
-          endTime: "13:00",
+          weekday: block.weekday,
+          startTime: block.startTime,
+          endTime: block.endTime,
         },
       });
     }
@@ -502,6 +533,8 @@ async function assignChildren(usersByEmail: Record<string, string>) {
   // Anna splits her week: Lena Mon/Wed/Fri, Max Tue/Thu.
   // Ben covers Mia all five weekdays. Clara covers Paul all five weekdays.
   // One day per pair is flagged tandem=true so the UI surfaces that variation.
+  // weekday uses Mon=0..Sun=6 (matches Schedule/ChildAssignment everywhere in
+  // the app: WEEKDAYS[0]="mon" and (getUTCDay()+6)%7), so Mon=0 … Fri=4.
   const assignments: Array<{
     childId: string;
     userId: string;
@@ -510,11 +543,11 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     endTime: string;
     tandem: boolean;
   }> = [
-    // Anna ↔ Lena
+    // Anna ↔ Lena (Mon/Wed/Fri)
     {
       childId: "seed-lena-fischer",
       userId: annaId,
-      weekday: 1,
+      weekday: 0,
       startTime: "08:00",
       endTime: "13:00",
       tandem: false,
@@ -522,7 +555,7 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     {
       childId: "seed-lena-fischer",
       userId: annaId,
-      weekday: 3,
+      weekday: 2,
       startTime: "08:00",
       endTime: "13:00",
       tandem: true,
@@ -530,16 +563,16 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     {
       childId: "seed-lena-fischer",
       userId: annaId,
-      weekday: 5,
+      weekday: 4,
       startTime: "08:00",
       endTime: "13:00",
       tandem: false,
     },
-    // Anna ↔ Max
+    // Anna ↔ Max (Tue/Thu)
     {
       childId: "seed-max-huber",
       userId: annaId,
-      weekday: 2,
+      weekday: 1,
       startTime: "08:00",
       endTime: "12:30",
       tandem: false,
@@ -547,7 +580,7 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     {
       childId: "seed-max-huber",
       userId: annaId,
-      weekday: 4,
+      weekday: 3,
       startTime: "08:00",
       endTime: "12:30",
       tandem: false,
@@ -556,6 +589,14 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     {
       childId: "seed-mia-bauer",
       userId: benId,
+      weekday: 0,
+      startTime: "09:00",
+      endTime: "14:00",
+      tandem: false,
+    },
+    {
+      childId: "seed-mia-bauer",
+      userId: benId,
       weekday: 1,
       startTime: "09:00",
       endTime: "14:00",
@@ -575,20 +616,12 @@ async function assignChildren(usersByEmail: Record<string, string>) {
       weekday: 3,
       startTime: "09:00",
       endTime: "14:00",
-      tandem: false,
-    },
-    {
-      childId: "seed-mia-bauer",
-      userId: benId,
-      weekday: 4,
-      startTime: "09:00",
-      endTime: "14:00",
       tandem: true,
     },
     {
       childId: "seed-mia-bauer",
       userId: benId,
-      weekday: 5,
+      weekday: 4,
       startTime: "09:00",
       endTime: "14:00",
       tandem: false,
@@ -597,6 +630,14 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     {
       childId: "seed-paul-koch",
       userId: claraId,
+      weekday: 0,
+      startTime: "08:00",
+      endTime: "13:00",
+      tandem: false,
+    },
+    {
+      childId: "seed-paul-koch",
+      userId: claraId,
       weekday: 1,
       startTime: "08:00",
       endTime: "13:00",
@@ -626,18 +667,60 @@ async function assignChildren(usersByEmail: Record<string, string>) {
       endTime: "13:00",
       tandem: false,
     },
-    {
-      childId: "seed-paul-koch",
-      userId: claraId,
-      weekday: 5,
-      startTime: "08:00",
-      endTime: "13:00",
-      tandem: false,
-    },
   ];
 
   for (const a of assignments) {
     await prisma.childAssignment.create({ data: a });
+  }
+}
+
+async function seedVertretungen(usersByEmail: Record<string, string>) {
+  console.log("Seeding Vertretungen (substitute coverage)…");
+  const annaId = usersByEmail["anna.schmidt@lebenshilfe.de"];
+  const claraId = usersByEmail["clara.becker@lebenshilfe.de"];
+
+  // Illustrative substitute coverage so the Vertretung UI (homepage cards,
+  // week calendar, admin views) has data to render. Each record copies the
+  // child's Stundenplan blocks for that weekday — exactly like
+  // ChildrenFacade.createVertretung — and uses a recent past weekday so no
+  // Vertretung lands in the future.
+  const vertretungen: Array<{
+    childId: string;
+    substituteUserId: string;
+    date: Date;
+  }> = [
+    // Anna steps in for Paul (normally Clara's) — populates Anna's homepage.
+    {
+      childId: "seed-paul-koch",
+      substituteUserId: annaId,
+      date: nthWeekdayBefore(4),
+    },
+    // Clara steps in for Max (normally Anna's).
+    {
+      childId: "seed-max-huber",
+      substituteUserId: claraId,
+      date: nthWeekdayBefore(6),
+    },
+  ];
+
+  for (const v of vertretungen) {
+    // Mon=0..Sun=6, matching Schedule.weekday.
+    const weekday = (v.date.getUTCDay() + 6) % 7;
+    const blocks = await prisma.schedule.findMany({
+      where: { childId: v.childId, weekday },
+      select: { startTime: true, endTime: true },
+    });
+    const timeBlocks =
+      blocks.length > 0 ? blocks : [{ startTime: "08:00", endTime: "13:00" }];
+    await prisma.childVertretung.createMany({
+      data: timeBlocks.map((b) => ({
+        childId: v.childId,
+        substituteUserId: v.substituteUserId,
+        date: v.date,
+        startTime: b.startTime,
+        endTime: b.endTime,
+      })),
+    });
   }
 }
 
@@ -701,47 +784,6 @@ const ANNA_PLAN: DraftEvent[] = [
     endTime: "13:00",
     note: "Wiedereinstieg nach Krankheit",
   },
-  {
-    offset: 1,
-    child: "seed-max-huber",
-    type: EventType.WORK,
-    startTime: "08:00",
-    endTime: "12:30",
-    note: null,
-  },
-  // Following week
-  {
-    offset: 4,
-    child: "seed-lena-fischer",
-    type: EventType.WORK,
-    startTime: "08:00",
-    endTime: "13:00",
-    note: null,
-  },
-  {
-    offset: 5,
-    child: "seed-max-huber",
-    type: EventType.WORK,
-    startTime: "08:00",
-    endTime: "12:30",
-    note: "Sportunterricht in der Halle",
-  },
-  {
-    offset: 6,
-    child: "seed-lena-fischer",
-    type: EventType.WORK,
-    startTime: "08:00",
-    endTime: "13:00",
-    note: null,
-  },
-  {
-    offset: 7,
-    child: "seed-max-huber",
-    type: EventType.WORK,
-    startTime: "08:00",
-    endTime: "12:30",
-    note: null,
-  },
 ];
 
 const BEN_PLAN: DraftEvent[] = [
@@ -793,46 +835,6 @@ const BEN_PLAN: DraftEvent[] = [
     endTime: "14:00",
     note: null,
   },
-  {
-    offset: 1,
-    child: null,
-    type: EventType.SICK,
-    startTime: null,
-    endTime: null,
-    note: "Migräneanfall",
-  },
-  {
-    offset: 4,
-    child: "seed-mia-bauer",
-    type: EventType.WORK,
-    startTime: "09:00",
-    endTime: "14:00",
-    note: "Schulfest-Vorbereitung",
-  },
-  {
-    offset: 5,
-    child: "seed-mia-bauer",
-    type: EventType.WORK,
-    startTime: "09:00",
-    endTime: "14:00",
-    note: null,
-  },
-  {
-    offset: 6,
-    child: "seed-mia-bauer",
-    type: EventType.WORK,
-    startTime: "09:00",
-    endTime: "14:00",
-    note: null,
-  },
-  {
-    offset: 7,
-    child: "seed-mia-bauer",
-    type: EventType.WORK,
-    startTime: "09:00",
-    endTime: "14:00",
-    note: null,
-  },
 ];
 
 const CLARA_PLAN: DraftEvent[] = [
@@ -878,30 +880,6 @@ const CLARA_PLAN: DraftEvent[] = [
   },
   {
     offset: 0,
-    child: "seed-paul-koch",
-    type: EventType.WORK,
-    startTime: "08:00",
-    endTime: "13:00",
-    note: null,
-  },
-  {
-    offset: 1,
-    child: "seed-paul-koch",
-    type: EventType.WORK,
-    startTime: "08:00",
-    endTime: "13:00",
-    note: null,
-  },
-  {
-    offset: 4,
-    child: "seed-paul-koch",
-    type: EventType.WORK,
-    startTime: "08:00",
-    endTime: "13:00",
-    note: null,
-  },
-  {
-    offset: 5,
     child: "seed-paul-koch",
     type: EventType.WORK,
     startTime: "08:00",
@@ -997,7 +975,7 @@ async function seedWorkshopsAndAttendances() {
     {
       workshopId: "seed-ws-erste-hilfe",
       profileId: byEmail["anna.schmidt@lebenshilfe.de"],
-      attendedOn: nthWeekdayAfter(2),
+      attendedOn: nthWeekdayBefore(2),
     },
     {
       workshopId: "seed-ws-deeskalation",
@@ -1007,7 +985,7 @@ async function seedWorkshopsAndAttendances() {
     {
       workshopId: "seed-ws-autismus",
       profileId: byEmail["clara.becker@lebenshilfe.de"],
-      attendedOn: nthWeekdayAfter(4),
+      attendedOn: nthWeekdayBefore(8),
     },
   ];
 
@@ -1037,6 +1015,7 @@ async function main() {
   await seedSchools();
   await seedChildrenAndSchedules();
   await assignChildren(usersByEmail);
+  await seedVertretungen(usersByEmail);
   await seedChildAbsences();
   await enrichProfiles();
   await seedEvents(usersByEmail);
@@ -1052,7 +1031,7 @@ async function main() {
   );
   console.log("=====================================");
   console.log(
-    `Events span ${dayOffset(-7).toISOString().slice(0, 10)} → ${dayOffset(7).toISOString().slice(0, 10)} (anchored to today).`,
+    `Events span ${dayOffset(-7).toISOString().slice(0, 10)} → ${TODAY.toISOString().slice(0, 10)} (past through today; no future entries).`,
   );
 }
 

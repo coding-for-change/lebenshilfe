@@ -7,6 +7,7 @@ import { WeekGrid } from "./week-grid";
 import { ChildrenFilter, type ChildOption } from "./children-filter";
 import type { Event, Schedule } from "@/generated/prisma";
 import type { ChildSchoolHolidayItem, VertretungDay } from "./timesheet-shell";
+import type { AssignmentsByWeekday } from "../weekday";
 
 type Props = {
   anchorDate: Date;
@@ -22,6 +23,7 @@ type Props = {
   >;
   schedules: Schedule[];
   childSchoolHolidays?: ChildSchoolHolidayItem[];
+  assignmentsByWeekday: AssignmentsByWeekday;
   substituteOn?: VertretungDay[];
 };
 
@@ -37,6 +39,7 @@ export function TabWoche({
   events,
   schedules,
   childSchoolHolidays = [],
+  assignmentsByWeekday,
   substituteOn = [],
 }: Props) {
   const monday = startOfWeekUtc(anchorDate);
@@ -103,6 +106,7 @@ export function TabWoche({
         selectedChildIds={selectedChildIds}
         events={events}
         schedules={schedules}
+        assignmentsByWeekday={assignmentsByWeekday}
         onSelectDay={onSelectDay}
         childSchoolHolidays={childSchoolHolidays}
         substituteOn={substituteOn}

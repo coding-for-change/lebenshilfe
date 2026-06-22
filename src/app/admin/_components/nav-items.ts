@@ -5,6 +5,7 @@ import {
   Palmtree,
   School,
   ShieldCheck,
+  TriangleAlert,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -12,6 +13,8 @@ import {
 export type NavItem = {
   href: string;
   label: string;
+  /** Compact label for the mobile bottom tab bar (falls back to `label`). */
+  shortLabel?: string;
   description: string;
   icon: LucideIcon;
 };
@@ -26,6 +29,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   {
     href: "/admin/school-assistants",
     label: "Schulbegleiter",
+    shortLabel: "Schulbeg.",
     description: "Profile, Verträge und Workshops verwalten.",
     icon: Users,
   },
@@ -53,12 +57,19 @@ export const NAV_ITEMS: readonly NavItem[] = [
     description: "Fortbildungen anlegen und planen.",
     icon: BookOpen,
   },
+  {
+    href: "/admin/handlungsbedarf",
+    label: "Handlungsbedarf",
+    description: "Offene Vertretungs-Anträge zuordnen.",
+    icon: TriangleAlert,
+  },
 ];
 
 export const ADMIN_NAV_ITEMS: readonly NavItem[] = [
   {
     href: "/admin/user-management",
     label: "Benutzerverwaltung",
+    shortLabel: "Benutzer",
     description: "Rollen und Zugänge steuern.",
     icon: ShieldCheck,
   },
@@ -68,3 +79,14 @@ export const ALL_NAV_ITEMS: readonly NavItem[] = [
   ...NAV_ITEMS,
   ...ADMIN_NAV_ITEMS,
 ];
+
+/**
+ * Whether a nav item is active for the current path. `/admin` (Übersicht) must
+ * match exactly — a plain `startsWith` would light it up on every sub-route
+ * (e.g. `/admin/children`), since it is a prefix of all of them.
+ */
+export function isNavActive(pathname: string, href: string): boolean {
+  return href === "/admin"
+    ? pathname === "/admin"
+    : pathname === href || pathname.startsWith(`${href}/`);
+}

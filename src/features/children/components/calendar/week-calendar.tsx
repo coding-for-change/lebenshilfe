@@ -31,6 +31,7 @@ import { EventCreateForm } from "./event-create-dialog";
 import { EventBlock } from "./event-block";
 import { ScheduleEinsatzBlock } from "./schedule-einsatz-block";
 import { DayQuickAddSection } from "./day-quick-add";
+import { CalendarMobileView } from "./calendar-mobile-view";
 import {
   deleteAbsenceAction,
   deleteAssignmentAction,
@@ -158,6 +159,21 @@ export function KinderWeekCalendar({
     return map;
   }, [assignments]);
 
+  // Map ISO date string → vertretungen for that date (restricted to visible week).
+  // Use ISO string comparison (YYYY-MM-DD) to avoid local-vs-UTC timezone
+  // issues: addDays uses raw ms (local midnight), but stored dates are UTC.
+  const vertretungenByDate = useMemo(() => {
+    const map = new Map<string, SerializedVertretung[]>();
+    const isoFrom = formatIsoDateLocal(weekStart);
+    const isoTo = formatIsoDateLocal(addDays(weekStart, 6));
+    for (const v of vertretungen) {
+      if (v.date < isoFrom || v.date > isoTo) continue;
+      if (!map.has(v.date)) map.set(v.date, []);
+      map.get(v.date)!.push(v);
+    }
+    return map;
+  }, [vertretungen, weekStart]);
+
   // For each weekday in the visible week, the school holiday covering it (if
   // any), keeping the latest end date for the "bis …" hint. ISO-string compare
   // matches the absence handling and avoids timezone drift.
@@ -174,21 +190,6 @@ export function KinderWeekCalendar({
     }
     return map;
   }, [holidays, weekStart]);
-
-  // Map ISO date string → vertretungen for that date (restricted to visible week).
-  // Use ISO string comparison (YYYY-MM-DD) to avoid local-vs-UTC timezone
-  // issues: addDays uses raw ms (local midnight), but stored dates are UTC.
-  const vertretungenByDate = useMemo(() => {
-    const map = new Map<string, SerializedVertretung[]>();
-    const isoFrom = formatIsoDateLocal(weekStart);
-    const isoTo = formatIsoDateLocal(addDays(weekStart, 6));
-    for (const v of vertretungen) {
-      if (v.date < isoFrom || v.date > isoTo) continue;
-      if (!map.has(v.date)) map.set(v.date, []);
-      map.get(v.date)!.push(v);
-    }
-    return map;
-  }, [vertretungen, weekStart]);
 
   const goPrevWeek = () => setWeekStart((w) => addDays(w, -7));
   const goNextWeek = () => setWeekStart((w) => addDays(w, 7));
@@ -237,6 +238,7 @@ export function KinderWeekCalendar({
   );
 
   async function handleDelete(layer: CalendarEvent["layer"], id: string) {
+    if (layer === "event") return;
     try {
       if (layer === "assignment") await deleteAssignmentAction(id);
       else if (layer === "schedule") await deleteScheduleAction(id);
@@ -290,237 +292,291 @@ export function KinderWeekCalendar({
   }, [drag]);
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={goPrevWeek}
-            aria-label="Vorherige Woche"
-          >
-            <ChevronLeft />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={goToday}
-          >
-            Heute
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={goNextWeek}
-            aria-label="Nächste Woche"
-          >
-            <ChevronRight />
-          </Button>
-        </div>
-        <span className="text-sm font-medium">
-          {germanWeekRangeLabel(weekStart)}
-        </span>
-        <div className="grid grid-flow-col grid-rows-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          {LEGEND_ITEMS.map(({ label, swatch }) => (
-            <span
-              key={label}
-              className="flex items-center gap-1.5"
+    <>
+      {/* Desktop: the 7-day drag-to-create grid. Hidden on phones, where the
+          grid would be unreadable and drag fights page scroll. */}
+      <div className="hidden flex-col gap-3 md:flex">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goPrevWeek}
+              aria-label="Vorherige Woche"
             >
-              <span className={cn("size-2.5 shrink-0 rounded-sm", swatch)} />
-              {label}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <div
-        className="overflow-hidden rounded-md border bg-card"
-        ref={gridRef}
-      >
-        <div className="grid grid-cols-[64px_repeat(7,1fr)] border-b bg-muted/40 text-xs">
-          <div />
-          {DAY_LABELS_DE.map((label, weekday) => {
-            const date = addDays(weekStart, weekday);
-            const isToday =
-              formatIsoDateLocal(date) === formatIsoDateLocal(new Date());
-            const dayAssignments = assignmentsByWeekday.get(weekday) ?? [];
-            const dayAbsence = absencesByWeekday.get(weekday) ?? null;
-            const dayHoliday = holidayByWeekday.get(weekday) ?? null;
-            const isoDate = formatIsoDateLocal(date);
-            const dayVertretungen = vertretungenByDate.get(isoDate) ?? [];
-            const daySchedules = schedules.filter((s) => s.weekday === weekday);
-            return (
-              <div
+              <ChevronLeft />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToday}
+            >
+              Heute
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goNextWeek}
+              aria-label="Nächste Woche"
+            >
+              <ChevronRight />
+            </Button>
+          </div>
+          <span className="text-sm font-medium">
+            {germanWeekRangeLabel(weekStart)}
+          </span>
+          <div className="grid grid-flow-col grid-rows-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            {LEGEND_ITEMS.map(({ label, swatch }) => (
+              <span
                 key={label}
-                className={cn(
-                  "flex min-w-0 flex-col items-center gap-1 border-l px-1.5 py-2 first:border-l-0",
-                  isToday && "text-primary",
-                  dayHoliday && "bg-emerald-700/20",
-                )}
+                className="flex items-center gap-1.5"
               >
-                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  {DAY_SHORT_DE[weekday]}
-                </div>
-                <div className="text-sm font-medium">
-                  {date.getDate().toString().padStart(2, "0")}
-                </div>
-                {dayHoliday ? (
-                  <div
-                    className="w-full truncate rounded bg-emerald-700/20 px-1 py-0.5 text-center text-[10px] font-medium text-emerald-900"
-                    title={`${dayHoliday.name ?? "Schulferien"} · bis ${formatDate(dayHoliday.endDate)}`}
-                  >
-                    {dayHoliday.name ?? "Schulferien"}
-                  </div>
-                ) : null}
-                <DayQuickAddSection
-                  weekday={weekday}
-                  date={date}
-                  childId={childId}
-                  assignments={dayAssignments}
-                  absence={dayAbsence}
-                  vertretungen={dayVertretungen}
-                  daySchedules={daySchedules}
-                  schoolAssistantOptions={schoolAssistantOptions}
-                  onChanged={onChanged}
-                />
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="grid grid-cols-[64px_repeat(7,1fr)]">
-          {/* Hours gutter */}
-          <div className="relative">
-            {HOURS.map((h) => (
-              <div
-                key={h}
-                style={{ height: HOUR_HEIGHT }}
-                className="border-b pr-2 text-right text-[11px] text-muted-foreground"
-              >
-                {String(h).padStart(2, "0")}:00
-              </div>
+                <span className={cn("size-2.5 shrink-0 rounded-sm", swatch)} />
+                {label}
+              </span>
             ))}
           </div>
-
-          {DAY_LABELS_DE.map((label, weekday) => {
-            const dayStacked = stacked.filter((e) => e.weekday === weekday);
-            const dateIso = formatIsoDateLocal(addDays(weekStart, weekday));
-            const dayEinsaetze = workEventsByDate.get(dateIso) ?? [];
-            const dayHoliday = holidayByWeekday.get(weekday) ?? null;
-            return (
-              <div
-                key={label}
-                className={cn(
-                  "relative border-l select-none",
-                  dayHoliday && "bg-emerald-700/5",
-                )}
-                onPointerDown={(e) => handlePointerDown(e, weekday)}
-                style={{
-                  height: HOURS.length * HOUR_HEIGHT,
-                  touchAction: "none",
-                }}
-              >
-                {HOURS.map((h) => (
-                  <div
-                    key={h}
-                    style={{ height: HOUR_HEIGHT }}
-                    className="border-b border-border/50"
-                  />
-                ))}
-
-                {dayStacked.map((ev) =>
-                  ev.layer === "schedule" && dayEinsaetze.length > 0 ? (
-                    <ScheduleEinsatzBlock
-                      key={`schedule-einsatz-${ev.id}`}
-                      ev={ev}
-                      col={ev.col}
-                      cols={ev.cols}
-                      einsaetze={dayEinsaetze}
-                      onDelete={() => handleDelete(ev.layer, ev.id)}
-                      onMove={(s, e) => handleMove(ev, s, e)}
-                    />
-                  ) : (
-                    <EventBlock
-                      key={`${ev.layer}-${ev.id}`}
-                      ev={ev}
-                      col={ev.col}
-                      cols={ev.cols}
-                      onDelete={() => handleDelete(ev.layer, ev.id)}
-                      onMove={(s, e) => handleMove(ev, s, e)}
-                    />
-                  ),
-                )}
-
-                {dragSelection && dragSelection.weekday === weekday ? (
-                  <Popover
-                    open={createOpen}
-                    onOpenChange={(next) => {
-                      if (!next) {
-                        setCreateOpen(false);
-                        setDrag(null);
-                      }
-                    }}
-                  >
-                    <PopoverAnchor asChild>
-                      <div
-                        className="pointer-events-none absolute inset-x-1 z-30 rounded border-2 border-sky-500 bg-sky-500/15"
-                        style={{
-                          top:
-                            (dragSelection.startHour - START_HOUR) *
-                            HOUR_HEIGHT,
-                          height: Math.max(
-                            12,
-                            (dragSelection.endHour - dragSelection.startHour) *
-                              HOUR_HEIGHT,
-                          ),
-                        }}
-                      >
-                        <div className="absolute -top-5 left-0 rounded bg-sky-500 px-1.5 py-0.5 text-[10px] font-medium text-white">
-                          {hoursToTime(dragSelection.startHour)}–
-                          {hoursToTime(dragSelection.endHour)}
-                        </div>
-                      </div>
-                    </PopoverAnchor>
-                    <PopoverContent
-                      side="right"
-                      align="start"
-                      sideOffset={8}
-                      collisionPadding={12}
-                      className="w-72 p-3"
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onPointerDownOutside={(e) => e.stopPropagation()}
-                    >
-                      <EventCreateForm
-                        kind="schedule"
-                        childId={childId}
-                        weekStart={weekStart}
-                        weekday={dragSelection.weekday}
-                        startHour={dragSelection.startHour}
-                        endHour={dragSelection.endHour}
-                        schoolAssistantOptions={schoolAssistantOptions}
-                        onSaved={() => {
-                          setCreateOpen(false);
-                          setDrag(null);
-                          onChanged();
-                        }}
-                        onCancel={() => {
-                          setCreateOpen(false);
-                          setDrag(null);
-                        }}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                ) : null}
-              </div>
-            );
-          })}
         </div>
+
+        <div
+          className="overflow-hidden rounded-md border bg-card"
+          ref={gridRef}
+        >
+          <div className="grid grid-cols-[64px_repeat(7,1fr)] border-b bg-muted/40 text-xs">
+            <div />
+            {DAY_LABELS_DE.map((label, weekday) => {
+              const date = addDays(weekStart, weekday);
+              const isToday =
+                formatIsoDateLocal(date) === formatIsoDateLocal(new Date());
+              const dayAssignments = assignmentsByWeekday.get(weekday) ?? [];
+              const dayAbsence = absencesByWeekday.get(weekday) ?? null;
+              const dayHoliday = holidayByWeekday.get(weekday) ?? null;
+              const isoDate = formatIsoDateLocal(date);
+              const dayVertretungen = vertretungenByDate.get(isoDate) ?? [];
+              const daySchedules = schedules.filter(
+                (s) => s.weekday === weekday,
+              );
+              return (
+                <div
+                  key={label}
+                  className={cn(
+                    "flex min-w-0 flex-col items-center gap-1 border-l px-1.5 py-2 first:border-l-0",
+                    isToday && "text-primary",
+                    dayHoliday && "bg-emerald-700/20",
+                  )}
+                >
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    {DAY_SHORT_DE[weekday]}
+                  </div>
+                  <div className="text-sm font-medium">
+                    {date.getDate().toString().padStart(2, "0")}
+                  </div>
+                  {dayHoliday ? (
+                    <div
+                      className="w-full truncate rounded bg-emerald-700/20 px-1 py-0.5 text-center text-[10px] font-medium text-emerald-900"
+                      title={`${dayHoliday.name ?? "Schulferien"} · bis ${formatDate(dayHoliday.endDate)}`}
+                    >
+                      {dayHoliday.name ?? "Schulferien"}
+                    </div>
+                  ) : null}
+                  <DayQuickAddSection
+                    weekday={weekday}
+                    date={date}
+                    childId={childId}
+                    assignments={dayAssignments}
+                    absence={dayAbsence}
+                    vertretungen={dayVertretungen}
+                    daySchedules={daySchedules}
+                    schoolAssistantOptions={schoolAssistantOptions}
+                    onChanged={onChanged}
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-[64px_repeat(7,1fr)]">
+            {/* Hours gutter */}
+            <div className="relative">
+              {HOURS.map((h) => (
+                <div
+                  key={h}
+                  style={{ height: HOUR_HEIGHT }}
+                  className="border-b pr-2 text-right text-[11px] text-muted-foreground"
+                >
+                  {String(h).padStart(2, "0")}:00
+                </div>
+              ))}
+            </div>
+
+            {DAY_LABELS_DE.map((label, weekday) => {
+              const dayStacked = stacked.filter((e) => e.weekday === weekday);
+              const dateIso = formatIsoDateLocal(addDays(weekStart, weekday));
+              const dayEinsaetze = workEventsByDate.get(dateIso) ?? [];
+              const dayHoliday = holidayByWeekday.get(weekday) ?? null;
+              return (
+                <div
+                  key={label}
+                  className={cn(
+                    "relative border-l select-none",
+                    dayHoliday && "bg-emerald-700/5",
+                  )}
+                  onPointerDown={(e) => handlePointerDown(e, weekday)}
+                  style={{
+                    height: HOURS.length * HOUR_HEIGHT,
+                    touchAction: "none",
+                  }}
+                >
+                  {HOURS.map((h) => (
+                    <div
+                      key={h}
+                      style={{ height: HOUR_HEIGHT }}
+                      className="border-b border-border/50"
+                    />
+                  ))}
+
+                  {dayStacked.map((ev) =>
+                    ev.layer === "schedule" && dayEinsaetze.length > 0 ? (
+                      <ScheduleEinsatzBlock
+                        key={`schedule-einsatz-${ev.id}`}
+                        ev={ev}
+                        col={ev.col}
+                        cols={ev.cols}
+                        einsaetze={dayEinsaetze}
+                        onDelete={() => handleDelete(ev.layer, ev.id)}
+                        onMove={(s, e) => handleMove(ev, s, e)}
+                      />
+                    ) : (
+                      <EventBlock
+                        key={`${ev.layer}-${ev.id}`}
+                        ev={ev}
+                        col={ev.col}
+                        cols={ev.cols}
+                        onDelete={() => handleDelete(ev.layer, ev.id)}
+                        onMove={(s, e) => handleMove(ev, s, e)}
+                      />
+                    ),
+                  )}
+
+                  {dayStacked.length === 0 &&
+                    dayEinsaetze.map((e) => {
+                      if (!e.startTime || !e.endTime) return null;
+                      const startHour = clampHours(parseTime(e.startTime));
+                      const endHour = clampHours(parseTime(e.endTime));
+                      const top = (startHour - START_HOUR) * HOUR_HEIGHT;
+                      const height = Math.max(
+                        20,
+                        (endHour - startHour) * HOUR_HEIGHT,
+                      );
+                      return (
+                        <div
+                          key={e.id}
+                          className="absolute inset-x-1 z-10 flex flex-col gap-0.5 overflow-hidden rounded border border-amber-500/40 bg-amber-500/15 px-1.5 py-1 text-[11px] leading-tight text-amber-900"
+                          style={{ top, height }}
+                        >
+                          <span className="text-[9px] font-semibold uppercase tracking-wide opacity-50">
+                            Einsatz
+                          </span>
+                          <div className="truncate font-medium">
+                            {e.userName}
+                          </div>
+                          <span className="font-semibold">
+                            {e.startTime}–{e.endTime}
+                          </span>
+                        </div>
+                      );
+                    })}
+
+                  {dragSelection && dragSelection.weekday === weekday ? (
+                    <Popover
+                      open={createOpen}
+                      onOpenChange={(next) => {
+                        if (!next) {
+                          setCreateOpen(false);
+                          setDrag(null);
+                        }
+                      }}
+                    >
+                      <PopoverAnchor asChild>
+                        <div
+                          className="pointer-events-none absolute inset-x-1 z-30 rounded border-2 border-sky-500 bg-sky-500/15"
+                          style={{
+                            top:
+                              (dragSelection.startHour - START_HOUR) *
+                              HOUR_HEIGHT,
+                            height: Math.max(
+                              12,
+                              (dragSelection.endHour -
+                                dragSelection.startHour) *
+                                HOUR_HEIGHT,
+                            ),
+                          }}
+                        >
+                          <div className="absolute -top-5 left-0 rounded bg-sky-500 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                            {hoursToTime(dragSelection.startHour)}–
+                            {hoursToTime(dragSelection.endHour)}
+                          </div>
+                        </div>
+                      </PopoverAnchor>
+                      <PopoverContent
+                        side="right"
+                        align="start"
+                        sideOffset={8}
+                        collisionPadding={12}
+                        className="w-72 p-3"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onPointerDownOutside={(e) => e.stopPropagation()}
+                      >
+                        <EventCreateForm
+                          kind="schedule"
+                          childId={childId}
+                          weekStart={weekStart}
+                          weekday={dragSelection.weekday}
+                          startHour={dragSelection.startHour}
+                          endHour={dragSelection.endHour}
+                          schoolAssistantOptions={schoolAssistantOptions}
+                          onSaved={() => {
+                            setCreateOpen(false);
+                            setDrag(null);
+                            onChanged();
+                          }}
+                          onCancel={() => {
+                            setCreateOpen(false);
+                            setDrag(null);
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          Tipp: Klicke und ziehe in der Wochenansicht, um einen neuen Eintrag
+          für <strong>{childLabel}</strong> anzulegen.
+        </p>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        Tipp: Klicke und ziehe in der Wochenansicht, um einen neuen Eintrag für{" "}
-        <strong>{childLabel}</strong> anzulegen.
-      </p>
-    </div>
+      {/* Mobile: week strip + single-day agenda with full create/edit. */}
+      <div className="md:hidden">
+        <CalendarMobileView
+          childId={childId}
+          weekStart={weekStart}
+          onPrevWeek={goPrevWeek}
+          onNextWeek={goNextWeek}
+          onToday={goToday}
+          schedules={schedules}
+          assignments={assignments}
+          absences={absences}
+          vertretungen={vertretungen}
+          workEventsByDate={workEventsByDate}
+          schoolAssistantOptions={schoolAssistantOptions}
+          onChanged={onChanged}
+        />
+      </div>
+    </>
   );
 }

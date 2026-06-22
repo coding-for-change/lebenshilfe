@@ -123,6 +123,43 @@ export async function insertSickEvent(args: {
   });
 }
 
+export async function insertIndirectEvent(args: {
+  userId: string;
+  childId: string;
+  date: Date;
+  startTime: string;
+  endTime: string;
+  note: string;
+  signatureKey: string;
+}) {
+  return prisma.event.create({
+    data: {
+      userId: args.userId,
+      childId: args.childId,
+      type: EventType.INDIRECT,
+      date: args.date,
+      startTime: args.startTime,
+      endTime: args.endTime,
+      note: args.note,
+      signatureKey: args.signatureKey,
+    },
+  });
+}
+
+export async function getEventsForChildInRange(
+  childId: string,
+  start: Date,
+  endExclusive: Date,
+) {
+  return prisma.event.findMany({
+    where: { childId, date: { gte: start, lt: endExclusive } },
+    include: {
+      user: { select: { id: true, name: true } },
+    },
+    orderBy: [{ date: "asc" }, { startTime: "asc" }],
+  });
+}
+
 export async function findEventById(id: string) {
   return prisma.event.findUnique({ where: { id } });
 }

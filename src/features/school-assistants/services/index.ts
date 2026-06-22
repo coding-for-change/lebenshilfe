@@ -89,10 +89,19 @@ export async function updateProfilePartial(args: {
         });
       }
     }
-    return tx.schoolAssistantProfile.update({
+    const updated = await tx.schoolAssistantProfile.update({
       where: { id: args.profileId },
       data: args.patch,
     });
+    // Keep the linked User.name in sync so assignments, vertretungen and
+    // work events (which read user.name via relations) reflect the rename.
+    if (args.patch.name !== undefined && updated.userId) {
+      await tx.user.update({
+        where: { id: updated.userId },
+        data: { name: args.patch.name },
+      });
+    }
+    return updated;
   });
 }
 

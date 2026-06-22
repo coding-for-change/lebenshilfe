@@ -17,9 +17,17 @@ import {
 import { WeekStrip } from "./week-strip";
 import { deleteEventAction } from "../actions";
 import { cancelChildSickAction } from "@/features/children/actions";
+import {
+  deleteOwnVertretungAction,
+  deleteOwnVertretungRequestAction,
+} from "@/features/vertretung-requests/actions";
 import type { Event, Schedule } from "@/generated/prisma";
 import type { ChildOption } from "./children-filter";
-import type { ChildAbsenceItem, VertretungDay } from "./timesheet-shell";
+import type {
+  ChildAbsenceItem,
+  PendingVertretungRequestItem,
+  VertretungDay,
+} from "./timesheet-shell";
 import { childIdsForDate } from "../weekday";
 import type { AssignmentsByWeekday } from "../weekday";
 
@@ -40,6 +48,7 @@ type Props = {
   schedules: Schedule[];
   assignmentsByWeekday: AssignmentsByWeekday;
   substituteOn?: VertretungDay[];
+  pendingVertretungRequests?: PendingVertretungRequestItem[];
 };
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -57,6 +66,7 @@ export function TabDay({
   schedules,
   assignmentsByWeekday,
   substituteOn = [],
+  pendingVertretungRequests = [],
 }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -125,6 +135,7 @@ export function TabDay({
         childId: string;
         childName: string;
         timeBlocks: { startTime: string; endTime: string }[];
+        sbRequestId: string | null;
       }
     >();
     for (const v of blocks) {
@@ -133,17 +144,47 @@ export function TabDay({
           childId: v.childId,
           childName: v.childName,
           timeBlocks: [],
+          sbRequestId: v.sbRequestId ?? null,
         });
       }
-      map
-        .get(v.childId)!
-        .timeBlocks.push({ startTime: v.startTime, endTime: v.endTime });
+      const entry = map.get(v.childId)!;
+      entry.timeBlocks.push({ startTime: v.startTime, endTime: v.endTime });
+      if (v.sbRequestId) entry.sbRequestId = v.sbRequestId;
     }
     for (const entry of map.values()) {
       entry.timeBlocks.sort((a, b) => a.startTime.localeCompare(b.startTime));
     }
     return Array.from(map.values());
   }, [substituteOn, selectedDateIso]);
+
+  const dayPendingRequests = useMemo(
+    () => pendingVertretungRequests.filter((r) => r.date === selectedDateIso),
+    [pendingVertretungRequests, selectedDateIso],
+  );
+
+  const handleDeleteRequest = async (id: string) => {
+    setBusyId(id);
+    try {
+      await deleteOwnVertretungRequestAction(id);
+      toast.success("Antrag gelöscht.");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Löschen fehlgeschlagen.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleDeleteVertretung = async (sbRequestId: string) => {
+    setBusyId(sbRequestId);
+    try {
+      await deleteOwnVertretungAction(sbRequestId);
+      toast.success("Vertretung gelöscht.");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Löschen fehlgeschlagen.");
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const sickEvent = dayEvents.find((e) => e.type === "SICK");
   const workEvents = dayEvents.filter(
@@ -327,9 +368,51 @@ export function TabDay({
                   .join(", ")}
               </p>
             </div>
+            {g.sbRequestId && !locked && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleDeleteVertretung(g.sbRequestId!)}
+                disabled={busyId === g.sbRequestId}
+                className="text-muted-foreground"
+              >
+                Löschen
+              </Button>
+            )}
           </div>
         </Card>
       ))}
+
+      {dayPendingRequests
+        .filter((r) => r.status === "PENDING")
+        .map((req) => (
+          <Card
+            key={req.id}
+            className="border-amber-200 bg-amber-500/5 p-4"
+          >
+            <div className="flex items-start gap-3">
+              <div className="grid place-items-center size-10 shrink-0 rounded-full bg-amber-500/15 text-amber-700">
+                <UserCheck className="size-5" />
+              </div>
+              <div className="flex-1 space-y-0.5">
+                <p className="font-semibold text-amber-900">Vertretung</p>
+                <p className="text-sm text-amber-900/80">{req.childNameText}</p>
+                <p className="font-mono text-xs text-amber-700">
+                  {req.startTime}–{req.endTime}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleDeleteRequest(req.id)}
+                disabled={busyId === req.id}
+                className="text-muted-foreground"
+              >
+                Löschen
+              </Button>
+            </div>
+          </Card>
+        ))}
 
       {sickEvent && (
         <Card className="border-rose-200 bg-rose-500/10 p-4">
@@ -450,16 +533,7 @@ export function TabDay({
         </Card>
       )}
 
-      {!locked && dayEvents.length > 0 && (
-        <Button
-          onClick={onRequestNewEntry}
-          className="fixed bottom-24 right-4 size-14 rounded-full shadow-lg sm:bottom-6"
-          aria-label="Neuer Eintrag"
-        >
-          <Plus className="size-6" />
-        </Button>
-      )}
-      {!locked && dayEvents.length === 0 && (
+      {!locked && (
         <Button
           onClick={onRequestNewEntry}
           className="fixed bottom-24 right-4 size-14 rounded-full shadow-lg sm:bottom-6"

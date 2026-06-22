@@ -60,6 +60,19 @@ export type VertretungDay = {
   childName: string;
   startTime: string;
   endTime: string;
+  /** When set, this Vertretung was created by the SB via free-text (auto-matched
+   *  or admin-resolved). The id points at the originating PendingVertretungRequest
+   *  so the SB can fully undo it from the dashboard. */
+  sbRequestId?: string | null;
+};
+
+export type PendingVertretungRequestItem = {
+  id: string;
+  date: string; // YYYY-MM-DD
+  childNameText: string;
+  startTime: string;
+  endTime: string;
+  status: "PENDING" | "RESOLVED";
 };
 
 type Props = {
@@ -72,6 +85,8 @@ type Props = {
   assignmentsByWeekday: AssignmentsByWeekday;
   /** Days this user steps in as substitute Schulbegleiter. */
   substituteOn?: VertretungDay[];
+  /** Own pending Vertretung requests (submitted but not yet resolved by admin). */
+  pendingVertretungRequests?: PendingVertretungRequestItem[];
 };
 
 const NAV_ITEMS: Array<{
@@ -103,6 +118,7 @@ export function SchoolAssistantApp({
   childAbsences,
   assignmentsByWeekday,
   substituteOn = [],
+  pendingVertretungRequests = [],
 }: Props) {
   const today = useMemo(() => startOfDayUtc(new Date()), []);
   const [activeTab, setActiveTab] = useState<Exclude<TabId, "mehr">>("tag");
@@ -138,17 +154,6 @@ export function SchoolAssistantApp({
     setActiveTab(id);
   };
 
-  const lastWorkEntry = useMemo(() => {
-    const work = events.filter(
-      (e) => e.type === "WORK" && e.startTime && e.endTime,
-    );
-    if (work.length === 0) return null;
-    const sorted = [...work].sort(
-      (a, b) => b.date.getTime() - a.date.getTime(),
-    );
-    return sorted[0];
-  }, [events]);
-
   // Work entries an admin created or edited on the Schulbegleiter's behalf are
   // stored without a signatureKey. They await the Schulbegleiter's confirming
   // signature (soft-deleted originals are already filtered server-side).
@@ -178,6 +183,7 @@ export function SchoolAssistantApp({
             schedules={schedules}
             assignmentsByWeekday={assignmentsByWeekday}
             substituteOn={substituteOn}
+            pendingVertretungRequests={pendingVertretungRequests}
           />
         );
       case "woche":
@@ -371,14 +377,7 @@ export function SchoolAssistantApp({
           currentUserName={currentUser.name}
           schedules={schedules}
           substituteOn={substituteOn}
-          lastEntry={
-            lastWorkEntry
-              ? {
-                  startTime: lastWorkEntry.startTime ?? null,
-                  endTime: lastWorkEntry.endTime ?? null,
-                }
-              : null
-          }
+          events={events}
         />
 
         <SettingsDialog

@@ -424,6 +424,35 @@ export function KinderWeekCalendar({
                     ),
                   )}
 
+                  {dayStacked.length === 0 &&
+                    dayEinsaetze.map((e) => {
+                      if (!e.startTime || !e.endTime) return null;
+                      const startHour = clampHours(parseTime(e.startTime));
+                      const endHour = clampHours(parseTime(e.endTime));
+                      const top = (startHour - START_HOUR) * HOUR_HEIGHT;
+                      const height = Math.max(
+                        20,
+                        (endHour - startHour) * HOUR_HEIGHT,
+                      );
+                      return (
+                        <div
+                          key={e.id}
+                          className="absolute inset-x-1 z-10 flex flex-col gap-0.5 overflow-hidden rounded border border-amber-500/40 bg-amber-500/15 px-1.5 py-1 text-[11px] leading-tight text-amber-900"
+                          style={{ top, height }}
+                        >
+                          <span className="text-[9px] font-semibold uppercase tracking-wide opacity-50">
+                            Einsatz
+                          </span>
+                          <div className="truncate font-medium">
+                            {e.userName}
+                          </div>
+                          <span className="font-semibold">
+                            {e.startTime}–{e.endTime}
+                          </span>
+                        </div>
+                      );
+                    })}
+
                   {dragSelection && dragSelection.weekday === weekday ? (
                     <Popover
                       open={createOpen}

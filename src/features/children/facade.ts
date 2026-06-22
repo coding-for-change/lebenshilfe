@@ -115,7 +115,7 @@ export const ChildrenFacade = {
   },
 
   // Search children currently assigned to a given Schulbegleiter (used by the
-  // timesheet entry form to pick a child for Einspringen/indirect work).
+  // timesheet entry form to pick a child for indirect work).
   async searchAssignedChildren(userId: string, query: string) {
     return searchAssignedChildrenByName(userId, query);
   },

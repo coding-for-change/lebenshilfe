@@ -1,4 +1,8 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 
 const endpoint = process.env.S3_ENDPOINT;
 const accessKeyId = process.env.S3_ACCESS_KEY_ID;
@@ -43,4 +47,16 @@ export async function uploadSignaturePng(key: string, dataUrlOrBase64: string) {
     }),
   );
   return key;
+}
+
+/** Downloads an object from S3 and returns its raw bytes. */
+export async function downloadObject(key: string): Promise<Buffer> {
+  const response = await getClient().send(
+    new GetObjectCommand({ Bucket: getBucketName(), Key: key }),
+  );
+  if (!response.Body) {
+    throw new Error(`S3-Objekt nicht gefunden: ${key}`);
+  }
+  const bytes = await response.Body.transformToByteArray();
+  return Buffer.from(bytes);
 }

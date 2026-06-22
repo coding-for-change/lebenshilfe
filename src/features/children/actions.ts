@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin, requireAuth } from "@/lib/auth-guards";
+import { downloadObject } from "@/lib/storage";
 import { ChildrenFacade } from "./facade";
 import type {
   AbsenceInput,
@@ -117,6 +118,24 @@ export async function deleteAbsenceAction(id: string) {
 export async function listWorkEventsForChildAction(childId: string) {
   await requireAdmin();
   const events = await ChildrenFacade.listWorkEventsForChild(childId);
+
+  // Fetch each signed event's signature once, in parallel; failed/missing
+  // fetches just leave the row without an image rather than aborting the
+  // whole load.
+  const signaturesByEventId = new Map<string, string>();
+  await Promise.all(
+    events
+      .filter((e) => e.signatureKey)
+      .map(async (e) => {
+        try {
+          const bytes = await downloadObject(e.signatureKey!);
+          signaturesByEventId.set(e.id, bytes.toString("base64"));
+        } catch {
+          // skip
+        }
+      }),
+  );
+
   return events.map((e) => ({
     id: e.id,
     date: e.date.toISOString().slice(0, 10),
@@ -128,6 +147,7 @@ export async function listWorkEventsForChildAction(childId: string) {
     userId: e.userId,
     deleted: e.deleted,
     signed: !!e.signatureKey,
+    signatureBase64: signaturesByEventId.get(e.id) ?? null,
   }));
 }
 

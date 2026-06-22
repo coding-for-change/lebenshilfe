@@ -126,6 +126,14 @@ model Child {
   leosOne                    Boolean           @default(false)
   bescheid                   String?           @db.Text
   sbIb                       String?
+  approvedDirectHours        Decimal?          @db.Decimal(6, 2)
+  approvedIndirectHours      Decimal?          @db.Decimal(6, 2)
+  // Billing convention: extend the direct-service time in the Kostenträger
+  // export by a quarter hour before/after. Invisible elsewhere (Einträge,
+  // Historie). `ausflugSchullandheim` is an informational flag only.
+  vorviertelstunde           Boolean           @default(false)
+  nachviertelstunde          Boolean           @default(false)
+  ausflugSchullandheim       Boolean           @default(false)
   schweigepflichtsentbindung Boolean           @default(false)
   bemerkung                  String?           @db.Text
   schoolName                 String?

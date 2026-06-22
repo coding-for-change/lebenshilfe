@@ -32,27 +32,27 @@ enum PendingVertretungStatus {
 }
 
 model User {
-  id            String    @id
-  name          String
-  email         String
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  role          Role      @default(SCHOOL_ASSISTANT)
-  banned        Boolean?  @default(false)
-  banReason     String?
-  banExpires    DateTime?
-  sessions      Session[]
-  accounts      Account[]
-  assignments   ChildAssignment[]
-  events        Event[]
-  monthlyReports MonthlyReport[]
-  profile       SchoolAssistantProfile?
-  vertretungenAsSubstitute    ChildVertretung[]            @relation("SubstituteVertretung")
-  createdChildAbsences        ChildAbsence[]               @relation("ChildAbsenceCreator")
-  pendingVertretungRequests   PendingVertretungRequest[]   @relation("PendingVertretungSubstitute")
-  resolvedVertretungRequests  PendingVertretungRequest[]   @relation("PendingVertretungResolver")
+  id                         String                     @id
+  name                       String
+  email                      String
+  emailVerified              Boolean                    @default(false)
+  image                      String?
+  createdAt                  DateTime                   @default(now())
+  updatedAt                  DateTime                   @updatedAt
+  role                       Role                       @default(SCHOOL_ASSISTANT)
+  banned                     Boolean?                   @default(false)
+  banReason                  String?
+  banExpires                 DateTime?
+  sessions                   Session[]
+  accounts                   Account[]
+  assignments                ChildAssignment[]
+  events                     Event[]
+  monthlyReports             MonthlyReport[]
+  profile                    SchoolAssistantProfile?
+  vertretungenAsSubstitute   ChildVertretung[]          @relation("SubstituteVertretung")
+  createdChildAbsences       ChildAbsence[]             @relation("ChildAbsenceCreator")
+  pendingVertretungRequests  PendingVertretungRequest[] @relation("PendingVertretungSubstitute")
+  resolvedVertretungRequests PendingVertretungRequest[] @relation("PendingVertretungResolver")
 
   @@unique([email])
   @@map("user")
@@ -121,37 +121,40 @@ model Invitation {
 }
 
 model Child {
-  id                         String            @id @default(cuid())
+  id                         String                     @id @default(cuid())
   firstName                  String
   lastName                   String
-  leosOne                    Boolean           @default(false)
-  bescheid                   String?           @db.Text
+  leosOne                    Boolean                    @default(false)
+  bescheid                   String?                    @db.Text
   sbIb                       String?
-  approvedDirectHours        Decimal?          @db.Decimal(6, 2)
-  approvedIndirectHours      Decimal?          @db.Decimal(6, 2)
+  approvedDirectHours        Decimal?                   @db.Decimal(6, 2)
+  approvedIndirectHours      Decimal?                   @db.Decimal(6, 2)
   // Billing convention: extend the direct-service time in the Kostenträger
   // export by a quarter hour before/after. Invisible elsewhere (Einträge,
   // Historie). `ausflugSchullandheim` is an informational flag only.
-  vorviertelstunde           Boolean           @default(false)
-  nachviertelstunde          Boolean           @default(false)
-  ausflugSchullandheim       Boolean           @default(false)
-  schweigepflichtsentbindung Boolean           @default(false)
-  bemerkung                  String?           @db.Text
+  vorviertelstunde           Boolean                    @default(false)
+  nachviertelstunde          Boolean                    @default(false)
+  ausflugSchullandheim       Boolean                    @default(false)
+  schweigepflichtsentbindung Boolean                    @default(false)
+  bemerkung                  String?                    @db.Text
   schoolId                   String?
   kostentraegerId            String?
-  createdAt                  DateTime          @default(now())
-  updatedAt                  DateTime          @updatedAt
-  kostentraeger              Kostentraeger?    @relation(fields: [kostentraegerId], references: [id], onDelete: SetNull)
-  school                     School?           @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  poolId                     String?
+  createdAt                  DateTime                   @default(now())
+  updatedAt                  DateTime                   @updatedAt
+  kostentraeger              Kostentraeger?             @relation(fields: [kostentraegerId], references: [id], onDelete: SetNull)
+  school                     School?                    @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  pool                       Pool?                      @relation(fields: [poolId], references: [id], onDelete: SetNull)
   assignments                ChildAssignment[]
   schedules                  Schedule[]
   events                     Event[]
-  absences                    ChildAbsence[]
-  vertretungen                ChildVertretung[]
-  pendingVertretungRequests   PendingVertretungRequest[]
+  absences                   ChildAbsence[]
+  vertretungen               ChildVertretung[]
+  pendingVertretungRequests  PendingVertretungRequest[]
 
   @@index([kostentraegerId])
   @@index([schoolId])
+  @@index([poolId])
   @@map("child")
 }
 
@@ -166,6 +169,7 @@ model School {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   children      Child[]
+  pools         Pool[]
   holidayPlan   HolidayPlan? @relation(fields: [holidayPlanId], references: [id], onDelete: SetNull)
 
   @@index([holidayPlanId])
@@ -242,8 +246,27 @@ model Kostentraeger {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   children  Child[]
+  pools     Pool[]
 
   @@map("kostentraeger")
+}
+
+model Pool {
+  id              String                   @id @default(cuid())
+  name            String
+  schoolId        String
+  kostentraegerId String
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  school          School                   @relation(fields: [schoolId], references: [id])
+  kostentraeger   Kostentraeger            @relation(fields: [kostentraegerId], references: [id])
+  children        Child[]
+  assistants      SchoolAssistantProfile[]
+  events          Event[]
+
+  @@index([schoolId])
+  @@index([kostentraegerId])
+  @@map("pool")
 }
 
 model ChildAbsence {
@@ -277,13 +300,14 @@ model Schedule {
 model Event {
   id              String    @id @default(cuid())
   childId         String?
+  poolId          String?
   userId          String
   type            EventType
   date            DateTime  @db.Date
   startTime       String?
   endTime         String?
   note            String?   @db.Text
-  signatureKey    String?   // !null -> by school assistant, null -> by admin
+  signatureKey    String? // !null -> by school assistant, null -> by admin
   deleted         Boolean   @default(false) // soft delete only for signed events; admin-created events are hard deleted
   // Set when an admin edits a signed event: the new (unsigned) row points at
   // the soft-deleted original. Lets `restore` undo the edit by also removing
@@ -292,12 +316,14 @@ model Event {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   child           Child?    @relation(fields: [childId], references: [id])
+  pool            Pool?     @relation(fields: [poolId], references: [id], onDelete: SetNull)
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   replaces        Event?    @relation("EventReplacement", fields: [replacesEventId], references: [id], onDelete: SetNull)
   replacedBy      Event[]   @relation("EventReplacement")
 
   @@index([userId, date])
   @@index([childId, date])
+  @@index([poolId, date])
   @@index([replacesEventId])
   @@map("event")
 }
@@ -328,12 +354,15 @@ model SchoolAssistantProfile {
   zvNeuNachBescheid Boolean              @default(false)
   zvNeuNote         String?              @db.Text
   introductionDay   DateTime?            @db.Date
+  poolId            String?
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
   user              User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pool              Pool?                @relation(fields: [poolId], references: [id], onDelete: SetNull)
   attendances       WorkshopAttendance[]
 
   @@index([status])
+  @@index([poolId])
   @@map("school_assistant_profile")
 }
 

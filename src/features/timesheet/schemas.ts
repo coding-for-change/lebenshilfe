@@ -156,3 +156,32 @@ export const CreateIndirectByNameSchema = z
 export type CreateIndirectByNameInput = z.infer<
   typeof CreateIndirectByNameSchema
 >;
+
+// Pool work entry: the SB records only when they were active, not for which
+// child. No childId; one WORK Event is stored against the SB's pool.
+export const CreatePoolWorkEventSchema = z
+  .object({
+    date: dateStringSchema,
+    startTime: timeStringSchema,
+    endTime: timeStringSchema,
+    note: z.string().max(2000).optional(),
+    signaturePngBase64: signatureSchema,
+  })
+  .superRefine((val, ctx) => {
+    if (isWeekend(val.date))
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["date"],
+        message: "Reguläre Arbeit ist nur an Werktagen möglich.",
+      });
+    if (!(val.endTime > val.startTime))
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["endTime"],
+        message: "Ende muss nach Start liegen.",
+      });
+  });
+
+export type CreatePoolWorkEventInput = z.infer<
+  typeof CreatePoolWorkEventSchema
+>;

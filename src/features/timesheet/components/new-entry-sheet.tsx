@@ -25,7 +25,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { EventType, type Event, type Schedule } from "@/generated/prisma";
 import { SignaturePadDialog } from "./signature-pad-dialog";
-import { createEventAction, createIndirectEventByNameAction } from "../actions";
+import {
+  createEventAction,
+  createIndirectEventByNameAction,
+  createPoolWorkEventAction,
+} from "../actions";
 import { reportChildSickAction } from "@/features/children/actions";
 import { createVertretungRequestAction } from "@/features/vertretung-requests/actions";
 import {
@@ -60,6 +64,8 @@ type Props = {
   substituteOn?: VertretungDay[];
   /** Existing events — used to hide Vertretungen that already have an Eintrag. */
   events?: EventLike[];
+  /** Pool SB: only Direkt work + own sick, no child selection. */
+  inPool?: boolean;
 };
 
 export function NewEntrySheet({
@@ -72,6 +78,7 @@ export function NewEntrySheet({
   schedules,
   substituteOn = [],
   events = [],
+  inPool = false,
 }: Props) {
   const [type, setType] = useState<EventType>(EventType.WORK);
   const [workVariant, setWorkVariant] = useState<WorkVariant>("OWN");
@@ -191,6 +198,7 @@ export function NewEntrySheet({
     }
     if (workVariant === "OWN") {
       if (dateIsWeekend) return false;
+      if (inPool) return Boolean(duration);
       return childIds.length >= 1 && Boolean(duration);
     }
     // INDIRECT
@@ -209,6 +217,7 @@ export function NewEntrySheet({
     duration,
     indirectChildName,
     note,
+    inPool,
   ]);
 
   const toggleChild = (id: string) => {
@@ -271,6 +280,15 @@ export function NewEntrySheet({
           signaturePngBase64: pngBase64,
         });
         toast.success("Krankheit gespeichert");
+      } else if (workVariant === "OWN" && inPool) {
+        await createPoolWorkEventAction({
+          date,
+          startTime,
+          endTime,
+          note: note.trim() || undefined,
+          signaturePngBase64: pngBase64,
+        });
+        toast.success("Eintrag gespeichert");
       } else if (workVariant === "OWN") {
         await createEventAction({
           type: EventType.WORK,
@@ -508,40 +526,45 @@ export function NewEntrySheet({
 
             {type === EventType.WORK && (
               <>
-                <div className="grid grid-cols-3 gap-1.5">
-                  <Button
-                    type="button"
-                    variant={workVariant === "OWN" ? "default" : "outline"}
-                    onClick={() => setWorkVariant("OWN")}
-                    className="h-10 text-xs sm:text-sm"
-                  >
-                    <Briefcase className="size-3.5" /> Direkt
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={
-                      workVariant === "VERTRETUNG" ? "default" : "outline"
-                    }
-                    onClick={() => setWorkVariant("VERTRETUNG")}
-                    className={cn(
-                      "h-10 text-xs sm:text-sm",
-                      workVariant === "VERTRETUNG" &&
-                        "bg-amber-600 hover:bg-amber-700 text-white",
-                    )}
-                  >
-                    <UserPlus className="size-3.5" /> Vertretung
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={workVariant === "INDIRECT" ? "default" : "outline"}
-                    onClick={() => setWorkVariant("INDIRECT")}
-                    className="h-10 text-xs sm:text-sm"
-                  >
-                    <FileText className="size-3.5" /> Indirekt
-                  </Button>
-                </div>
+                {!inPool && (
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <Button
+                      type="button"
+                      variant={workVariant === "OWN" ? "default" : "outline"}
+                      onClick={() => setWorkVariant("OWN")}
+                      className="h-10 text-xs sm:text-sm"
+                    >
+                      <Briefcase className="size-3.5" /> Direkt
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={
+                        workVariant === "VERTRETUNG" ? "default" : "outline"
+                      }
+                      onClick={() => setWorkVariant("VERTRETUNG")}
+                      className={cn(
+                        "h-10 text-xs sm:text-sm",
+                        workVariant === "VERTRETUNG" &&
+                          "bg-amber-600 hover:bg-amber-700 text-white",
+                      )}
+                    >
+                      <UserPlus className="size-3.5" /> Vertretung
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={
+                        workVariant === "INDIRECT" ? "default" : "outline"
+                      }
+                      onClick={() => setWorkVariant("INDIRECT")}
+                      className="h-10 text-xs sm:text-sm"
+                    >
+                      <FileText className="size-3.5" /> Indirekt
+                    </Button>
+                  </div>
+                )}
 
-                {workVariant === "OWN" &&
+                {!inPool &&
+                  workVariant === "OWN" &&
                   (dayAssignedChildren.length === 0 ? (
                     <p className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
                       An diesem Tag ist dir kein Kind zugewiesen.

@@ -82,6 +82,7 @@ export type SerializedChild = {
   bemerkung: string | null;
   school: SerializedChildSchool | null;
   costBearer: SerializedCostBearer | null;
+  pool: { id: string; name: string } | null;
   assignments: SerializedAssignment[];
   schedules: SerializedSchedule[];
   absences: SerializedAbsence[];
@@ -129,6 +130,7 @@ export function serializeChild(c: ChildWithRelations): SerializedChild {
           address: c.kostentraeger.address,
         }
       : null,
+    pool: c.pool ? { id: c.pool.id, name: c.pool.name } : null,
     assignments: c.assignments.map((a) => ({
       id: a.id,
       userId: a.userId,

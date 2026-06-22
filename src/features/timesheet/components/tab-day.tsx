@@ -16,6 +16,7 @@ import {
 } from "@/lib/dates";
 import { WeekStrip } from "./week-strip";
 import { deleteEventAction } from "../actions";
+import { cancelChildSickAction } from "@/features/children/actions";
 import {
   deleteOwnVertretungAction,
   deleteOwnVertretungRequestAction,
@@ -35,6 +36,7 @@ type EventWithChild = Event & {
 };
 
 type Props = {
+  currentUserId: string;
   selectedDate: Date;
   today: Date;
   onSelectDate: (d: Date) => void;
@@ -52,6 +54,7 @@ type Props = {
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export function TabDay({
+  currentUserId,
   selectedDate,
   today,
   onSelectDate,
@@ -270,21 +273,50 @@ export function TabDay({
                   ? `${dayAbsences[0].child.firstName} ${dayAbsences[0].child.lastName} ist krank gemeldet`
                   : `${dayAbsences.length} zugewiesene Kinder sind krank gemeldet`}
               </p>
-              {dayAbsences.length > 1 && (
-                <ul className="text-sm text-rose-900/80">
-                  {dayAbsences.map((a) => (
-                    <li key={a.childId}>
-                      {a.child.firstName} {a.child.lastName}
-                      {a.note ? ` — ${a.note}` : ""}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {dayAbsences.length === 1 && dayAbsences[0].note && (
-                <p className="text-sm text-rose-900/80">
-                  {dayAbsences[0].note}
-                </p>
-              )}
+              {dayAbsences.map((a) => {
+                const canCancel =
+                  a.createdByUserId === currentUserId &&
+                  isSameUtcDay(today, new Date());
+                return (
+                  <div
+                    key={a.childId}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="text-sm text-rose-900/80">
+                      {dayAbsences.length > 1 &&
+                        `${a.child.firstName} ${a.child.lastName}`}
+                      {a.note
+                        ? `${dayAbsences.length > 1 ? " — " : ""}${a.note}`
+                        : ""}
+                    </span>
+                    {canCancel && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="shrink-0 text-rose-700 hover:text-rose-900 hover:bg-rose-500/10"
+                        disabled={busyId === a.id}
+                        onClick={async () => {
+                          setBusyId(a.id);
+                          try {
+                            await cancelChildSickAction(a.id);
+                            toast.success("Krankmeldung zurückgenommen.");
+                          } catch (e: unknown) {
+                            toast.error(
+                              e instanceof Error
+                                ? e.message
+                                : "Rücknahme fehlgeschlagen.",
+                            );
+                          } finally {
+                            setBusyId(null);
+                          }
+                        }}
+                      >
+                        Zurücknehmen
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </Card>

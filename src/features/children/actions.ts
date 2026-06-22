@@ -227,3 +227,50 @@ export async function deleteVertretungAction(childId: string, date: string) {
   revalidatePath(ROUTE);
   return { success: true as const };
 }
+
+export async function reportChildSickAction(input: {
+  childId: string;
+  date: string;
+  note?: string;
+}) {
+  const { id: userId } = await requireAuth();
+  const date = new Date(`${input.date}T00:00:00.000Z`);
+
+  await ChildrenFacade.assertChildrenAccessForUser(
+    userId,
+    [input.childId],
+    date,
+  );
+
+  await ChildrenFacade.saveAbsence(
+    { childId: input.childId, date: input.date, note: input.note },
+    userId,
+  );
+
+  revalidatePath("/");
+  return { success: true as const };
+}
+
+export async function cancelChildSickAction(absenceId: string) {
+  const { id: userId } = await requireAuth();
+
+  const absence = await ChildrenFacade.getAbsenceByIdForCreator(
+    absenceId,
+    userId,
+  );
+  if (!absence) {
+    throw new Error("Krankmeldung nicht gefunden oder nicht von dir erstellt.");
+  }
+
+  const today = new Date();
+  const todayUtc = new Date(
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+  );
+  if (absence.createdAt.getTime() < todayUtc.getTime()) {
+    throw new Error("Rücknahme ist nur am Tag der Meldung möglich.");
+  }
+
+  await ChildrenFacade.deleteAbsence(absenceId);
+  revalidatePath("/");
+  return { success: true as const };
+}

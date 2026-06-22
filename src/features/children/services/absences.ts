@@ -22,14 +22,33 @@ export async function listAbsencesForChildrenInRange(
   });
 }
 
+export async function findAbsenceById(id: string) {
+  return prisma.childAbsence.findUnique({ where: { id } });
+}
+
+export async function findAbsenceByIdAndCreator(
+  id: string,
+  createdByUserId: string,
+) {
+  return prisma.childAbsence.findFirst({
+    where: { id, createdByUserId },
+  });
+}
+
 export async function upsertAbsence(data: {
   childId: string;
   date: Date;
   note: string | null;
+  createdByUserId?: string | null;
 }) {
   return prisma.childAbsence.upsert({
     where: { childId_date: { childId: data.childId, date: data.date } },
-    create: data,
+    create: {
+      childId: data.childId,
+      date: data.date,
+      note: data.note,
+      createdByUserId: data.createdByUserId ?? null,
+    },
     update: { note: data.note },
   });
 }

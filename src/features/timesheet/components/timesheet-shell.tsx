@@ -53,6 +53,14 @@ export type ChildAbsenceItem = Pick<ChildAbsence, "childId" | "note"> & {
   createdByUserId: string | null;
 };
 
+// A school holiday range mapped onto an assigned child (its school is closed).
+export type ChildSchoolHolidayItem = {
+  childId: string;
+  name: string | null;
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+};
+
 export type VertretungDay = {
   id: string;
   date: string; // YYYY-MM-DD
@@ -83,6 +91,7 @@ type Props = {
   lockedMonthKeys: string[];
   childAbsences: ChildAbsenceItem[];
   assignmentsByWeekday: AssignmentsByWeekday;
+  childSchoolHolidays: ChildSchoolHolidayItem[];
   /** Days this user steps in as substitute Schulbegleiter. */
   substituteOn?: VertretungDay[];
   /** Own pending Vertretung requests (submitted but not yet resolved by admin). */
@@ -117,6 +126,7 @@ export function SchoolAssistantApp({
   lockedMonthKeys,
   childAbsences,
   assignmentsByWeekday,
+  childSchoolHolidays,
   substituteOn = [],
   pendingVertretungRequests = [],
 }: Props) {
@@ -181,6 +191,7 @@ export function SchoolAssistantApp({
             assignedChildren={assignedChildren}
             childAbsences={childAbsences}
             schedules={schedules}
+            childSchoolHolidays={childSchoolHolidays}
             assignmentsByWeekday={assignmentsByWeekday}
             substituteOn={substituteOn}
             pendingVertretungRequests={pendingVertretungRequests}
@@ -199,6 +210,7 @@ export function SchoolAssistantApp({
             onSelectedChildIdsChange={setSelectedChildIds}
             events={events}
             schedules={schedules}
+            childSchoolHolidays={childSchoolHolidays}
             assignmentsByWeekday={assignmentsByWeekday}
             substituteOn={substituteOn}
           />
@@ -213,6 +225,7 @@ export function SchoolAssistantApp({
             onSelectDay={jumpToDay}
             events={events}
             lockedMonths={lockedMonths}
+            childSchoolHolidays={childSchoolHolidays}
             substituteOn={substituteOn}
           />
         );

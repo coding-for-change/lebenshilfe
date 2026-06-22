@@ -15,8 +15,7 @@ export function pickFirstError(
   const e: ChildWizardErrors = {};
   for (const issue of issues) {
     const root = issue.path[0];
-    if (root === "school") e.school = issue.message;
-    else if (typeof root === "string" && root in EMPTY_CHILD_FORM) {
+    if (typeof root === "string" && root in EMPTY_CHILD_FORM) {
       (e as Record<string, string>)[root] = issue.message;
     }
   }
@@ -31,7 +30,6 @@ export function validateWizardStep(
     const result = BasicInfoStepSchema.safeParse({
       firstName: form.firstName,
       lastName: form.lastName,
-      school: form.school,
     });
     if (!result.success) return pickFirstError(result.error.issues);
   }

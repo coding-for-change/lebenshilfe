@@ -6,7 +6,7 @@ import { addDays, isoWeek, MONTHS_SHORT, startOfWeekUtc } from "@/lib/dates";
 import { WeekGrid } from "./week-grid";
 import { ChildrenFilter, type ChildOption } from "./children-filter";
 import type { Event, Schedule } from "@/generated/prisma";
-import type { VertretungDay } from "./timesheet-shell";
+import type { ChildSchoolHolidayItem, VertretungDay } from "./timesheet-shell";
 import type { AssignmentsByWeekday } from "../weekday";
 
 type Props = {
@@ -22,6 +22,7 @@ type Props = {
     Pick<Event, "id" | "date" | "type" | "startTime" | "endTime" | "childId">
   >;
   schedules: Schedule[];
+  childSchoolHolidays?: ChildSchoolHolidayItem[];
   assignmentsByWeekday: AssignmentsByWeekday;
   substituteOn?: VertretungDay[];
 };
@@ -37,6 +38,7 @@ export function TabWoche({
   onSelectedChildIdsChange,
   events,
   schedules,
+  childSchoolHolidays = [],
   assignmentsByWeekday,
   substituteOn = [],
 }: Props) {
@@ -106,12 +108,13 @@ export function TabWoche({
         schedules={schedules}
         assignmentsByWeekday={assignmentsByWeekday}
         onSelectDay={onSelectDay}
+        childSchoolHolidays={childSchoolHolidays}
         substituteOn={substituteOn}
       />
 
       <p className="text-xs text-muted-foreground">
         Helle Blöcke = Stundenplan. Farbige Blöcke = erfasste Arbeitszeiten.
-        Rote Bänder = ganztägige Krankheit.
+        Rote Bänder = ganztägige Krankheit. Grüne Tage = Schulferien.
       </p>
     </div>
   );

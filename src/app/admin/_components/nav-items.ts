@@ -2,6 +2,8 @@ import {
   Baby,
   BookOpen,
   Home,
+  Palmtree,
+  School,
   ShieldCheck,
   TriangleAlert,
   Users,
@@ -36,6 +38,18 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: "Kinder",
     description: "Stammdaten, Kalender und Kontakte.",
     icon: Baby,
+  },
+  {
+    href: "/admin/schools",
+    label: "Schulen",
+    description: "Schulen verwalten und Ferienplan zuweisen.",
+    icon: School,
+  },
+  {
+    href: "/admin/holiday-plans",
+    label: "Ferien",
+    description: "Ferienpläne mit mehreren Zeiträumen verwalten.",
+    icon: Palmtree,
   },
   {
     href: "/admin/workshops",

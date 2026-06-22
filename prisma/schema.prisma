@@ -137,15 +137,12 @@ model Child {
   ausflugSchullandheim       Boolean           @default(false)
   schweigepflichtsentbindung Boolean           @default(false)
   bemerkung                  String?           @db.Text
-  schoolName                 String?
-  schoolAddress              String?
-  schoolPlaceId              String?
-  schoolLat                  Decimal?          @db.Decimal(10, 7)
-  schoolLng                  Decimal?          @db.Decimal(10, 7)
+  schoolId                   String?
   kostentraegerId            String?
   createdAt                  DateTime          @default(now())
   updatedAt                  DateTime          @updatedAt
   kostentraeger              Kostentraeger?    @relation(fields: [kostentraegerId], references: [id], onDelete: SetNull)
+  school                     School?           @relation(fields: [schoolId], references: [id], onDelete: SetNull)
   assignments                ChildAssignment[]
   schedules                  Schedule[]
   events                     Event[]
@@ -154,7 +151,52 @@ model Child {
   pendingVertretungRequests   PendingVertretungRequest[]
 
   @@index([kostentraegerId])
+  @@index([schoolId])
   @@map("child")
+}
+
+model School {
+  id            String       @id @default(cuid())
+  name          String
+  address       String?
+  placeId       String?
+  lat           Decimal?     @db.Decimal(10, 7)
+  lng           Decimal?     @db.Decimal(10, 7)
+  holidayPlanId String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  children      Child[]
+  holidayPlan   HolidayPlan? @relation(fields: [holidayPlanId], references: [id], onDelete: SetNull)
+
+  @@index([holidayPlanId])
+  @@map("school")
+}
+
+// A reusable holiday schedule shared across schools. Most schools use the same
+// plan; schools with special closures (e.g. Europaschule) get their own.
+model HolidayPlan {
+  id        String             @id @default(cuid())
+  name      String
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  holidays  HolidayPlanEntry[]
+  schools   School[]
+
+  @@map("holiday_plan")
+}
+
+model HolidayPlanEntry {
+  id        String      @id @default(cuid())
+  planId    String
+  name      String? // e.g. "Sommerferien"
+  startDate DateTime    @db.Date
+  endDate   DateTime    @db.Date
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  plan      HolidayPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+  @@map("holiday_plan_entry")
 }
 
 model ChildAssignment {

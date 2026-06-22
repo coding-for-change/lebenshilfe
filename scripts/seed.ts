@@ -73,6 +73,83 @@ const KOSTENTRAEGER = [
   },
 ];
 
+// Holiday plans are shared across schools. Offsets are relative to "today" so a
+// reseed always lands a current closure (to exercise the "Heute sind
+// Schulferien" banner) plus a future range. Most schools use the standard plan;
+// the Realschule models a special plan with its own extra closure.
+type SeedHolidayPlan = {
+  id: string;
+  name: string;
+  entries: {
+    name: string | null;
+    startOffset: number;
+    endOffset: number;
+  }[];
+};
+
+const HOLIDAY_PLANS: SeedHolidayPlan[] = [
+  {
+    id: "seed-plan-bayern",
+    name: "Bayern Standard 2026/27",
+    entries: [
+      { name: "Pfingstferien", startOffset: -2, endOffset: 9 },
+      { name: "Sommerferien", startOffset: 60, endOffset: 100 },
+    ],
+  },
+  {
+    id: "seed-plan-realschule",
+    name: "Realschule Sonderplan",
+    entries: [
+      { name: "Bewegliche Ferientage", startOffset: -1, endOffset: 1 },
+      { name: "Sommerferien", startOffset: 58, endOffset: 102 },
+    ],
+  },
+];
+
+type SeedSchool = {
+  id: string;
+  name: string;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  holidayPlanId: string | null;
+};
+
+const SCHOOLS: SeedSchool[] = [
+  {
+    id: "seed-school-bergmann",
+    name: "Grundschule an der Bergmannstraße",
+    address: "Bergmannstraße 36, 80339 München",
+    lat: 48.1351,
+    lng: 11.5538,
+    holidayPlanId: "seed-plan-bayern",
+  },
+  {
+    id: "seed-school-walliser",
+    name: "Mittelschule an der Walliser Straße",
+    address: "Walliser Straße 5, 81475 München",
+    lat: 48.0928,
+    lng: 11.5021,
+    holidayPlanId: "seed-plan-bayern",
+  },
+  {
+    id: "seed-school-impler",
+    name: "Grundschule an der Implerstraße",
+    address: "Implerstraße 35, 81371 München",
+    lat: 48.1187,
+    lng: 11.5447,
+    holidayPlanId: "seed-plan-bayern",
+  },
+  {
+    id: "seed-school-meichelbeck",
+    name: "Karl-Meichelbeck-Realschule",
+    address: "General-von-Nagel-Straße 6, 85354 Freising",
+    lat: 48.4047,
+    lng: 11.7474,
+    holidayPlanId: "seed-plan-realschule",
+  },
+];
+
 type SeedChild = {
   id: string;
   firstName: string;
@@ -82,10 +159,7 @@ type SeedChild = {
   sbIb: string | null;
   schweigepflichtsentbindung: boolean;
   bemerkung: string | null;
-  schoolName: string | null;
-  schoolAddress: string | null;
-  schoolLat: number | null;
-  schoolLng: number | null;
+  schoolId: string | null;
   kostentraegerId: string | null;
 };
 
@@ -99,10 +173,7 @@ const CHILDREN: SeedChild[] = [
     sbIb: "SB",
     schweigepflichtsentbindung: true,
     bemerkung: "Ruhig, braucht klare Strukturen und feste Abläufe.",
-    schoolName: "Grundschule an der Bergmannstraße",
-    schoolAddress: "Bergmannstraße 36, 80339 München",
-    schoolLat: 48.1351,
-    schoolLng: 11.5538,
+    schoolId: "seed-school-bergmann",
     kostentraegerId: "seed-kt-bezirk-obb",
   },
   {
@@ -115,10 +186,7 @@ const CHILDREN: SeedChild[] = [
     schweigepflichtsentbindung: false,
     bemerkung:
       "Schweigepflichtsentbindung noch ausstehend — Eltern angeschrieben.",
-    schoolName: "Mittelschule an der Walliser Straße",
-    schoolAddress: "Walliser Straße 5, 81475 München",
-    schoolLat: 48.0928,
-    schoolLng: 11.5021,
+    schoolId: "seed-school-walliser",
     kostentraegerId: "seed-kt-stadt-muenchen",
   },
   {
@@ -130,10 +198,7 @@ const CHILDREN: SeedChild[] = [
     sbIb: "SB",
     schweigepflichtsentbindung: true,
     bemerkung: null,
-    schoolName: "Grundschule an der Implerstraße",
-    schoolAddress: "Implerstraße 35, 81371 München",
-    schoolLat: 48.1187,
-    schoolLng: 11.5447,
+    schoolId: "seed-school-impler",
     kostentraegerId: "seed-kt-stadt-muenchen",
   },
   {
@@ -145,10 +210,7 @@ const CHILDREN: SeedChild[] = [
     sbIb: "IB",
     schweigepflichtsentbindung: true,
     bemerkung: "Therapiestunden mittwochs 11–12 Uhr außerhalb der Schule.",
-    schoolName: "Karl-Meichelbeck-Realschule",
-    schoolAddress: "General-von-Nagel-Straße 6, 85354 Freising",
-    schoolLat: 48.4047,
-    schoolLng: 11.7474,
+    schoolId: "seed-school-meichelbeck",
     kostentraegerId: "seed-kt-jugendamt-fs",
   },
 ];
@@ -256,6 +318,8 @@ async function wipeSeedData() {
   const childIds = CHILDREN.map((c) => c.id);
   const workshopIds = WORKSHOPS.map((w) => w.id);
   const kostentraegerIds = KOSTENTRAEGER.map((k) => k.id);
+  const schoolIds = SCHOOLS.map((s) => s.id);
+  const holidayPlanIds = HOLIDAY_PLANS.map((p) => p.id);
 
   await prisma.event.deleteMany({
     where: { user: { email: { in: seedEmails } } },
@@ -274,6 +338,11 @@ async function wipeSeedData() {
   });
   await prisma.schedule.deleteMany({ where: { childId: { in: childIds } } });
   await prisma.child.deleteMany({ where: { id: { in: childIds } } });
+  await prisma.school.deleteMany({ where: { id: { in: schoolIds } } });
+  // HolidayPlanEntry rows cascade when their plan is removed.
+  await prisma.holidayPlan.deleteMany({
+    where: { id: { in: holidayPlanIds } },
+  });
   await prisma.kostentraeger.deleteMany({
     where: { id: { in: kostentraegerIds } },
   });
@@ -313,6 +382,32 @@ async function seedCostBearers() {
   console.log("Seeding Kostenträger…");
   for (const k of KOSTENTRAEGER) {
     await prisma.kostentraeger.create({ data: k });
+  }
+}
+
+async function seedHolidayPlans() {
+  console.log("Seeding holiday plans & ranges…");
+  for (const p of HOLIDAY_PLANS) {
+    await prisma.holidayPlan.create({
+      data: {
+        id: p.id,
+        name: p.name,
+        holidays: {
+          create: p.entries.map((e) => ({
+            name: e.name,
+            startDate: dayOffset(e.startOffset),
+            endDate: dayOffset(e.endOffset),
+          })),
+        },
+      },
+    });
+  }
+}
+
+async function seedSchools() {
+  console.log("Seeding schools…");
+  for (const s of SCHOOLS) {
+    await prisma.school.create({ data: s });
   }
 }
 
@@ -916,6 +1011,8 @@ async function main() {
 
   await seedPendingInvitation();
   await seedCostBearers();
+  await seedHolidayPlans();
+  await seedSchools();
   await seedChildrenAndSchedules();
   await assignChildren(usersByEmail);
   await seedVertretungen(usersByEmail);

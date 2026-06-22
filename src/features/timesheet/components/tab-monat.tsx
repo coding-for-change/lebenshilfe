@@ -8,7 +8,7 @@ import { CalendarGrid } from "./calendar-grid";
 import { HandoverDialog } from "./handover-dialog";
 import { MONTHS_LONG, isSameUtcDay } from "@/lib/dates";
 import type { Event } from "@/generated/prisma";
-import type { VertretungDay } from "./timesheet-shell";
+import type { ChildSchoolHolidayItem, VertretungDay } from "./timesheet-shell";
 
 type Props = {
   viewDate: Date;
@@ -20,6 +20,7 @@ type Props = {
     Pick<Event, "id" | "date" | "type" | "startTime" | "endTime" | "childId">
   >;
   lockedMonths: Set<string>;
+  childSchoolHolidays?: ChildSchoolHolidayItem[];
   substituteOn?: VertretungDay[];
 };
 
@@ -31,6 +32,7 @@ export function TabMonat({
   onSelectDay,
   events,
   lockedMonths,
+  childSchoolHolidays = [],
   substituteOn = [],
 }: Props) {
   const year = viewDate.getUTCFullYear();
@@ -117,6 +119,7 @@ export function TabMonat({
           events={monthEvents}
           onSelectDay={onSelectDay}
           locked={locked}
+          holidays={childSchoolHolidays}
           substituteOn={monthSubstituteOn}
         />
       </Card>

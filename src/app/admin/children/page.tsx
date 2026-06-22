@@ -5,12 +5,14 @@ import {
 } from "@/features/children";
 import { CostBearersFacade } from "@/features/cost-bearers";
 import { SchoolAssistantsFacade } from "@/features/school-assistants";
+import { SchoolsFacade } from "@/features/schools";
 
 export default async function ChildrenPage() {
-  const [children, costBearers, schoolAssistants] = await Promise.all([
+  const [children, costBearers, schoolAssistants, schools] = await Promise.all([
     ChildrenFacade.list(),
     CostBearersFacade.list(),
     SchoolAssistantsFacade.list(),
+    SchoolsFacade.list(),
   ]);
 
   return (
@@ -23,6 +25,7 @@ export default async function ChildrenPage() {
       schoolAssistantOptions={schoolAssistants
         .filter((p) => !!p.userId)
         .map((p) => ({ id: p.userId as string, name: p.name }))}
+      schoolOptions={schools.map((s) => ({ id: s.id, name: s.name }))}
     />
   );
 }

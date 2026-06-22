@@ -30,9 +30,7 @@ export async function createChildAction(input: CreateChildInput) {
   await requireAdmin();
   const created = await ChildrenFacade.create(input);
   revalidatePath(ROUTE);
-  // Return only plain-serializable fields. The full Prisma row contains
-  // Decimal (schoolLat / schoolLng) which Next.js refuses to send across
-  // the server-action → client-component boundary.
+
   return {
     success: true as const,
     child: { id: created.id },

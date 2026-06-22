@@ -8,8 +8,7 @@ import {
   CostBearerCombobox,
   type CostBearerOption,
 } from "@/features/cost-bearers";
-import { SchoolAutocomplete } from "../school-autocomplete";
-import { SchoolPreview } from "../school-preview";
+import { SchoolSelect, type SchoolOption } from "@/features/schools";
 import type { GeneralFormState } from "./use-general-editor";
 
 type Props = {
@@ -19,6 +18,8 @@ type Props = {
   formId: string;
   costBearerOptions: CostBearerOption[];
   onCostBearerCreated: (created: CostBearerOption) => void;
+  schoolOptions: SchoolOption[];
+  onSchoolCreated: (created: SchoolOption) => void;
 };
 
 export function TabGeneral({
@@ -28,6 +29,8 @@ export function TabGeneral({
   formId,
   costBearerOptions,
   onCostBearerCreated,
+  schoolOptions,
+  onSchoolCreated,
 }: Props) {
   return (
     <form
@@ -71,14 +74,12 @@ export function TabGeneral({
             <span>Schule</span>
           </FieldContent>
         </FieldLabel>
-        <SchoolAutocomplete
+        <SchoolSelect
           id="det-school"
-          value={form.school}
-          onChange={(next) => update({ school: next })}
-        />
-        <SchoolPreview
-          placeId={form.school.placeId}
-          address={form.school.address}
+          options={schoolOptions}
+          value={form.schoolId}
+          onChange={(id) => update({ schoolId: id })}
+          onCreated={onSchoolCreated}
         />
       </Field>
 

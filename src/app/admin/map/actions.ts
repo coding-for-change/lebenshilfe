@@ -5,17 +5,6 @@ import { parseIsoDate, weekdayIndex } from "@/lib/dates";
 import { ChildrenFacade, serializeChild } from "@/features/children";
 import type { MapChild, MapPayload, MapSchool } from "./types";
 
-function schoolKeyFor(child: {
-  schoolPlaceId: string | null;
-  schoolName: string | null;
-  schoolAddress: string | null;
-}): string {
-  if (child.schoolPlaceId) return `place:${child.schoolPlaceId}`;
-  const name = (child.schoolName ?? "").trim().toLowerCase();
-  const address = (child.schoolAddress ?? "").trim().toLowerCase();
-  return `addr:${name}|${address}`;
-}
-
 export async function getMapDataForDate(date: string): Promise<MapPayload> {
   await requireAdmin();
 
@@ -36,7 +25,9 @@ export async function getMapDataForDate(date: string): Promise<MapPayload> {
   const groups = new Map<string, MapSchool>();
   for (const raw of childrenRaw) {
     const child = serializeChild(raw);
-    if (child.schoolLat == null || child.schoolLng == null) continue;
+    const school = child.school;
+    // Only children assigned to a geocoded school can be placed on the map.
+    if (!school || school.lat == null || school.lng == null) continue;
     if (absentIds.has(child.id)) continue;
 
     const dayAssignments = child.assignments.filter(
@@ -44,7 +35,7 @@ export async function getMapDataForDate(date: string): Promise<MapPayload> {
     );
     if (dayAssignments.length === 0) continue;
 
-    const key = schoolKeyFor(child);
+    const key = `school:${school.id}`;
     const mapChild: MapChild = {
       id: child.id,
       firstName: child.firstName,
@@ -64,10 +55,10 @@ export async function getMapDataForDate(date: string): Promise<MapPayload> {
     } else {
       groups.set(key, {
         key,
-        name: child.schoolName ?? "",
-        address: child.schoolAddress ?? "",
-        lat: child.schoolLat,
-        lng: child.schoolLng,
+        name: school.name,
+        address: school.address ?? "",
+        lat: school.lat,
+        lng: school.lng,
         children: [mapChild],
       });
     }

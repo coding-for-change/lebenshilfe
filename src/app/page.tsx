@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { isAdmin } from "@/lib/roles";
 import { TimesheetFacade, SchoolAssistantApp } from "@/features/timesheet";
 import { SchoolAssistantsFacade } from "@/features/school-assistants";
-import { ChildrenFacade } from "@/features/children";
+import { ChildrenFacade, serializeChild } from "@/features/children";
 import { VertretungRequestsFacade } from "@/features/vertretung-requests";
 import { getAssignedChildrenForUser } from "@/use-cases/get-assigned-children";
 
@@ -43,6 +43,7 @@ export default async function LandingPage() {
     childAbsences,
     assignmentsByWeekday,
     vertretungenAsSubstitute,
+    allChildren,
     pendingVertretungRequests,
   ] = await Promise.all([
     TimesheetFacade.getEventsInRange(user.id, rangeStart, rangeEnd),
@@ -60,8 +61,30 @@ export default async function LandingPage() {
       rangeStart,
       rangeEnd,
     ),
+    ChildrenFacade.list(),
     VertretungRequestsFacade.listForUser(user.id, rangeStart, rangeEnd),
   ]);
+
+  // Resolve each assigned child's school holiday-plan ranges so the day view can
+  // show "Heute sind Schulferien" when their school is closed.
+  const holidaysByChildId = new Map<
+    string,
+    { name: string | null; startDate: string; endDate: string }[]
+  >();
+  for (const raw of allChildren) {
+    const c = serializeChild(raw);
+    if (c.school && c.school.holidays.length > 0) {
+      holidaysByChildId.set(c.id, c.school.holidays);
+    }
+  }
+  const childSchoolHolidays = assignedChildren.flatMap((c) =>
+    (holidaysByChildId.get(c.id) ?? []).map((h) => ({
+      childId: c.id,
+      name: h.name,
+      startDate: h.startDate,
+      endDate: h.endDate,
+    })),
+  );
 
   return (
     <SchoolAssistantApp
@@ -82,6 +105,7 @@ export default async function LandingPage() {
         createdByUserId: a.createdByUserId,
       }))}
       assignmentsByWeekday={assignmentsByWeekday}
+      childSchoolHolidays={childSchoolHolidays}
       substituteOn={vertretungenAsSubstitute.map((v) => {
         const sbRequest = pendingVertretungRequests.find(
           (r) =>

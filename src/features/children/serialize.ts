@@ -48,6 +48,24 @@ export type SerializedCostBearer = {
   address: string | null;
 };
 
+export type SerializedSchoolHoliday = {
+  id: string;
+  name: string | null;
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+};
+
+export type SerializedChildSchool = {
+  id: string;
+  name: string;
+  address: string | null;
+  placeId: string | null;
+  lat: number | null;
+  lng: number | null;
+  // Holiday ranges from the school's assigned plan (empty when no plan).
+  holidays: SerializedSchoolHoliday[];
+};
+
 export type SerializedChild = {
   id: string;
   firstName: string;
@@ -62,11 +80,7 @@ export type SerializedChild = {
   ausflugSchullandheim: boolean;
   schweigepflichtsentbindung: boolean;
   bemerkung: string | null;
-  schoolName: string | null;
-  schoolAddress: string | null;
-  schoolPlaceId: string | null;
-  schoolLat: number | null;
-  schoolLng: number | null;
+  school: SerializedChildSchool | null;
   costBearer: SerializedCostBearer | null;
   assignments: SerializedAssignment[];
   schedules: SerializedSchedule[];
@@ -91,11 +105,22 @@ export function serializeChild(c: ChildWithRelations): SerializedChild {
     ausflugSchullandheim: c.ausflugSchullandheim,
     schweigepflichtsentbindung: c.schweigepflichtsentbindung,
     bemerkung: c.bemerkung,
-    schoolName: c.schoolName,
-    schoolAddress: c.schoolAddress,
-    schoolPlaceId: c.schoolPlaceId,
-    schoolLat: c.schoolLat == null ? null : Number(c.schoolLat),
-    schoolLng: c.schoolLng == null ? null : Number(c.schoolLng),
+    school: c.school
+      ? {
+          id: c.school.id,
+          name: c.school.name,
+          address: c.school.address,
+          placeId: c.school.placeId,
+          lat: c.school.lat == null ? null : Number(c.school.lat),
+          lng: c.school.lng == null ? null : Number(c.school.lng),
+          holidays: (c.school.holidayPlan?.holidays ?? []).map((h) => ({
+            id: h.id,
+            name: h.name,
+            startDate: formatIsoDateUtc(h.startDate),
+            endDate: formatIsoDateUtc(h.endDate),
+          })),
+        }
+      : null,
     costBearer: c.kostentraeger
       ? {
           id: c.kostentraeger.id,

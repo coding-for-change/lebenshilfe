@@ -26,7 +26,7 @@ import {
   startOfWeekMonday,
   type CalendarEvent,
 } from "./week-utils";
-import { formatIsoDateLocal } from "@/lib/utils";
+import { formatDate, formatIsoDateLocal } from "@/lib/utils";
 import { EventCreateForm } from "./event-create-dialog";
 import { EventBlock } from "./event-block";
 import { ScheduleEinsatzBlock } from "./schedule-einsatz-block";
@@ -44,6 +44,7 @@ import type {
   SerializedAbsence,
   SerializedAssignment,
   SerializedSchedule,
+  SerializedSchoolHoliday,
   SerializedVertretung,
   SerializedWorkEvent,
 } from "../../serialize";
@@ -56,6 +57,7 @@ type Props = {
   schedules: SerializedSchedule[];
   assignments: SerializedAssignment[];
   absences: SerializedAbsence[];
+  holidays: SerializedSchoolHoliday[];
   vertretungen: SerializedVertretung[];
   schoolAssistantOptions: SchoolAssistantOption[];
   onChanged: () => void;
@@ -88,6 +90,7 @@ export function KinderWeekCalendar({
   schedules,
   assignments,
   absences,
+  holidays,
   vertretungen,
   schoolAssistantOptions,
   onChanged,
@@ -170,6 +173,23 @@ export function KinderWeekCalendar({
     }
     return map;
   }, [vertretungen, weekStart]);
+
+  // For each weekday in the visible week, the school holiday covering it (if
+  // any), keeping the latest end date for the "bis …" hint. ISO-string compare
+  // matches the absence handling and avoids timezone drift.
+  const holidayByWeekday = useMemo(() => {
+    const map = new Map<number, SerializedSchoolHoliday>();
+    for (let wd = 0; wd < 7; wd++) {
+      const iso = formatIsoDateLocal(addDays(weekStart, wd));
+      let match: SerializedSchoolHoliday | null = null;
+      for (const h of holidays) {
+        if (iso < h.startDate || iso > h.endDate) continue;
+        if (!match || h.endDate > match.endDate) match = h;
+      }
+      if (match) map.set(wd, match);
+    }
+    return map;
+  }, [holidays, weekStart]);
 
   const goPrevWeek = () => setWeekStart((w) => addDays(w, -7));
   const goNextWeek = () => setWeekStart((w) => addDays(w, 7));
@@ -305,13 +325,13 @@ export function KinderWeekCalendar({
           <span className="text-sm font-medium">
             {germanWeekRangeLabel(weekStart)}
           </span>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <div className="grid grid-flow-col grid-rows-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
             {LEGEND_ITEMS.map(({ label, swatch }) => (
               <span
                 key={label}
                 className="flex items-center gap-1.5"
               >
-                <span className={cn("size-2.5 rounded-sm", swatch)} />
+                <span className={cn("size-2.5 shrink-0 rounded-sm", swatch)} />
                 {label}
               </span>
             ))}
@@ -330,6 +350,7 @@ export function KinderWeekCalendar({
                 formatIsoDateLocal(date) === formatIsoDateLocal(new Date());
               const dayAssignments = assignmentsByWeekday.get(weekday) ?? [];
               const dayAbsence = absencesByWeekday.get(weekday) ?? null;
+              const dayHoliday = holidayByWeekday.get(weekday) ?? null;
               const isoDate = formatIsoDateLocal(date);
               const dayVertretungen = vertretungenByDate.get(isoDate) ?? [];
               const daySchedules = schedules.filter(
@@ -341,6 +362,7 @@ export function KinderWeekCalendar({
                   className={cn(
                     "flex min-w-0 flex-col items-center gap-1 border-l px-1.5 py-2 first:border-l-0",
                     isToday && "text-primary",
+                    dayHoliday && "bg-emerald-700/20",
                   )}
                 >
                   <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -349,6 +371,14 @@ export function KinderWeekCalendar({
                   <div className="text-sm font-medium">
                     {date.getDate().toString().padStart(2, "0")}
                   </div>
+                  {dayHoliday ? (
+                    <div
+                      className="w-full truncate rounded bg-emerald-700/20 px-1 py-0.5 text-center text-[10px] font-medium text-emerald-900"
+                      title={`${dayHoliday.name ?? "Schulferien"} · bis ${formatDate(dayHoliday.endDate)}`}
+                    >
+                      {dayHoliday.name ?? "Schulferien"}
+                    </div>
+                  ) : null}
                   <DayQuickAddSection
                     weekday={weekday}
                     date={date}
@@ -383,10 +413,14 @@ export function KinderWeekCalendar({
               const dayStacked = stacked.filter((e) => e.weekday === weekday);
               const dateIso = formatIsoDateLocal(addDays(weekStart, weekday));
               const dayEinsaetze = workEventsByDate.get(dateIso) ?? [];
+              const dayHoliday = holidayByWeekday.get(weekday) ?? null;
               return (
                 <div
                   key={label}
-                  className="relative border-l select-none"
+                  className={cn(
+                    "relative border-l select-none",
+                    dayHoliday && "bg-emerald-700/5",
+                  )}
                   onPointerDown={(e) => handlePointerDown(e, weekday)}
                   style={{
                     height: HOURS.length * HOUR_HEIGHT,

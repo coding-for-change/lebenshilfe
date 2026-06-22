@@ -72,11 +72,7 @@ function childFieldsFromCreate(input: CreateChildInput) {
     schweigepflichtsentbindung: input.schweigepflichtsentbindung ?? false,
     bemerkung: input.bemerkung ?? null,
     kostentraegerId: input.kostentraegerId ?? null,
-    schoolName: input.school?.name ?? null,
-    schoolAddress: input.school?.address ?? null,
-    schoolPlaceId: input.school?.placeId ?? null,
-    schoolLat: input.school?.lat ?? null,
-    schoolLng: input.school?.lng ?? null,
+    schoolId: input.schoolId ?? null,
   };
 }
 
@@ -109,12 +105,8 @@ function childFieldsFromUpdate(input: UpdateChildInput) {
   if (input.kostentraegerId !== undefined) {
     out.kostentraegerId = input.kostentraegerId;
   }
-  if (input.school !== undefined) {
-    out.schoolName = input.school?.name ?? null;
-    out.schoolAddress = input.school?.address ?? null;
-    out.schoolPlaceId = input.school?.placeId ?? null;
-    out.schoolLat = input.school?.lat ?? null;
-    out.schoolLng = input.school?.lng ?? null;
+  if (input.schoolId !== undefined) {
+    out.schoolId = input.schoolId;
   }
   return out;
 }

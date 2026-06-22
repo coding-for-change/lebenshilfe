@@ -1,0 +1,58 @@
+---
+title: "Changelog"
+description: "Product updates and improvements"
+---
+
+<Update label="June 22, 2026">
+
+## New features
+
+**Kostenträger-Einsatznachweis export per child**
+
+Admins can now export a child's logged hours in the official "Tabelle 7" layout from **Kind → Details öffnen → Historie → Exportieren**. Choose PDF, Excel, or CSV, for a single month or a month range, combined or one file per Schulbegleiter.
+
+- Per-child **approved monthly hours** (direct and indirect) entered in the Kinder wizard and Allgemeines tab.
+- Optional **"Stunden mit indirekter Leistung auffüllen"** safety net tops up the indirect row to the approved monthly budget when Schulbegleiter under-log, split fairly across assistants.
+- Optional **"Unterschriften einbetten"** embeds each day's signature into the PDF.
+
+**Holidays and Feiertage in the week view**
+
+School holidays (Ferien) and public holidays (Feiertage) now appear in the week calendar, with a native date picker and a tidier three-dot menu for day actions.
+
+**Schulbegleiter can report a child sick**
+
+Schulbegleiter can now mark a child as sick from the entry sheet without having to message an admin. Reports can be cancelled if entered by mistake.
+
+## Updates
+
+**Reworked timesheet entry sheet**
+
+The new entry flow is faster and clearer:
+
+- Start and end times **auto-fill from the assigned child's Stundenplan** when entering a direct entry (still editable).
+- **Indirekt** uses a free-text child-name field instead of the search combobox.
+- **Vertretung** moved from a top-level type to a sub-button under Arbeit, between "Direkt" and "Indirekt".
+- "Eigenes Kind" is now labelled **"Direkt"**.
+
+**Per-child billing toggles**
+
+Three new toggles on each child:
+
+- **Vorviertelstunde** / **Nachviertelstunde** — bills an extra quarter hour before or after the daily direct service, applied once per day in the Kostenträger export only. Einträge, Historie and the monthly Freigabe remain unaffected.
+- **Ausflüge & Schullandheim** — informational flag.
+
+**Signatures in the Historie list**
+
+Signed entries now show an inline signature image next to the "Unterschrieben" badge in the Historie list, so you can verify entries at a glance.
+
+**Indirekt as real events**
+
+Indirekte Leistung is now stored as proper event rows and feeds directly into the Kostenträger export's indirect totals.
+
+## Bug fixes
+
+- **Admin rename of a Schulbegleiter** now correctly syncs the displayed name and child route everywhere.
+- **Stundenplan and Vertretung** behave correctly with per-day assignments; replaced Einsätze are hidden from the week calendar.
+- Various small entry-sheet and admin-edit fixes carried over from earlier this week.
+
+</Update>

@@ -1,0 +1,73 @@
+---
+title: "Benutzerverwaltung"
+description: "Admin- und Owner-Konten einladen, befördern und entfernen"
+---
+
+import { VideoPlaceholder } from "/snippets/loom.mdx";
+
+<Info>
+  Dieser Bereich ist **Administrator:innen und Owner:innen** vorbehalten. Bestimmte
+  Aktionen – etwa das Befördern oder Entfernen von **Owner:innen** – können nur **Owner**
+  ausführen.
+</Info>
+
+In der
+[**Benutzerverwaltung**](https://lebenshilfe.codingforchange.com/admin/user-management)
+verwalten Sie die Konten der Verwaltung selbst: Sie laden neue Admins oder Owner ein,
+befördern Personen oder entziehen den Zugang.
+
+<Frame caption="Die Benutzerverwaltung">
+  <img src="/images/admin/benutzerverwaltung.png" alt="Benutzerverwaltung" />
+</Frame>
+
+## Einen neuen Admin einladen
+
+<Steps>
+  <Step title="Neuen Admin einladen wählen">
+    Klicken Sie auf **Neuen Admin einladen**. „Die eingeladene Person erhält per E-Mail
+    einen Link, um ihr Konto einzurichten."
+  </Step>
+  <Step title="Daten eingeben">
+    Tragen Sie **Name**, **E-Mail** und **Rolle** ein. Als Rolle wählen Sie **Admin** oder –
+    falls Sie Owner sind – **Owner**.
+  </Step>
+  <Step title="Einladung senden">
+    Klicken Sie auf **Einladung senden**. Es erscheint „Einladung an {`{E-Mail}`} gesendet."
+  </Step>
+</Steps>
+
+<Note>
+  Zur Erinnerung: „Admins verwalten den Bereich, können aber keine Owner ernennen." „Owner
+  können andere Owner ernennen oder entfernen."
+</Note>
+
+<VideoPlaceholder title="Einen neuen Admin einladen" />
+
+## Einladungen verwalten
+
+Für noch nicht eingerichtete Konten stehen über das Aktionsmenü zur Verfügung:
+
+- **Einladung erneut senden** – verschickt den Link noch einmal.
+- **Einladung widerrufen** – macht die Einladung ungültig (Abfrage **Einladung
+  widerrufen?**). Eine neue Einladung kann jederzeit verschickt werden.
+
+## Benutzer befördern oder entfernen
+
+<AccordionGroup>
+  <Accordion title="Zum Owner befördern (nur Owner)">
+    Über **Zum Owner befördern** erhält eine Person volle Owner-Rechte. Die Abfrage **Zum
+    Owner befördern?** bestätigen Sie mit **Befördern**. Danach erscheint
+    „{`{Name}`} ist jetzt Owner."
+  </Accordion>
+  <Accordion title="Benutzer entfernen">
+    Über **Entfernen** entziehen Sie einer Person den Zugang. Die Abfrage **Benutzer
+    entfernen?** bestätigen Sie mit **Entfernen** – die Person „verliert sofort den Zugriff
+    auf die Verwaltung."
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+  Die/der **letzte Owner** kann nicht entfernt werden – so bleibt immer mindestens eine
+  Person mit voller Berechtigung erhalten. Die Aktion ist dann deaktiviert („Entfernen
+  (letzter Owner)").
+</Warning>

@@ -126,6 +126,48 @@ export function TabGeneral({
         </Field>
       </div>
 
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field>
+          <FieldLabel htmlFor="det-approved-direct">
+            <FieldContent>
+              <span>Genehmigte direkte Leistung</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                Std. pro Monat (laut Bescheid).
+              </span>
+            </FieldContent>
+          </FieldLabel>
+          <Input
+            id="det-approved-direct"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.5"
+            value={form.approvedDirectHours}
+            onChange={(e) => update({ approvedDirectHours: e.target.value })}
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="det-approved-indirect">
+            <FieldContent>
+              <span>Genehmigte indirekte Leistung</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                Std. pro Monat (laut Bescheid).
+              </span>
+            </FieldContent>
+          </FieldLabel>
+          <Input
+            id="det-approved-indirect"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.5"
+            value={form.approvedIndirectHours}
+            onChange={(e) => update({ approvedIndirectHours: e.target.value })}
+          />
+        </Field>
+      </div>
+
       <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4">
         <FlagRow
           id="det-leos"
@@ -140,6 +182,27 @@ export function TabGeneral({
           description="Liegt unterschrieben vor."
           checked={form.schweigepflichtsentbindung}
           onChange={(v) => update({ schweigepflichtsentbindung: v })}
+        />
+        <FlagRow
+          id="det-vorviertelstunde"
+          label="Vorviertelstunde"
+          description="+15 Min. vor der direkten Leistung im Export."
+          checked={form.vorviertelstunde}
+          onChange={(v) => update({ vorviertelstunde: v })}
+        />
+        <FlagRow
+          id="det-nachviertelstunde"
+          label="Nachviertelstunde"
+          description="+15 Min. nach der direkten Leistung im Export."
+          checked={form.nachviertelstunde}
+          onChange={(v) => update({ nachviertelstunde: v })}
+        />
+        <FlagRow
+          id="det-ausflug"
+          label="Ausflüge & Schullandheim"
+          description="Nur Kennzeichnung, keine Auswirkung auf die Stunden."
+          checked={form.ausflugSchullandheim}
+          onChange={(v) => update({ ausflugSchullandheim: v })}
         />
       </div>
 

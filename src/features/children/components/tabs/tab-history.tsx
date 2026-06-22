@@ -35,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CostBearerExportDialog } from "@/features/kostentraeger-export";
 import {
   listWorkEventsForChildAction,
   createWorkEventAsAdminAction,
@@ -78,6 +79,15 @@ function totalHours(events: WorkEvent[]) {
   return (mins / 60).toFixed(2).replace(".", ",");
 }
 
+/** Earliest calendar year present in the events, or undefined when none. */
+function earliestEventYear(events: WorkEvent[]): number | undefined {
+  if (events.length === 0) return undefined;
+  return events.reduce((earliest, event) => {
+    const year = new Date(`${event.date}T00:00:00`).getFullYear();
+    return year < earliest ? year : earliest;
+  }, Number.POSITIVE_INFINITY);
+}
+
 type LoadState =
   | { status: "loading"; childId: string }
   | { status: "loaded"; childId: string; events: WorkEvent[] }
@@ -99,6 +109,7 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
     note: "",
   });
   const [isPending, startTransition] = useTransition();
+  const [exportOpen, setExportOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -122,6 +133,9 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
       cancelled = true;
     };
   }, [child.id]);
+
+  const minYear =
+    state.status === "loaded" ? earliestEventYear(state.events) : undefined;
 
   const reload = () =>
     listWorkEventsForChildAction(child.id).then((rows) =>
@@ -235,22 +249,15 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
               <Plus className="mr-1 h-4 w-4" />
               Eintrag
             </Button>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span tabIndex={0}>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled
-                  >
-                    <FileDown />
-                    PDF
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>Kommt in Kürze.</TooltipContent>
-            </Tooltip>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setExportOpen(true)}
+            >
+              <FileDown />
+              Exportieren
+            </Button>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span tabIndex={0}>
@@ -313,9 +320,19 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
                           <span className="flex items-center gap-2">
                             {r.userName}
                             {r.signed ? (
-                              <span className="rounded bg-emerald-500/10 px-1 py-0.5 text-[10px] text-emerald-600">
-                                Unterschrieben
-                              </span>
+                              <>
+                                <span className="rounded bg-emerald-500/10 px-1 py-0.5 text-[10px] text-emerald-600">
+                                  Unterschrieben
+                                </span>
+                                {r.signatureBase64 && (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={`data:image/png;base64,${r.signatureBase64}`}
+                                    alt="Unterschrift"
+                                    className="h-5 max-w-[100px] rounded border bg-white object-contain"
+                                  />
+                                )}
+                              </>
                             ) : (
                               <span className="rounded bg-primary/10 px-1 py-0.5 text-[10px] text-primary">
                                 Admin
@@ -494,6 +511,14 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
             </form>
           </DialogContent>
         </Dialog>
+
+        <CostBearerExportDialog
+          open={exportOpen}
+          onOpenChange={setExportOpen}
+          childId={child.id}
+          childName={`${child.firstName} ${child.lastName}`}
+          minYear={minYear}
+        />
       </div>
     </TooltipProvider>
   );

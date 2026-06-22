@@ -14,6 +14,50 @@ const optionalText = (max: number) =>
     .nullable()
     .optional();
 
+const optionalHours = () =>
+  z
+    .number()
+    .min(0, "Stunden dürfen nicht negativ sein.")
+    .max(9999, "Stundenzahl ist zu groß.")
+    .nullable()
+    .optional();
+
+export const SchoolSchema = z
+  .object({
+    placeId: z.string().nullable().optional(),
+    name: z.string().nullable().optional(),
+    address: z.string().nullable().optional(),
+    lat: z.number().nullable().optional(),
+    lng: z.number().nullable().optional(),
+  })
+  .superRefine((val, ctx) => {
+    const anySet = !!(
+      val.placeId ||
+      val.name ||
+      val.address ||
+      val.lat ||
+      val.lng
+    );
+    if (anySet) {
+      if (!val.name) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["name"],
+          message: "Schulname fehlt.",
+        });
+      }
+      if (!val.address) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["address"],
+          message: "Schuladresse fehlt.",
+        });
+      }
+    }
+  });
+
+export type SchoolInput = z.infer<typeof SchoolSchema>;
+
 // Canonical child fields — WITHOUT `.default()`. Defaults survive `.partial()`
 // in Zod, so keeping them here would let a partial update overwrite untouched
 // boolean columns. Defaults live only on the create-specific schema below.
@@ -21,6 +65,11 @@ const kindFieldsSchema = z.object({
   leosOne: z.boolean(),
   bescheid: optionalText(5000),
   sbIb: optionalText(200),
+  approvedDirectHours: optionalHours(),
+  approvedIndirectHours: optionalHours(),
+  vorviertelstunde: z.boolean(),
+  nachviertelstunde: z.boolean(),
+  ausflugSchullandheim: z.boolean(),
   schweigepflichtsentbindung: z.boolean(),
   bemerkung: optionalText(5000),
   // No trailing `.transform()`: a transform placed after `.optional()` runs
@@ -34,6 +83,9 @@ const kindFieldsSchema = z.object({
 // Create accepts omitted booleans by falling back to defaults.
 const kindFieldsCreateSchema = kindFieldsSchema.extend({
   leosOne: z.boolean().default(false),
+  vorviertelstunde: z.boolean().default(false),
+  nachviertelstunde: z.boolean().default(false),
+  ausflugSchullandheim: z.boolean().default(false),
   schweigepflichtsentbindung: z.boolean().default(false),
 });
 
@@ -48,6 +100,11 @@ export const AdministrationStepSchema = kindFieldsCreateSchema.pick({
   leosOne: true,
   bescheid: true,
   sbIb: true,
+  approvedDirectHours: true,
+  approvedIndirectHours: true,
+  vorviertelstunde: true,
+  nachviertelstunde: true,
+  ausflugSchullandheim: true,
   schweigepflichtsentbindung: true,
   bemerkung: true,
   kostentraegerId: true,
@@ -110,6 +167,11 @@ export type ChildWizardFormState = {
   leosOne: boolean;
   bescheid: string;
   sbIb: string;
+  approvedDirectHours: string;
+  approvedIndirectHours: string;
+  vorviertelstunde: boolean;
+  nachviertelstunde: boolean;
+  ausflugSchullandheim: boolean;
   schweigepflichtsentbindung: boolean;
   bemerkung: string;
   kostentraegerId: string | null;
@@ -132,10 +194,23 @@ export const EMPTY_CHILD_FORM: ChildWizardFormState = {
   leosOne: false,
   bescheid: "",
   sbIb: "",
+  approvedDirectHours: "",
+  approvedIndirectHours: "",
+  vorviertelstunde: false,
+  nachviertelstunde: false,
+  ausflugSchullandheim: false,
   schweigepflichtsentbindung: false,
   bemerkung: "",
   kostentraegerId: null,
 };
+
+/** Parses a raw hours input string to a number, or null when empty/invalid. */
+export function parseHoursInput(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (trimmed === "") return null;
+  const value = Number(trimmed);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
 
 export const WorkEventSchema = z.object({
   childId: z.string().min(1),

@@ -44,6 +44,22 @@ export function StepOverviewChild({
           label="Bescheid"
           value={value.bescheid || "—"}
         />
+        <Row
+          label="Genehmigte direkte Leistung"
+          value={
+            value.approvedDirectHours
+              ? `${value.approvedDirectHours} Std./Monat`
+              : "—"
+          }
+        />
+        <Row
+          label="Genehmigte indirekte Leistung"
+          value={
+            value.approvedIndirectHours
+              ? `${value.approvedIndirectHours} Std./Monat`
+              : "—"
+          }
+        />
         <Flag
           label="Leos One"
           on={value.leosOne}
@@ -51,6 +67,18 @@ export function StepOverviewChild({
         <Flag
           label="Schweigepflichtsentbindung"
           on={value.schweigepflichtsentbindung}
+        />
+        <Flag
+          label="Vorviertelstunde"
+          on={value.vorviertelstunde}
+        />
+        <Flag
+          label="Nachviertelstunde"
+          on={value.nachviertelstunde}
+        />
+        <Flag
+          label="Ausflüge & Schullandheim"
+          on={value.ausflugSchullandheim}
         />
         <Row
           label="Bemerkung"

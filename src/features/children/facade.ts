@@ -62,6 +62,11 @@ function childFieldsFromCreate(input: CreateChildInput) {
     leosOne: input.leosOne ?? false,
     bescheid: input.bescheid ?? null,
     sbIb: input.sbIb ?? null,
+    approvedDirectHours: input.approvedDirectHours ?? null,
+    approvedIndirectHours: input.approvedIndirectHours ?? null,
+    vorviertelstunde: input.vorviertelstunde ?? false,
+    nachviertelstunde: input.nachviertelstunde ?? false,
+    ausflugSchullandheim: input.ausflugSchullandheim ?? false,
     schweigepflichtsentbindung: input.schweigepflichtsentbindung ?? false,
     bemerkung: input.bemerkung ?? null,
     kostentraegerId: input.kostentraegerId ?? null,
@@ -76,6 +81,21 @@ function childFieldsFromUpdate(input: UpdateChildInput) {
   if (input.leosOne !== undefined) out.leosOne = input.leosOne;
   if (input.bescheid !== undefined) out.bescheid = input.bescheid;
   if (input.sbIb !== undefined) out.sbIb = input.sbIb;
+  if (input.approvedDirectHours !== undefined) {
+    out.approvedDirectHours = input.approvedDirectHours;
+  }
+  if (input.approvedIndirectHours !== undefined) {
+    out.approvedIndirectHours = input.approvedIndirectHours;
+  }
+  if (input.vorviertelstunde !== undefined) {
+    out.vorviertelstunde = input.vorviertelstunde;
+  }
+  if (input.nachviertelstunde !== undefined) {
+    out.nachviertelstunde = input.nachviertelstunde;
+  }
+  if (input.ausflugSchullandheim !== undefined) {
+    out.ausflugSchullandheim = input.ausflugSchullandheim;
+  }
   if (input.schweigepflichtsentbindung !== undefined) {
     out.schweigepflichtsentbindung = input.schweigepflichtsentbindung;
   }

@@ -67,6 +67,18 @@ export function StepOverviewChild({ value, costBearerOptions }: Props) {
           label="Schweigepflichtsentbindung"
           on={value.schweigepflichtsentbindung}
         />
+        <Flag
+          label="Vorviertelstunde"
+          on={value.vorviertelstunde}
+        />
+        <Flag
+          label="Nachviertelstunde"
+          on={value.nachviertelstunde}
+        />
+        <Flag
+          label="Ausflüge & Schullandheim"
+          on={value.ausflugSchullandheim}
+        />
         <Row
           label="Bemerkung"
           value={value.bemerkung || "—"}

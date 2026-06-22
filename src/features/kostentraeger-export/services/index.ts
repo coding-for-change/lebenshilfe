@@ -9,6 +9,10 @@ export type ExportChild = {
   approvedDirectHours: number | null;
   /** Approved indirect service hours per month (from the Bescheid). */
   approvedIndirectHours: number | null;
+  /** Bill a quarter hour before the daily direct service. */
+  vorviertelstunde: boolean;
+  /** Bill a quarter hour after the daily direct service. */
+  nachviertelstunde: boolean;
 };
 
 /** Minimal child record needed for the Einsatznachweis header and totals. */
@@ -23,6 +27,8 @@ export async function findChildForExport(
       lastName: true,
       approvedDirectHours: true,
       approvedIndirectHours: true,
+      vorviertelstunde: true,
+      nachviertelstunde: true,
     },
   });
   if (!child) return null;
@@ -38,6 +44,8 @@ export async function findChildForExport(
       child.approvedIndirectHours == null
         ? null
         : Number(child.approvedIndirectHours),
+    vorviertelstunde: child.vorviertelstunde,
+    nachviertelstunde: child.nachviertelstunde,
   };
 }
 

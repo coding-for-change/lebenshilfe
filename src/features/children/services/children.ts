@@ -73,6 +73,9 @@ type ChildFields = {
   sbIb?: string | null;
   approvedDirectHours?: number | null;
   approvedIndirectHours?: number | null;
+  vorviertelstunde?: boolean;
+  nachviertelstunde?: boolean;
+  ausflugSchullandheim?: boolean;
   schweigepflichtsentbindung?: boolean;
   bemerkung?: string | null;
   kostentraegerId?: string | null;

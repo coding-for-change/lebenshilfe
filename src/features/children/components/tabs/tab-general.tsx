@@ -182,6 +182,27 @@ export function TabGeneral({
           checked={form.schweigepflichtsentbindung}
           onChange={(v) => update({ schweigepflichtsentbindung: v })}
         />
+        <FlagRow
+          id="det-vorviertelstunde"
+          label="Vorviertelstunde"
+          description="+15 Min. vor der direkten Leistung im Export."
+          checked={form.vorviertelstunde}
+          onChange={(v) => update({ vorviertelstunde: v })}
+        />
+        <FlagRow
+          id="det-nachviertelstunde"
+          label="Nachviertelstunde"
+          description="+15 Min. nach der direkten Leistung im Export."
+          checked={form.nachviertelstunde}
+          onChange={(v) => update({ nachviertelstunde: v })}
+        />
+        <FlagRow
+          id="det-ausflug"
+          label="Ausflüge & Schullandheim"
+          description="Nur Kennzeichnung, keine Auswirkung auf die Stunden."
+          checked={form.ausflugSchullandheim}
+          onChange={(v) => update({ ausflugSchullandheim: v })}
+        />
       </div>
 
       <Field>

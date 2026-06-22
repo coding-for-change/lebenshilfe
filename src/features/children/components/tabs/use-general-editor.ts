@@ -12,6 +12,9 @@ export type GeneralFormState = {
   school: SchoolValue;
   leosOne: boolean;
   schweigepflichtsentbindung: boolean;
+  vorviertelstunde: boolean;
+  nachviertelstunde: boolean;
+  ausflugSchullandheim: boolean;
   bescheid: string;
   sbIb: string;
   approvedDirectHours: string;
@@ -33,6 +36,9 @@ function fromChild(c: SerializedChild): GeneralFormState {
     },
     leosOne: c.leosOne,
     schweigepflichtsentbindung: c.schweigepflichtsentbindung,
+    vorviertelstunde: c.vorviertelstunde,
+    nachviertelstunde: c.nachviertelstunde,
+    ausflugSchullandheim: c.ausflugSchullandheim,
     bescheid: c.bescheid ?? "",
     sbIb: c.sbIb ?? "",
     approvedDirectHours:
@@ -54,6 +60,15 @@ function diff(
   if (next.leosOne !== base.leosOne) patch.leosOne = next.leosOne;
   if (next.schweigepflichtsentbindung !== base.schweigepflichtsentbindung) {
     patch.schweigepflichtsentbindung = next.schweigepflichtsentbindung;
+  }
+  if (next.vorviertelstunde !== base.vorviertelstunde) {
+    patch.vorviertelstunde = next.vorviertelstunde;
+  }
+  if (next.nachviertelstunde !== base.nachviertelstunde) {
+    patch.nachviertelstunde = next.nachviertelstunde;
+  }
+  if (next.ausflugSchullandheim !== base.ausflugSchullandheim) {
+    patch.ausflugSchullandheim = next.ausflugSchullandheim;
   }
   if ((next.bescheid || null) !== (base.bescheid || null)) {
     patch.bescheid = next.bescheid || null;

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import {
   Select,
@@ -42,6 +43,22 @@ type Props = {
    * needs widening.
    */
   minYear?: number;
+  /**
+   * When set, adds an "Alle" month option (value 0) for selecting a whole year
+   * rather than a single month. Off by default so existing single-month
+   * callers are unaffected.
+   */
+  allowAll?: boolean;
+  /**
+   * Earliest selectable month. Months before it are disabled (mirroring how
+   * future months are disabled), so the picker only offers periods within
+   * [earliest … current month]. Also fixes the first year of the dropdown.
+   */
+  earliest?: { year: number; month: number };
+  /** Tailwind width for the month trigger. Defaults to filling the row. */
+  monthClassName?: string;
+  /** Extra control(s) rendered in the same row, after the year select. */
+  trailing?: ReactNode;
 };
 
 /**
@@ -56,9 +73,13 @@ export function MonthYearPicker({
   onMonthChange,
   onYearChange,
   minYear,
+  allowAll = false,
+  earliest,
+  monthClassName = "w-full",
+  trailing,
 }: Props) {
   const firstYear = Math.min(
-    minYear ?? CURRENT_YEAR - DEFAULT_YEARS_BACK,
+    earliest?.year ?? minYear ?? CURRENT_YEAR - DEFAULT_YEARS_BACK,
     CURRENT_YEAR,
   );
   const years: number[] = [];
@@ -68,9 +89,16 @@ export function MonthYearPicker({
 
   function handleYearChange(nextYear: number) {
     onYearChange(nextYear);
-    // Switching into the current year can leave a now-future month selected.
+    if (month === 0) return; // "Alle" is valid in any year.
+    // Switching years can leave a now-future or now-too-early month selected.
     if (nextYear === CURRENT_YEAR && month > CURRENT_MONTH) {
       onMonthChange(CURRENT_MONTH);
+    } else if (
+      earliest &&
+      nextYear === earliest.year &&
+      month < earliest.month
+    ) {
+      onMonthChange(earliest.month);
     }
   }
 
@@ -88,16 +116,22 @@ export function MonthYearPicker({
         >
           <SelectTrigger
             id={id}
-            className="w-full"
+            className={monthClassName}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            {allowAll && <SelectItem value="0">Alle Monate</SelectItem>}
             {MONTHS.map((name, index) => (
               <SelectItem
                 key={name}
                 value={String(index + 1)}
-                disabled={year === CURRENT_YEAR && index + 1 > CURRENT_MONTH}
+                disabled={
+                  (year === CURRENT_YEAR && index + 1 > CURRENT_MONTH) ||
+                  (!!earliest &&
+                    year === earliest.year &&
+                    index + 1 < earliest.month)
+                }
               >
                 {name}
               </SelectItem>
@@ -122,6 +156,7 @@ export function MonthYearPicker({
             ))}
           </SelectContent>
         </Select>
+        {trailing}
       </div>
     </Field>
   );

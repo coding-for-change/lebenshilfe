@@ -45,6 +45,7 @@ import {
   listSchedulesForChildren,
   listVertretungenForUserAsSubstitute,
   listWorkEventsForChild,
+  getEventDateBoundsForChild,
   syncVertretungBlocksForChildWeekday,
   listWorkEventsForChildInRange,
   updateAssignment,
@@ -232,8 +233,16 @@ export const ChildrenFacade = {
     await deleteAbsenceById(id);
   },
 
-  async listWorkEventsForChild(childId: string) {
-    return listWorkEventsForChild(childId);
+  async listWorkEventsForChild(
+    childId: string,
+    range?: { from: Date; to: Date },
+    order: "asc" | "desc" = "desc",
+  ) {
+    return listWorkEventsForChild(childId, range, order);
+  },
+
+  async getEventDateBoundsForChild(childId: string) {
+    return getEventDateBoundsForChild(childId);
   },
 
   async createVertretung(input: VertretungInput) {

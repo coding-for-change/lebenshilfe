@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   FileDown,
   Loader2,
@@ -35,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MonthYearPicker } from "@/components/month-year-picker";
 import { CostBearerExportDialog } from "@/features/kostentraeger-export";
 import {
   listWorkEventsForChildAction,
@@ -51,9 +52,8 @@ type Props = {
   schoolAssistantOptions: { id: string; name: string }[];
 };
 
-type WorkEvent = Awaited<
-  ReturnType<typeof listWorkEventsForChildAction>
->[number];
+type HistoryResult = Awaited<ReturnType<typeof listWorkEventsForChildAction>>;
+type WorkEvent = HistoryResult["events"][number];
 
 function groupByMonth(events: WorkEvent[]) {
   const groups = new Map<string, { label: string; rows: WorkEvent[] }>();
@@ -79,15 +79,6 @@ function totalHours(events: WorkEvent[]) {
   return (mins / 60).toFixed(2).replace(".", ",");
 }
 
-/** Earliest calendar year present in the events, or undefined when none. */
-function earliestEventYear(events: WorkEvent[]): number | undefined {
-  if (events.length === 0) return undefined;
-  return events.reduce((earliest, event) => {
-    const year = new Date(`${event.date}T00:00:00`).getFullYear();
-    return year < earliest ? year : earliest;
-  }, Number.POSITIVE_INFINITY);
-}
-
 type LoadState =
   | { status: "loading"; childId: string }
   | { status: "loaded"; childId: string; events: WorkEvent[] }
@@ -98,6 +89,27 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
     status: "loading",
     childId: child.id,
   });
+  // Which period the history list shows. Tagged with childId so it auto-resets
+  // when switching children; month 0 means "Alle" (the whole selected year).
+  const [period, setPeriod] = useState<{
+    childId: string;
+    year: number;
+    month: number;
+  } | null>(null);
+  // Earliest month with data for this child (null when it has none). Drives the
+  // period picker's selectable range and the export dialog's year floor.
+  const [earliest, setEarliest] = useState<{
+    year: number;
+    month: number;
+  } | null>(null);
+  // Date sort direction for the listed entries; "desc" = newest first.
+  const [order, setOrder] = useState<"asc" | "desc">("desc");
+  // Bumped to force a reload of the current period (e.g. after add/edit/delete)
+  // even when the selected period itself did not change.
+  const [refreshKey, setRefreshKey] = useState(0);
+  // Set right before we sync `period` from the server's resolved default so the
+  // resulting dependency change does not trigger a redundant second fetch.
+  const skipFetch = useRef(false);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<WorkEvent | null>(null);
@@ -111,12 +123,37 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
   const [isPending, startTransition] = useTransition();
   const [exportOpen, setExportOpen] = useState(false);
 
+  // `period` belongs to another child right after switching; treat that as "no
+  // selection yet" so the server resolves a fresh default for this child.
+  const active = period && period.childId === child.id ? period : null;
+
   useEffect(() => {
+    if (skipFetch.current) {
+      skipFetch.current = false;
+      return;
+    }
     let cancelled = false;
-    listWorkEventsForChildAction(child.id)
-      .then((rows) => {
-        if (!cancelled) {
-          setState({ status: "loaded", childId: child.id, events: rows });
+    setState({ status: "loading", childId: child.id });
+    const query = active
+      ? {
+          year: active.year,
+          month: active.month === 0 ? null : active.month,
+          order,
+        }
+      : undefined;
+    listWorkEventsForChildAction(child.id, query)
+      .then((res) => {
+        if (cancelled) return;
+        setState({ status: "loaded", childId: child.id, events: res.events });
+        setEarliest(res.earliest);
+        if (!active) {
+          // First open for this child: adopt the server-resolved default month.
+          skipFetch.current = true;
+          setPeriod({
+            childId: child.id,
+            year: res.year,
+            month: res.month ?? 0,
+          });
         }
       })
       .catch((err) => {
@@ -132,15 +169,27 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [child.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [child.id, active?.year, active?.month, order, refreshKey]);
 
-  const minYear =
-    state.status === "loaded" ? earliestEventYear(state.events) : undefined;
+  const reload = () => setRefreshKey((k) => k + 1);
 
-  const reload = () =>
-    listWorkEventsForChildAction(child.id).then((rows) =>
-      setState({ status: "loaded", childId: child.id, events: rows }),
-    );
+  // The picker owns clamping (it disables out-of-range months and corrects the
+  // selection on year change via onMonthChange), so these just merge the value.
+  const handleMonthChange = (month: number) =>
+    setPeriod((p) => (p ? { ...p, month } : p));
+
+  const handleYearChange = (year: number) =>
+    setPeriod((p) => (p ? { ...p, year } : p));
+
+  // Selectable range floor: earliest month with data, or — for a child with no
+  // data yet — the current month, so it is always selectable.
+  const now = new Date();
+  const periodFloor = earliest ?? {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+  };
+  const minYear = earliest?.year;
 
   const handleOpenAdd = () => {
     setEditingEvent(null);
@@ -217,6 +266,10 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
             note: formData.note || undefined,
           });
           toast.success("Eintrag hinzugefügt.");
+          // Jump to the new entry's month so it is visible even if it lands
+          // outside the period currently shown.
+          const [year, month] = formData.date.split("-").map(Number);
+          setPeriod((p) => (p ? { ...p, year, month } : p));
         }
         setDialogOpen(false);
         reload();
@@ -276,6 +329,34 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
           </div>
         </div>
 
+        {active && (
+          <MonthYearPicker
+            id="history-period"
+            label="Zeitraum"
+            month={active.month}
+            year={active.year}
+            earliest={periodFloor}
+            monthClassName="w-40"
+            allowAll
+            onMonthChange={handleMonthChange}
+            onYearChange={handleYearChange}
+            trailing={
+              <Select
+                value={order}
+                onValueChange={(v) => setOrder(v as "asc" | "desc")}
+              >
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">Neueste zuerst</SelectItem>
+                  <SelectItem value="asc">Älteste zuerst</SelectItem>
+                </SelectContent>
+              </Select>
+            }
+          />
+        )}
+
         {match(state)
           .with({ status: "error", childId: child.id }, ({ message }) => (
             <div className="rounded-md border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive">
@@ -284,7 +365,7 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
           ))
           .with({ status: "loaded", childId: child.id, events: [] }, () => (
             <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-              Noch keine erfassten Zeiten.
+              Keine Einträge in diesem Zeitraum.
             </div>
           ))
           .with({ status: "loaded", childId: child.id }, ({ events }) => (
@@ -297,8 +378,8 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
                   <div className="flex items-baseline justify-between gap-2 border-b bg-muted/40 px-4 py-2">
                     <h4 className="text-sm font-medium">{label}</h4>
                     <span className="text-xs text-muted-foreground">
-                      {rows.length} Eintrag {rows.length === 1 ? "" : "e"} ·{" "}
-                      {totalHours(rows)} h
+                      {rows.length} {rows.length === 1 ? "Eintrag" : "Einträge"}{" "}
+                      · {totalHours(rows)} h
                     </span>
                   </div>
                   <ul className="divide-y">

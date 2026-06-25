@@ -1,0 +1,28 @@
+---
+title: "Changelog"
+description: "Product updates and improvements"
+---
+
+<Update label="June 25, 2026">
+
+## New features
+
+- **Sick reporting for Schulbegleiter** — Schulbegleiter can now report children as sick directly from the timesheet, without waiting on an admin. Absences sync into the day view automatically.
+- **Kostenträger-Einsatznachweis export per child** — Admins can export a child's logged work hours in the official "Tabelle 7" Einsatznachweis layout. Available under **Kind → Details öffnen → Historie → "PDF erstellen"**. Choose PDF, Excel, or CSV, single month or month range, combined or one file per Schulbegleiter.
+- **Holidays and Ferien in the calendar** — School holidays (Ferien) and public holidays (Feiertage) now appear in the week view. Admins can manage them from the admin nav, and a three-dot menu makes it easier to act on calendar entries.
+- **Native date pickers** — Date selection across the app now uses native mobile and desktop date pickers for a faster, more familiar experience.
+- **Vertretung free-text matching and admin queue** — Schulbegleiter can request Vertretung in free text without picking a specific person, and admins get a new **Handlungsbedarf** view to assign open requests. Includes a typeable child picker for faster Zuordnung.
+- **Self-service Vertretung for Schulbegleiter** — Schulbegleiter can start a Vertretung themselves and undo it if needed. Auto-matching keeps admin workflows safe from accidental overwrites.
+- **Reworked New Entry sheet** — Logging a timesheet entry is faster: Stundenplan now autofills the form, Indirekt entries accept free-text, and Vertretung is available as a clearer sub-button. Einspringen has been replaced by the unified Vertretung flow.
+
+## Updates
+
+- **Friendlier login experience** — When authentication or authorization fails, the app now shows the login screen instead of an error page.
+- **Schulbegleiter renames stay in sync** — Renaming a Schulbegleiter now updates their display name and child route everywhere automatically.
+
+## Bug fixes
+
+- Replaced Einsätze are now hidden from the child's week calendar so the schedule reflects what's actually planned.
+- Stundenplan entries are gated by per-day assignment, and the seed weekday convention has been corrected.
+
+</Update>

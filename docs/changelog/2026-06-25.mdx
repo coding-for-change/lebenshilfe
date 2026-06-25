@@ -1,0 +1,27 @@
+---
+title: "June 25, 2026"
+description: "Kostenträger export, holidays in the calendar, sick reporting for Schulbegleiter, and Vertretung free-text matching."
+---
+
+## New features
+
+**Kostenträger-Einsatznachweis export per child.** Admins can now export a child's logged work hours in the official "Tabelle 7 – Einsatznachweis Abrechnung" layout. Open a child from the Kinder list, go to **Historie**, and choose **Exportieren** to generate a PDF, Excel (.xlsx), or CSV — for a single month or a month range, combined or one file per Schulbegleiter. Optional toggles let you embed each day's signature in the PDF and top up the *Indirekte Leistung* row to the child's approved monthly budget. Approved monthly hours (direct and indirect) are now structured fields on the child profile.
+
+**Holidays and Feiertage in the calendar.** Public holidays and school holidays now appear in the week view, with a three-dot menu on calendar entries for quick actions. Date pickers across the app now use the native mobile picker for faster entry.
+
+**Sick reporting for Schulbegleiter.** Schulbegleiter can now report a child as sick directly from their own view, instead of routing through an admin.
+
+**Vertretung free-text matching.** Schulbegleiter can enter a Vertretung as free text when the colleague they covered for isn't in the system yet. Admins get a queue to review and assign these entries to the right person.
+
+**Per-child toggles for Vorviertelstunde, Nachviertelstunde, and Ausflüge.** New options on the child profile automatically bill an extra quarter hour before or after the daily direct service in the Kostenträger export. An *Ausflüge & Schullandheim* flag is also available as an informational marker.
+
+## Updates
+
+**Stundenplan now respects per-day assignments.** Autofill from the Stundenplan only suggests blocks for days where the Schulbegleiter is actually assigned to the child.
+
+**Renaming a Schulbegleiter syncs everywhere.** Updating a Schulbegleiter's name now updates their user account and all child detail routes automatically — no more stale links.
+
+## Bug fixes
+
+- Calendar entries that were replaced by a Vertretung no longer show up twice in the week view.
+- The login screen is now shown instead of an error message when authentication or authorization fails.

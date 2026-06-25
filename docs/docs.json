@@ -13,6 +13,10 @@
       {
         "group": "Getting Started",
         "pages": ["index", "quickstart"]
+      },
+      {
+        "group": "Changelog",
+        "pages": ["changelog/2026-06-25"]
       }
     ],
     "global": {

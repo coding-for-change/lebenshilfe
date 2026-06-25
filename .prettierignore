@@ -4,6 +4,7 @@ dist
 build
 public
 *.md
+*.mdx
 .env
 .env.*
 pnpm-lock.yaml

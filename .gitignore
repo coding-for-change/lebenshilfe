@@ -44,3 +44,6 @@ src/generated/
 *.tsbuildinfo
 next-env.d.ts
 .gstack/
+
+##docs
+docs/node_modules/*

@@ -567,6 +567,33 @@ export function TabDay({
             const childName = child
               ? `${child.firstName} ${child.lastName}`
               : null;
+            // Display-only Vor-/Nachviertelstunde on the entry itself (direct
+            // WORK only — the ±15 is a direct-service convention). Flags come
+            // from the assigned-child map; the entry time stays raw and the
+            // widened billing span is shown only as a secondary hint.
+            const flagChild = ev.childId
+              ? childById.get(ev.childId)
+              : undefined;
+            const vor =
+              ev.type === "WORK" && (flagChild?.vorviertelstunde ?? false);
+            const nach =
+              ev.type === "WORK" && (flagChild?.nachviertelstunde ?? false);
+            const quarterLabel =
+              vor && nach
+                ? "Vor- & Nachviertelstunde"
+                : vor
+                  ? "Vorviertelstunde"
+                  : nach
+                    ? "Nachviertelstunde"
+                    : null;
+            const quarterBilled =
+              quarterLabel && ev.startTime && ev.endTime
+                ? vor && nach
+                  ? `${shiftTime(ev.startTime, -15)}–${shiftTime(ev.endTime, 15)}`
+                  : vor
+                    ? `ab ${shiftTime(ev.startTime, -15)}`
+                    : `bis ${shiftTime(ev.endTime, 15)}`
+                : null;
             const title = match(ev.type)
               .with("INDIRECT", () =>
                 childName ? `Indirekt — ${childName}` : "Indirekte Leistung",
@@ -612,6 +639,11 @@ export function TabDay({
                           <Badge variant="outline">Mehrere Kinder</Badge>
                         )}
                     </div>
+                    {quarterLabel && quarterBilled && (
+                      <p className="mt-1 text-xs font-medium text-amber-700">
+                        inkl. {quarterLabel} · {quarterBilled}
+                      </p>
+                    )}
                     {ev.note && (
                       <p className="mt-1 text-sm text-muted-foreground">
                         {ev.note}

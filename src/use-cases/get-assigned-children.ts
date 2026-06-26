@@ -18,11 +18,19 @@
 import { ChildrenFacade } from "@/features/children/facade";
 import { TimesheetFacade } from "@/features/timesheet/facade";
 
+type AssignedChild = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  vorviertelstunde: boolean;
+  nachviertelstunde: boolean;
+};
+
 export async function getAssignedChildrenForUser(
   userId: string,
   substituteFrom: Date,
   substituteTo: Date,
-): Promise<{ id: string; firstName: string; lastName: string }[]> {
+): Promise<AssignedChild[]> {
   const [regular, vertretungen] = await Promise.all([
     TimesheetFacade.listAssignedChildren(userId),
     ChildrenFacade.listVertretungenForUserAsSubstitute(
@@ -33,12 +41,13 @@ export async function getAssignedChildrenForUser(
   ]);
 
   const seen = new Set(regular.map((c) => c.id));
-  const result: { id: string; firstName: string; lastName: string }[] =
-    regular.map((c) => ({
-      id: c.id,
-      firstName: c.firstName,
-      lastName: c.lastName,
-    }));
+  const result: AssignedChild[] = regular.map((c) => ({
+    id: c.id,
+    firstName: c.firstName,
+    lastName: c.lastName,
+    vorviertelstunde: c.vorviertelstunde,
+    nachviertelstunde: c.nachviertelstunde,
+  }));
 
   for (const v of vertretungen) {
     if (seen.has(v.childId)) continue;
@@ -47,6 +56,8 @@ export async function getAssignedChildrenForUser(
       id: v.child.id,
       firstName: v.child.firstName,
       lastName: v.child.lastName,
+      vorviertelstunde: v.child.vorviertelstunde,
+      nachviertelstunde: v.child.nachviertelstunde,
     });
   }
 

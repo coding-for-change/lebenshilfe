@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { match } from "ts-pattern";
 import {
   Baby,
   Briefcase,
   FileText,
+  Info,
   Stethoscope,
   User,
   UserPlus,
@@ -27,10 +28,14 @@ import { EventType, type Event, type Schedule } from "@/generated/prisma";
 import { SignaturePadDialog } from "./signature-pad-dialog";
 import { createEventAction, createIndirectEventByNameAction } from "../actions";
 import { reportChildSickAction } from "@/features/children/actions";
-import { createVertretungRequestAction } from "@/features/vertretung-requests/actions";
+import {
+  createVertretungRequestAction,
+  lookupVertretungPrefillAction,
+} from "@/features/vertretung-requests/actions";
 import {
   formatDuration,
   parseIsoDate,
+  shiftTime,
   timeToMinutes,
   weekdayIndex,
 } from "@/lib/dates";
@@ -83,6 +88,15 @@ export function NewEntrySheet({
   const [note, setNote] = useState("");
   const [vertretungChildName, setVertretungChildName] = useState("");
   const [indirectChildName, setIndirectChildName] = useState("");
+  // Display-only ±15 (Vor-/Nachviertelstunde) flags for the typed or picked
+  // Vertretung child. Drives the billing hint; never changes the saved time.
+  const [vertretungQuarter, setVertretungQuarter] = useState<{
+    vor: boolean;
+    nach: boolean;
+  } | null>(null);
+  // Set when a Vertretung quick-pick supplied exact block times, so the
+  // debounced name lookup updates only the hint and won't clobber those times.
+  const pickedTimesRef = useRef(false);
 
   // Child IDs that already have a work Event for this date — used to hide
   // Vertretungen the SB has already submitted an Eintrag for. Filtering by
@@ -116,6 +130,8 @@ export function NewEntrySheet({
       {
         childId: string;
         childName: string;
+        vorviertelstunde: boolean;
+        nachviertelstunde: boolean;
         timeBlocks: { startTime: string; endTime: string }[];
       }
     >();
@@ -124,6 +140,8 @@ export function NewEntrySheet({
         map.set(v.childId, {
           childId: v.childId,
           childName: v.childName,
+          vorviertelstunde: v.vorviertelstunde,
+          nachviertelstunde: v.nachviertelstunde,
           timeBlocks: [],
         });
       }
@@ -150,12 +168,14 @@ export function NewEntrySheet({
       setWorkVariant("OWN");
       setSickTarget(null);
       setSickChildId(null);
-      setStartTime("08:00");
-      setEndTime("17:00");
       setNote("");
       setVertretungChildName("");
       setIndirectChildName("");
+      setVertretungQuarter(null);
+      pickedTimesRef.current = false;
     }
+    // Start/End are seeded by the Stundenplan effect below (it owns those two
+    // fields), so they're intentionally not reset here.
   }, [open, defaultDate]);
 
   // Whenever the day's assigned children change (open, date change, or
@@ -217,13 +237,28 @@ export function NewEntrySheet({
     );
   };
 
+  // ±15 (Vor-/Nachviertelstunde) flags per assigned child — for the OWN variant.
+  const childFlags = useMemo(
+    () =>
+      new Map(
+        assignedChildren.map((c) => [
+          c.id,
+          { vor: c.vorviertelstunde, nach: c.nachviertelstunde },
+        ]),
+      ),
+    [assignedChildren],
+  );
+
   // Times derived from the Schulbegleiter's assigned child(ren) Stundenplan for
   // the chosen weekday. Earliest start + latest end across the relevant
-  // schedules. Null when no schedule covers the day — the SB then enters
-  // start/end manually.
+  // schedules, plus the ±15 flags of whichever child owns each boundary (the
+  // export widens once per day the same way). Null when no schedule covers the
+  // day — the SB then enters start/end manually.
   const dayScheduleTimes = useMemo<{
     start: string;
     end: string;
+    vor: boolean;
+    nach: boolean;
   } | null>(() => {
     const wd = weekdayIndex(parseIsoDate(date));
     const relevantChildIds =
@@ -232,23 +267,110 @@ export function NewEntrySheet({
       (s) => s.weekday === wd && relevantChildIds.includes(s.childId),
     );
     if (daySchedules.length === 0) return null;
-    const start = daySchedules.reduce((acc, s) =>
+    const startSchedule = daySchedules.reduce((acc, s) =>
       timeToMinutes(s.startTime) < timeToMinutes(acc.startTime) ? s : acc,
-    ).startTime;
-    const end = daySchedules.reduce((acc, s) =>
+    );
+    const endSchedule = daySchedules.reduce((acc, s) =>
       timeToMinutes(s.endTime) > timeToMinutes(acc.endTime) ? s : acc,
-    ).endTime;
-    return { start, end };
-  }, [date, schedules, dayAssignedChildren, childIds]);
+    );
+    return {
+      start: startSchedule.startTime,
+      end: endSchedule.endTime,
+      vor: childFlags.get(startSchedule.childId)?.vor ?? false,
+      nach: childFlags.get(endSchedule.childId)?.nach ?? false,
+    };
+  }, [date, schedules, dayAssignedChildren, childIds, childFlags]);
 
-  // Auto-fill Start/End from the Stundenplan when entering Arbeit/Eigenes Kind.
-  // The SB can still edit the times manually after the fill.
+  // Display-only ±15 hint for the time inputs. Start/End always hold the raw
+  // schedule time (= what gets saved); these widened values are shown only as
+  // the billed span so the SB sees the approved quarter-hours but still enters
+  // the unwidened time. OWN reads the boundary child's flags; VERTRETUNG reads
+  // the looked-up / picked child's flags.
+  const quarterHint = useMemo(() => {
+    const flags =
+      workVariant === "OWN"
+        ? dayScheduleTimes
+          ? { vor: dayScheduleTimes.vor, nach: dayScheduleTimes.nach }
+          : null
+        : workVariant === "VERTRETUNG"
+          ? vertretungQuarter
+          : null;
+    if (!flags || (!flags.vor && !flags.nach)) return null;
+    if (!startTime || !endTime) return null;
+    return {
+      vor: flags.vor,
+      nach: flags.nach,
+      billedStart: flags.vor ? shiftTime(startTime, -15) : startTime,
+      billedEnd: flags.nach ? shiftTime(endTime, 15) : endTime,
+      label:
+        flags.vor && flags.nach
+          ? "Vor- und Nachviertelstunde"
+          : flags.vor
+            ? "Vorviertelstunde"
+            : "Nachviertelstunde",
+    };
+  }, [workVariant, dayScheduleTimes, vertretungQuarter, startTime, endTime]);
+
+  // Seed Start/End for the Arbeit/Direkt variant from the Stundenplan — on open
+  // and whenever the day's relevant schedule changes. Depending on `open` is
+  // what fixes the reopen-fallback bug: reopening the same day re-applies the
+  // schedule even though `dayScheduleTimes` is referentially unchanged, instead
+  // of being left on the fallback the previous reset wrote. The SB can still
+  // edit afterwards. Falls back to 08:00–17:00 only when no schedule covers the
+  // day. NOTE: the stored time stays raw — the ±15 widening is a display-only
+  // billing hint (see the QuarterHour note) and is never written here.
   useEffect(() => {
+    if (!open) return;
     if (type !== EventType.WORK || workVariant !== "OWN") return;
-    if (!dayScheduleTimes) return;
-    setStartTime(dayScheduleTimes.start);
-    setEndTime(dayScheduleTimes.end);
-  }, [type, workVariant, dayScheduleTimes]);
+    if (dayScheduleTimes) {
+      setStartTime(dayScheduleTimes.start);
+      setEndTime(dayScheduleTimes.end);
+    } else {
+      setStartTime("08:00");
+      setEndTime("17:00");
+    }
+  }, [open, type, workVariant, dayScheduleTimes]);
+
+  // Detail 2: for a free-text Vertretung, debounce-look up the typed name. On an
+  // exact match (same rule that auto-assigns on submit) prefill the child's
+  // Stundenplan times and surface the ±15 hint. A quick-pick already set exact
+  // block times, so we then refresh only the hint (pickedTimesRef guard).
+  useEffect(() => {
+    if (!open || type !== EventType.WORK || workVariant !== "VERTRETUNG")
+      return;
+    const name = vertretungChildName.trim();
+    if (name.length < 2) {
+      setVertretungQuarter(null);
+      return;
+    }
+    let cancelled = false;
+    const handle = setTimeout(async () => {
+      try {
+        const res = await lookupVertretungPrefillAction({ name, date });
+        if (cancelled) return;
+        if (!res.matched) {
+          setVertretungQuarter(null);
+          return;
+        }
+        setVertretungQuarter({
+          vor: res.vorviertelstunde,
+          nach: res.nachviertelstunde,
+        });
+        if (res.startTime && res.endTime && !pickedTimesRef.current) {
+          setStartTime(res.startTime);
+          setEndTime(res.endTime);
+        }
+      } catch {
+        // Lookup is a best-effort convenience — ignore failures silently.
+      } finally {
+        if (!cancelled) pickedTimesRef.current = false;
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [open, type, workVariant, vertretungChildName, date]);
 
   const submitWithSignature = async (pngBase64: string) => {
     setSubmitting(true);
@@ -620,7 +742,14 @@ export function NewEntrySheet({
 
                 <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-end">
                   <div className="space-y-1.5">
-                    <Label htmlFor="start">Start</Label>
+                    <Label htmlFor="start">
+                      Start
+                      {quarterHint?.vor && (
+                        <span className="ml-1 font-normal text-muted-foreground">
+                          (ohne ¼-Std.)
+                        </span>
+                      )}
+                    </Label>
                     <Input
                       id="start"
                       type="time"
@@ -631,7 +760,14 @@ export function NewEntrySheet({
                   </div>
                   <span className="pb-3 text-muted-foreground">→</span>
                   <div className="space-y-1.5">
-                    <Label htmlFor="end">Ende</Label>
+                    <Label htmlFor="end">
+                      Ende
+                      {quarterHint?.nach && (
+                        <span className="ml-1 font-normal text-muted-foreground">
+                          (ohne ¼-Std.)
+                        </span>
+                      )}
+                    </Label>
                     <Input
                       id="end"
                       type="time"
@@ -648,6 +784,20 @@ export function NewEntrySheet({
                     : "Ende muss nach Start liegen"}
                 </p>
 
+                {quarterHint && (
+                  <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                    <Info className="mt-0.5 size-3.5 shrink-0" />
+                    <span>
+                      {quarterHint.label} genehmigt – wird automatisch als{" "}
+                      <span className="font-medium tabular-nums">
+                        {quarterHint.billedStart}–{quarterHint.billedEnd}
+                      </span>{" "}
+                      abgerechnet. Bitte die Zeit <strong>ohne</strong>{" "}
+                      ¼-Stunden eintragen.
+                    </span>
+                  </p>
+                )}
+
                 {workVariant === "VERTRETUNG" && (
                   <>
                     {availableVertretungen.length > 0 && (
@@ -663,9 +813,14 @@ export function NewEntrySheet({
                                 key={`${v.childId}-${i}`}
                                 type="button"
                                 onClick={() => {
+                                  pickedTimesRef.current = true;
                                   setVertretungChildName(v.childName);
                                   setStartTime(b.startTime);
                                   setEndTime(b.endTime);
+                                  setVertretungQuarter({
+                                    vor: v.vorviertelstunde,
+                                    nach: v.nachviertelstunde,
+                                  });
                                 }}
                                 className={cn(
                                   "flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors",

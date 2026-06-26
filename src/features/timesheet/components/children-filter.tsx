@@ -14,6 +14,11 @@ export type ChildOption = {
   id: string;
   firstName: string;
   lastName: string;
+  /** Approved Vorviertelstunde — the Einsatz form shows a 15-min-earlier
+   *  billing start (display only; the stored entry time is unchanged). */
+  vorviertelstunde: boolean;
+  /** Approved Nachviertelstunde — 15-min-later billing end (display only). */
+  nachviertelstunde: boolean;
 };
 
 type Props = {

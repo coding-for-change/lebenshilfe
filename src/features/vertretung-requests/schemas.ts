@@ -19,3 +19,27 @@ export const ResolveVertretungRequestSchema = z.object({
 export type ResolveVertretungRequestInput = z.infer<
   typeof ResolveVertretungRequestSchema
 >;
+
+export const VertretungPrefillLookupSchema = z.object({
+  name: z.string(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Ungültiges Datum."),
+});
+
+export type VertretungPrefillLookupInput = z.infer<
+  typeof VertretungPrefillLookupSchema
+>;
+
+/**
+ * Result of looking up a free-text Vertretung child name. Times come from the
+ * matched child's Stundenplan for the weekday; the ±15 flags drive the
+ * display-only billing hint. `matched: false` reveals nothing about the roster.
+ */
+export type VertretungPrefillResult =
+  | { matched: false }
+  | {
+      matched: true;
+      startTime: string | null;
+      endTime: string | null;
+      vorviertelstunde: boolean;
+      nachviertelstunde: boolean;
+    };

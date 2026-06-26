@@ -6,6 +6,7 @@ import { VertretungRequestsFacade } from "./facade";
 import type {
   CreateVertretungRequestInput,
   ResolveVertretungRequestInput,
+  VertretungPrefillLookupInput,
 } from "./schemas";
 
 const VERTRETUNG_REVALIDATE_PATHS = [
@@ -24,6 +25,18 @@ export async function createVertretungRequestAction(
   const user = await requireAuth();
   await VertretungRequestsFacade.create(user.id, input);
   revalidateVertretungPaths();
+}
+
+/**
+ * Read-only lookup for the Einsatz form: given a free-text child name + date,
+ * returns the matched child's Stundenplan times and ±15 flags (or no match).
+ * Any signed-in Schulbegleiter may call it; it mutates nothing.
+ */
+export async function lookupVertretungPrefillAction(
+  input: VertretungPrefillLookupInput,
+) {
+  await requireAuth();
+  return VertretungRequestsFacade.lookupPrefill(input);
 }
 
 export async function resolveVertretungRequestAction(

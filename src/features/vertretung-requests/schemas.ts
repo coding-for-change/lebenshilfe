@@ -29,11 +29,6 @@ export type VertretungPrefillLookupInput = z.infer<
   typeof VertretungPrefillLookupSchema
 >;
 
-/**
- * Result of looking up a free-text Vertretung child name. Times come from the
- * matched child's Stundenplan for the weekday; the ±15 flags drive the
- * display-only billing hint. `matched: false` reveals nothing about the roster.
- */
 export type VertretungPrefillResult =
   | { matched: false }
   | {

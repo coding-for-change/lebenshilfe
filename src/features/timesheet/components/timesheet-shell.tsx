@@ -68,8 +68,6 @@ export type VertretungDay = {
   childName: string;
   startTime: string;
   endTime: string;
-  /** Approved ±15 billing flags for the covered child — drive the display-only
-   *  Vor-/Nachviertelstunde hint on the Vertretung quick-pick. */
   vorviertelstunde: boolean;
   nachviertelstunde: boolean;
   /** When set, this Vertretung was created by the SB via free-text (auto-matched

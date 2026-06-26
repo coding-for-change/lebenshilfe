@@ -27,11 +27,6 @@ export async function createVertretungRequestAction(
   revalidateVertretungPaths();
 }
 
-/**
- * Read-only lookup for the Einsatz form: given a free-text child name + date,
- * returns the matched child's Stundenplan times and ±15 flags (or no match).
- * Any signed-in Schulbegleiter may call it; it mutates nothing.
- */
 export async function lookupVertretungPrefillAction(
   input: VertretungPrefillLookupInput,
 ) {

@@ -124,13 +124,8 @@ export const VertretungRequestsFacade = {
     });
   },
 
-  /**
-   * Prefill helper for the Einsatz form's free-text Vertretung field. Returns
-   * the matched child's Stundenplan span (earliest start / latest end) for the
-   * weekday plus its ±15 flags — using the SAME exact-match rule that decides
-   * whether a submission auto-assigns, so prefill and submission never diverge.
-   * No HTTP/session context, no roster leak (`matched: false` when no hit).
-   */
+  // Reuses the same exact-match rule that auto-assigns on submit, so prefill and
+  // submission never diverge. `matched: false` leaks nothing about the roster.
   async lookupPrefill(
     input: VertretungPrefillLookupInput,
   ): Promise<VertretungPrefillResult> {

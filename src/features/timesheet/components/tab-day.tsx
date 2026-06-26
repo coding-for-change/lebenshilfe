@@ -417,10 +417,7 @@ export function TabDay({
               <p className="text-sm font-semibold">Stundenplan der Kinder</p>
               <ul className="text-sm text-muted-foreground">
                 {daySchedules.map((s) => {
-                  // Display-only Vor-/Nachviertelstunde, so the SB sees the
-                  // approved ±15 billing extension on the Stundenplan itself —
-                  // before creating an entry. The schedule time stays raw; the
-                  // widened span is shown only as a secondary hint.
+                  // Display-only billed span — the schedule time itself stays raw.
                   const vor = s.child.vorviertelstunde;
                   const nach = s.child.nachviertelstunde;
                   const label =
@@ -567,10 +564,7 @@ export function TabDay({
             const childName = child
               ? `${child.firstName} ${child.lastName}`
               : null;
-            // Display-only Vor-/Nachviertelstunde on the entry itself (direct
-            // WORK only — the ±15 is a direct-service convention). Flags come
-            // from the assigned-child map; the entry time stays raw and the
-            // widened billing span is shown only as a secondary hint.
+            // Display-only billed span on direct WORK entries; entry time stays raw.
             const flagChild = ev.childId
               ? childById.get(ev.childId)
               : undefined;

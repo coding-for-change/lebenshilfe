@@ -120,11 +120,7 @@ export function timeToMinutes(t: string): number {
   return h * 60 + m;
 }
 
-/**
- * Shift an "HH:MM" time by a signed number of minutes, clamped to the same day
- * [00:00, 23:59]. Used to render the Vor-/Nachviertelstunde billing span
- * (±15 min) without mutating the stored schedule/entry time.
- */
+/** Shift "HH:MM" by signed minutes, clamped to [00:00, 23:59]. */
 export function shiftTime(t: string, deltaMinutes: number): string {
   const total = Math.max(
     0,

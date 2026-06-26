@@ -88,14 +88,11 @@ export function NewEntrySheet({
   const [note, setNote] = useState("");
   const [vertretungChildName, setVertretungChildName] = useState("");
   const [indirectChildName, setIndirectChildName] = useState("");
-  // Display-only ±15 (Vor-/Nachviertelstunde) flags for the typed or picked
-  // Vertretung child. Drives the billing hint; never changes the saved time.
   const [vertretungQuarter, setVertretungQuarter] = useState<{
     vor: boolean;
     nach: boolean;
   } | null>(null);
-  // Set when a Vertretung quick-pick supplied exact block times, so the
-  // debounced name lookup updates only the hint and won't clobber those times.
+  // Guards the debounce lookup from overwriting a quick-pick's exact block times.
   const pickedTimesRef = useRef(false);
 
   // Child IDs that already have a work Event for this date — used to hide
@@ -174,8 +171,7 @@ export function NewEntrySheet({
       setVertretungQuarter(null);
       pickedTimesRef.current = false;
     }
-    // Start/End are seeded by the Stundenplan effect below (it owns those two
-    // fields), so they're intentionally not reset here.
+    // Start/End are owned by the Stundenplan effect below, not reset here.
   }, [open, defaultDate]);
 
   // Whenever the day's assigned children change (open, date change, or
@@ -237,7 +233,6 @@ export function NewEntrySheet({
     );
   };
 
-  // ±15 (Vor-/Nachviertelstunde) flags per assigned child — for the OWN variant.
   const childFlags = useMemo(
     () =>
       new Map(
@@ -249,11 +244,8 @@ export function NewEntrySheet({
     [assignedChildren],
   );
 
-  // Times derived from the Schulbegleiter's assigned child(ren) Stundenplan for
-  // the chosen weekday. Earliest start + latest end across the relevant
-  // schedules, plus the ±15 flags of whichever child owns each boundary (the
-  // export widens once per day the same way). Null when no schedule covers the
-  // day — the SB then enters start/end manually.
+  // Earliest start + latest end across the day's schedules, plus the ±15 flags
+  // of whichever child owns each boundary (mirrors how the export widens).
   const dayScheduleTimes = useMemo<{
     start: string;
     end: string;
@@ -281,11 +273,7 @@ export function NewEntrySheet({
     };
   }, [date, schedules, dayAssignedChildren, childIds, childFlags]);
 
-  // Display-only ±15 hint for the time inputs. Start/End always hold the raw
-  // schedule time (= what gets saved); these widened values are shown only as
-  // the billed span so the SB sees the approved quarter-hours but still enters
-  // the unwidened time. OWN reads the boundary child's flags; VERTRETUNG reads
-  // the looked-up / picked child's flags.
+  // Display-only billed span for the time inputs — the saved Start/End stay raw.
   const quarterHint = useMemo(() => {
     const flags =
       workVariant === "OWN"
@@ -311,14 +299,8 @@ export function NewEntrySheet({
     };
   }, [workVariant, dayScheduleTimes, vertretungQuarter, startTime, endTime]);
 
-  // Seed Start/End for the Arbeit/Direkt variant from the Stundenplan — on open
-  // and whenever the day's relevant schedule changes. Depending on `open` is
-  // what fixes the reopen-fallback bug: reopening the same day re-applies the
-  // schedule even though `dayScheduleTimes` is referentially unchanged, instead
-  // of being left on the fallback the previous reset wrote. The SB can still
-  // edit afterwards. Falls back to 08:00–17:00 only when no schedule covers the
-  // day. NOTE: the stored time stays raw — the ±15 widening is a display-only
-  // billing hint (see the QuarterHour note) and is never written here.
+  // Seed raw Start/End from the Stundenplan. Depends on `open` so reopening the
+  // same day re-applies the schedule instead of keeping the previous fallback.
   useEffect(() => {
     if (!open) return;
     if (type !== EventType.WORK || workVariant !== "OWN") return;
@@ -331,10 +313,8 @@ export function NewEntrySheet({
     }
   }, [open, type, workVariant, dayScheduleTimes]);
 
-  // Detail 2: for a free-text Vertretung, debounce-look up the typed name. On an
-  // exact match (same rule that auto-assigns on submit) prefill the child's
-  // Stundenplan times and surface the ±15 hint. A quick-pick already set exact
-  // block times, so we then refresh only the hint (pickedTimesRef guard).
+  // Free-text Vertretung: debounce-look up the typed name and prefill its
+  // Stundenplan times + ±15 hint on an exact match.
   useEffect(() => {
     if (!open || type !== EventType.WORK || workVariant !== "VERTRETUNG")
       return;

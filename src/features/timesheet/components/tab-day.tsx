@@ -19,6 +19,7 @@ import {
   formatDuration,
   isSameUtcDay,
   relativeLabel,
+  shiftTime,
   timeToMinutes,
 } from "@/lib/dates";
 import { formatDate } from "@/lib/utils";
@@ -415,19 +416,50 @@ export function TabDay({
             <div className="flex-1 space-y-1">
               <p className="text-sm font-semibold">Stundenplan der Kinder</p>
               <ul className="text-sm text-muted-foreground">
-                {daySchedules.map((s) => (
-                  <li
-                    key={s.id}
-                    className="flex justify-between gap-3 tabular-nums"
-                  >
-                    <span>
-                      {s.child.firstName} {s.child.lastName}
-                    </span>
-                    <span>
-                      {s.startTime}–{s.endTime}
-                    </span>
-                  </li>
-                ))}
+                {daySchedules.map((s) => {
+                  // Display-only Vor-/Nachviertelstunde, so the SB sees the
+                  // approved ±15 billing extension on the Stundenplan itself —
+                  // before creating an entry. The schedule time stays raw; the
+                  // widened span is shown only as a secondary hint.
+                  const vor = s.child.vorviertelstunde;
+                  const nach = s.child.nachviertelstunde;
+                  const label =
+                    vor && nach
+                      ? "Vor- & Nachviertelstunde"
+                      : vor
+                        ? "Vorviertelstunde"
+                        : nach
+                          ? "Nachviertelstunde"
+                          : null;
+                  const billed =
+                    vor && nach
+                      ? `${shiftTime(s.startTime, -15)}–${shiftTime(s.endTime, 15)}`
+                      : vor
+                        ? `ab ${shiftTime(s.startTime, -15)}`
+                        : nach
+                          ? `bis ${shiftTime(s.endTime, 15)}`
+                          : null;
+                  return (
+                    <li
+                      key={s.id}
+                      className="flex justify-between gap-3 tabular-nums"
+                    >
+                      <span>
+                        {s.child.firstName} {s.child.lastName}
+                      </span>
+                      <span className="flex flex-col items-end">
+                        <span>
+                          {s.startTime}–{s.endTime}
+                        </span>
+                        {label && (
+                          <span className="mt-0.5 text-right text-xs font-medium text-amber-700">
+                            inkl. {label} · {billed}
+                          </span>
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           </div>

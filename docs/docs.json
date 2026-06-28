@@ -69,6 +69,7 @@
                 "group": "Stammdaten verwalten",
                 "pages": [
                   "admin/kinder",
+                  "admin/pools",
                   "admin/schulbegleiter",
                   "admin/schulen",
                   "admin/ferienplaene",

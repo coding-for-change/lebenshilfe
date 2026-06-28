@@ -1,11 +1,15 @@
 services:
   app:
     image: localhost:5000/lebenshilfe-${BRANCH_NAME_SAFE}:latest
+    labels:
+      alloy-logging: true
     restart: unless-stopped
     depends_on:
       - db
     env_file:
       - .env
+    environment:
+      - LOG_PRETTY=false
     ports:
       - "${APP_PORT}:3000"
     command: >

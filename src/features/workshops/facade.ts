@@ -12,6 +12,7 @@ import {
   listWorkshops,
   updateWorkshopPartial,
 } from "./services";
+import { logBusinessEvent } from "@/lib/logger";
 
 function normaliseDescription(description: string | null | undefined) {
   const trimmed = description?.trim();
@@ -29,6 +30,7 @@ export const WorkshopsFacade = {
 
   async create(input: WorkshopInput) {
     const parsed = WorkshopSchema.parse(input);
+    logBusinessEvent("WORKSHOP_CREATED", { name: parsed.name });
     return insertWorkshop(
       parsed.name,
       normaliseDescription(parsed.description),

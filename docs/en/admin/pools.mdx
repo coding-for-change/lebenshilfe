@@ -1,0 +1,86 @@
+---
+title: "Manage pools"
+description: "Bundle groups of children and school assistants and bill them together"
+---
+
+import { VideoPlaceholder } from "/snippets/loom.mdx";
+
+A **pool** bundles several children from one school with the same school assistants under
+a shared **cost bearer (Kostenträger)**. For pool-based billing, you no longer need to
+create an Einsatznachweis for each child individually — you can export it for the entire
+pool in a single step.
+
+You'll find the area under
+[**Pools**](https://lebenshilfe.codingforchange.com/admin/pools) in the admin area.
+
+## When to use a pool
+
+Create a pool when several children at the same school are billed together — for example,
+through a school pool — via one shared cost bearer. For the classic 1-to-1 assistance with
+a per-child Einsatznachweis, no pool is required.
+
+## Create a pool
+
+Click **Neuen Pool anlegen** in the top right. The wizard guides you through four steps:
+
+<Steps>
+  <Step title="Master data">
+    Enter a **name** and select the pool's **school** and **cost bearer**. All three fields
+    are required.
+  </Step>
+  <Step title="Children">
+    Add the **children** that belong to the pool. Children assigned to a different school
+    are flagged with the hint "Andere Schule" ("Other school").
+  </Step>
+  <Step title="School assistants">
+    Add the **school assistants** working in the pool.
+  </Step>
+  <Step title="Overview">
+    Review the summary and click **Pool anlegen** to create the pool.
+  </Step>
+</Steps>
+
+<VideoPlaceholder title="Create a pool" />
+
+## Manage members
+
+Open a pool via **Details bearbeiten**. On the **Allgemein** tab you can change the master
+data and adjust the lists of **children** and **school assistants**. If a child's school
+doesn't match the pool's school, a warning appears — you can still save the pool.
+
+## Export a pool Einsatznachweis
+
+On the **Export** tab of the pool details, you open the **Einsatznachweis** for the entire
+pool. The dialog behaves the same way as the per-child export:
+
+<Steps>
+  <Step title="Period">
+    Choose **Einzelner Monat** (single month) or **Zeitraum** (range) and set From/To. You
+    can export at most **24 months** at once, and the end month must not be in the future.
+  </Step>
+  <Step title="Format & split">
+    Choose **PDF**, **Excel (.xlsx)** or **CSV**. Under **Aufteilung** (split) decide
+    between:
+    - **Zusammengefasst** — one file for the whole pool, or
+    - **Pro Schulbegleiter** — one file per school assistant in the pool.
+  </Step>
+  <Step title="Signatures (PDF only)">
+    Optionally enable **Unterschriften einbetten** to include the stored signature for each
+    day in the PDF.
+  </Step>
+  <Step title="Export">
+    Click **Exportieren**. A confirmation appears and the file(s) download. If the period
+    contains no entries, you'll see "Keine Einträge im gewählten Zeitraum.".
+  </Step>
+</Steps>
+
+<Tip>
+  To create an Einsatznachweis for a single child, use the Children area — see
+  [Export Einsatznachweis](/en/admin/kostentraeger-export).
+</Tip>
+
+## Edit and delete
+
+- **Details bearbeiten** opens the pool to adjust master data and members.
+- **Löschen** deletes the pool. The assigned children and school assistants remain — only
+  their pool membership is removed.

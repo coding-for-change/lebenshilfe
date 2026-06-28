@@ -1,0 +1,68 @@
+---
+title: "Overview: admin area"
+description: "How the admin area is structured and how to navigate it"
+---
+
+import { VideoPlaceholder } from "/snippets/loom.mdx";
+
+As an administrator, you land in the
+[**admin area**](https://lebenshilfe.codingforchange.com/admin) after signing in. You're
+greeted with "Willkommen im Verwaltungsbereich. Wähle einen Bereich, um zu beginnen."
+("Welcome to the admin area. Choose a section to get started.")
+
+<Frame caption="The admin area with the side navigation">
+  <img src="/images/admin/uebersicht.png" alt="Admin area" />
+</Frame>
+
+## Navigation
+
+On the left (on a phone via the menu) you'll find all sections:
+
+<CardGroup cols={2}>
+  <Card title="Overview" icon="house" href="/en/admin/uebersicht">
+    Home page of the admin area.
+  </Card>
+  <Card title="School assistants" icon="user" href="/admin/schulbegleiter">
+    Create and manage school assistants.
+  </Card>
+  <Card title="Children" icon="child" href="/admin/kinder">
+    Children, their assignments, timetables, and records.
+  </Card>
+  <Card title="Pools" icon="users" href="/en/admin/pools">
+    Groups of children and school assistants for shared billing.
+  </Card>
+  <Card title="Schools" icon="school" href="/admin/schulen">
+    Schools with their location and holiday plan.
+  </Card>
+  <Card title="Holidays" icon="umbrella-beach" href="/admin/ferienplaene">
+    Holiday plans with their periods.
+  </Card>
+  <Card title="Workshops" icon="chalkboard-user" href="/admin/workshops">
+    Training sessions for school assistants.
+  </Card>
+  <Card title="Action needed" icon="bell" href="/admin/handlungsbedarf">
+    Assign open substitution requests.
+  </Card>
+  <Card title="Map" icon="map-location-dot" href="/admin/karte">
+    Daily overview of all assignments on the map.
+  </Card>
+</CardGroup>
+
+The **Admin** section also includes **User management** — reserved for administrators and
+owners.
+
+<VideoPlaceholder title="Tour of the admin area" />
+
+## Roles: Admin and Owner
+
+There are two admin roles:
+
+- **Admin** — can manage all sections (children, schools, school assistants, exports, etc.).
+- **Owner** — like Admin, and can additionally promote or remove other owners in **user
+  management**.
+
+<Note>
+  Common controls: open a record via **Details bearbeiten**, delete one via **Löschen**
+  (each with a confirmation). Create new records with the button in the top right (e.g.
+  **Neues Kind anlegen**).
+</Note>

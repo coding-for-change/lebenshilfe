@@ -1,0 +1,75 @@
+---
+title: "Export Einsatznachweis"
+description: "Generate billing records for cost bearers as PDF, Excel, or CSV"
+---
+
+import { VideoPlaceholder } from "/snippets/loom.mdx";
+
+The **Einsatznachweis** is the billing document for a child's **cost bearer
+(Kostenträger)** — "in the format of Tabelle 7". You generate it from the recorded work
+entries of a single child.
+
+<Tip>
+  If several children are billed together via a pool, generate the Einsatznachweis for the
+  entire pool directly from the [Pools](/en/admin/pools) area.
+</Tip>
+
+## Open the export
+
+In the [**Children**](https://lebenshilfe.codingforchange.com/admin/children) area, open a
+child via **Details bearbeiten** and switch to the **Historie** tab. From there, use
+**Exportieren** to open the **Einsatznachweis exportieren** dialog.
+
+<Frame caption="The Einsatznachweis exportieren dialog">
+  <img src="/images/admin/kostentraeger-export.png" alt="Export Einsatznachweis" />
+</Frame>
+
+## Settings
+
+<Steps>
+  <Step title="Choose period">
+    Choose between **Einzelner Monat** (single month) and **Zeitraum (mehrere Monate)**
+    (range). Depending on your choice, a **Monat** field or **Von** and **Bis** fields
+    appear.
+  </Step>
+  <Step title="Set split">
+    Under **Aufteilung** (split) decide:
+    - **Zusammengefasst (alle Schulbegleiter)** — one file for the child, or
+    - **Pro Schulbegleiter (eine Datei je SB)** — one file per school assistant.
+  </Step>
+  <Step title="Choose format">
+    Choose **PDF**, **Excel (.xlsx)**, or **CSV**.
+  </Step>
+  <Step title="Set options">
+    Enable the extra options if needed (see below).
+  </Step>
+  <Step title="Export">
+    Click **Exportieren**. A confirmation appears ("Einsatznachweis wurde erstellt." or the
+    matching count for multiple files) and the file(s) download.
+  </Step>
+</Steps>
+
+<VideoPlaceholder title="Export an Einsatznachweis" />
+
+## Extra options
+
+<AccordionGroup>
+  <Accordion title="Fill hours with indirect service">
+    A safety net: if the logged hours aren't enough, the "Indirekte Leistung" row is
+    filled up to the child's approved indirect service quota.
+  </Accordion>
+  <Accordion title="Embed signatures (PDF only)">
+    Adds the stored signature for each day as a small column in the PDF. This option is
+    only available with the **PDF** format.
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+  If there are no entries in the selected period, "Keine Einträge im gewählten Zeitraum."
+  appears. Check the period and split in that case.
+</Warning>
+
+<Tip>
+  You set a child's **cost bearer** on their master data in the Children area (step
+  **Verwaltung**).
+</Tip>

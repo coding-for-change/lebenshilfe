@@ -146,6 +146,7 @@
                 "group": "Manage Master Data",
                 "pages": [
                   "en/admin/kinder",
+                  "en/admin/pools",
                   "en/admin/schulbegleiter",
                   "en/admin/schulen",
                   "en/admin/ferienplaene",

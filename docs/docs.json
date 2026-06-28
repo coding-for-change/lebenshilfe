@@ -87,6 +87,15 @@
                 ]
               }
             ]
+          },
+          {
+            "tab": "Änderungen",
+            "groups": [
+              {
+                "group": "2026",
+                "pages": ["changelog/2026-06-28"]
+              }
+            ]
           }
         ]
       },
@@ -161,6 +170,15 @@
                   "en/admin/kostentraeger-export",
                   "en/admin/benutzerverwaltung"
                 ]
+              }
+            ]
+          },
+          {
+            "tab": "Changelog",
+            "groups": [
+              {
+                "group": "2026",
+                "pages": ["en/changelog/2026-06-28"]
               }
             ]
           }

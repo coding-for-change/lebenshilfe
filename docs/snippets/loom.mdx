@@ -1,0 +1,51 @@
+export const Loom = ({ id, title = "Video-Anleitung" }) => (
+  <div
+    style={{
+      position: "relative",
+      paddingBottom: "62.5%",
+      height: 0,
+      borderRadius: "0.75rem",
+      overflow: "hidden",
+      border: "1px solid rgba(0,0,0,0.08)",
+      margin: "1.25rem 0",
+    }}
+  >
+    <iframe
+      src={`https://www.loom.com/embed/${id}`}
+      title={title}
+      allowFullScreen
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        border: 0,
+      }}
+    />
+  </div>
+);
+
+export const VideoPlaceholder = ({ title = "Video-Anleitung folgt" }) => (
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "0.75rem",
+      padding: "1.1rem 1.25rem",
+      margin: "1.25rem 0",
+      borderRadius: "0.75rem",
+      border: "1px dashed #0069B4",
+      background: "rgba(0,105,180,0.06)",
+      color: "#004E87",
+      fontSize: "0.95rem",
+    }}
+  >
+    <span style={{ fontSize: "1.4rem", lineHeight: 1 }}>🎬</span>
+    <span>
+      <strong>{title}</strong>
+      <br />
+      Hier wird in Kürze ein kurzes Loom-Video diesen Ablauf Schritt für Schritt zeigen.
+    </span>
+  </div>
+);

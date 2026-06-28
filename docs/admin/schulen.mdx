@@ -1,0 +1,48 @@
+---
+title: "Schulen verwalten"
+description: "Schulen anlegen, Standort pflegen und Ferienpläne zuweisen"
+---
+
+import { VideoPlaceholder } from "/snippets/loom.mdx";
+
+Im Bereich [**Schulen**](https://lebenshilfe.codingforchange.com/admin/schools) pflegen Sie
+alle Schulen mit ihrem Standort und weisen ihnen einen **Ferienplan** zu. Der Standort wird
+für die [Karte](/admin/karte) benötigt.
+
+<Frame caption="Die Schulen-Übersicht">
+  <img src="/images/admin/schulen.png" alt="Schulen-Übersicht" />
+</Frame>
+
+## Eine Schule anlegen
+
+<Steps>
+  <Step title="Neue Schule anlegen wählen">
+    Klicken Sie oben rechts auf **Neue Schule anlegen**.
+  </Step>
+  <Step title="Name und Adresse erfassen">
+    Geben Sie den **Namen** und die Adresse ein. Aus der Adresse wird der Standort für die
+    Karte ermittelt.
+  </Step>
+  <Step title="Speichern">
+    Speichern Sie die Schule.
+  </Step>
+</Steps>
+
+<VideoPlaceholder title="Eine Schule anlegen" />
+
+## Ferienplan zuweisen
+
+Jeder Schule lässt sich ein **Ferienplan** zuordnen – einzeln in der Detailansicht oder für
+**mehrere Schulen gleichzeitig**. Bei Mehrfachauswahl erscheint oben „{`{Anzahl}`}
+ausgewählt", und Sie weisen den Ferienplan in einem Schritt allen ausgewählten Schulen zu.
+
+<Tip>
+  Die Ferienzeiträume selbst pflegen Sie im Bereich
+  [Ferienpläne](/admin/ferienplaene). Eine Schule verweist nur auf einen dieser Pläne.
+</Tip>
+
+## Bearbeiten und löschen
+
+- **Details bearbeiten** öffnet die Schule zum Anpassen von Name, Adresse und Ferienplan.
+- **Löschen** entfernt die Schule. Sind ihr Kinder zugeordnet, weist die Abfrage darauf hin,
+  dass bei diesen Kindern die Schulzuordnung entfernt wird.

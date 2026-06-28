@@ -1,0 +1,70 @@
+---
+title: "Einsatznachweis exportieren"
+description: "Abrechnungsnachweise für Kostenträger als PDF, Excel oder CSV erzeugen"
+---
+
+import { VideoPlaceholder } from "/snippets/loom.mdx";
+
+Der **Einsatznachweis** ist das Abrechnungsdokument für den **Kostenträger** eines Kindes –
+„im Format der Tabelle 7". Sie erzeugen ihn aus den erfassten Arbeitseinträgen eines Kindes.
+
+## Den Export öffnen
+
+Öffnen Sie im Bereich
+[**Kinder**](https://lebenshilfe.codingforchange.com/admin/children) ein Kind über
+**Details bearbeiten** und wechseln Sie in den Reiter **Historie**. Dort starten Sie über
+**Exportieren** das Fenster **Einsatznachweis exportieren**.
+
+<Frame caption="Das Export-Fenster Einsatznachweis exportieren">
+  <img src="/images/admin/kostentraeger-export.png" alt="Einsatznachweis exportieren" />
+</Frame>
+
+## Die Einstellungen
+
+<Steps>
+  <Step title="Zeitraum wählen">
+    Wählen Sie zwischen **Einzelner Monat** und **Zeitraum (mehrere Monate)**. Je nach Wahl
+    erscheint ein **Monat**-Feld oder die Felder **Von** und **Bis**.
+  </Step>
+  <Step title="Aufteilung festlegen">
+    Unter **Aufteilung** entscheiden Sie:
+    - **Zusammengefasst (alle Schulbegleiter)** – eine Datei für das Kind, oder
+    - **Pro Schulbegleiter (eine Datei je SB)** – je Schulbegleitung eine eigene Datei.
+  </Step>
+  <Step title="Format wählen">
+    Wählen Sie **PDF**, **Excel (.xlsx)** oder **CSV**.
+  </Step>
+  <Step title="Optionen setzen">
+    Bei Bedarf aktivieren Sie die Zusatzoptionen (siehe unten).
+  </Step>
+  <Step title="Exportieren">
+    Klicken Sie auf **Exportieren**. Es erscheint „Einsatznachweis wurde erstellt." (bzw.
+    bei mehreren Dateien die entsprechende Anzahl) und die Datei(en) werden
+    heruntergeladen.
+  </Step>
+</Steps>
+
+<VideoPlaceholder title="Einen Einsatznachweis exportieren" />
+
+## Zusatzoptionen
+
+<AccordionGroup>
+  <Accordion title="Stunden mit indirekter Leistung auffüllen">
+    Ein Sicherheitsnetz: Reichen die geloggten Stunden nicht aus, wird die Zeile
+    „Indirekte Leistung" bis zur genehmigten indirekten Leistung des Kindes aufgefüllt.
+  </Accordion>
+  <Accordion title="Unterschriften einbetten (nur PDF)">
+    Fügt je Tag die gespeicherte Unterschrift als kleine Spalte in das PDF ein. Diese Option
+    ist nur beim Format **PDF** verfügbar.
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+  Gibt es im gewählten Zeitraum keine Einträge, erscheint „Keine Einträge im gewählten
+  Zeitraum." Prüfen Sie dann Zeitraum und Aufteilung.
+</Warning>
+
+<Tip>
+  Den **Kostenträger** eines Kindes hinterlegen Sie bei dessen Stammdaten im Bereich
+  [Kinder](/admin/kinder) (Schritt **Verwaltung**).
+</Tip>

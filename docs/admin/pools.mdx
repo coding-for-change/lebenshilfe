@@ -1,0 +1,91 @@
+---
+title: "Pools verwalten"
+description: "Gruppen aus Kindern und Schulbegleitern bündeln und gemeinsam abrechnen"
+---
+
+import { VideoPlaceholder } from "/snippets/loom.mdx";
+
+Ein **Pool** bündelt mehrere Kinder einer Schule mit denselben Schulbegleitungen unter
+einem gemeinsamen **Kostenträger**. So müssen Sie für Pool-Abrechnungen keine Einsatznachweise
+mehr Kind für Kind erzeugen, sondern können sie für den ganzen Pool in einem Schritt
+exportieren.
+
+Sie finden den Bereich unter
+[**Pools**](https://lebenshilfe.codingforchange.com/admin/pools) im Verwaltungsbereich.
+
+## Wann Sie einen Pool brauchen
+
+Legen Sie einen Pool an, wenn mehrere Kinder an derselben Schule gemeinsam – z. B. im
+Rahmen eines Schulpools – über einen gemeinsamen Kostenträger abgerechnet werden. Für die
+„klassische" 1-zu-1-Begleitung mit Einzel-Einsatznachweis pro Kind ist kein Pool nötig.
+
+## Einen Pool anlegen
+
+Klicken Sie oben rechts auf **Neuen Pool anlegen**. Der Assistent führt Sie in vier
+Schritten durch das Anlegen:
+
+<Steps>
+  <Step title="Stammdaten">
+    Vergeben Sie einen **Namen**, wählen Sie die **Schule** und den **Kostenträger** des
+    Pools. Diese drei Felder sind verpflichtend.
+  </Step>
+  <Step title="Kinder">
+    Fügen Sie die **Kinder** hinzu, die zum Pool gehören. Kinder, die auf eine andere
+    Schule eingetragen sind, werden mit dem Hinweis „Andere Schule" markiert.
+  </Step>
+  <Step title="Schulbegleiter">
+    Fügen Sie die **Schulbegleitungen** hinzu, die im Pool eingesetzt sind.
+  </Step>
+  <Step title="Übersicht">
+    Prüfen Sie die Zusammenfassung und klicken Sie auf **Pool anlegen**.
+  </Step>
+</Steps>
+
+<VideoPlaceholder title="Einen Pool anlegen" />
+
+## Mitglieder pflegen
+
+Öffnen Sie einen Pool über **Details bearbeiten**. Im Reiter **Allgemein** ändern Sie
+Stammdaten und passen die Listen der **Kinder** und **Schulbegleitungen** an. Stimmt die
+Schule eines Kindes nicht mit der Pool-Schule überein, weist ein Warnhinweis darauf hin –
+der Pool lässt sich trotzdem speichern.
+
+## Pool-Einsatznachweis exportieren
+
+Im Reiter **Export** der Pool-Details öffnen Sie den **Einsatznachweis** für den ganzen
+Pool. Die Bedienung entspricht dem Einzel-Export pro Kind:
+
+<Steps>
+  <Step title="Zeitraum">
+    Wählen Sie **Einzelner Monat** oder **Zeitraum** und legen Sie Von/Bis fest. Es können
+    maximal **24 Monate** auf einmal exportiert werden, der Endmonat darf nicht in der
+    Zukunft liegen.
+  </Step>
+  <Step title="Format & Aufteilung">
+    Wählen Sie **PDF**, **Excel (.xlsx)** oder **CSV**. Unter **Aufteilung** entscheiden
+    Sie:
+    - **Zusammengefasst** – eine Datei für den ganzen Pool, oder
+    - **Pro Schulbegleiter** – eine Datei je Schulbegleitung des Pools.
+  </Step>
+  <Step title="Unterschriften (nur PDF)">
+    Aktivieren Sie bei Bedarf **Unterschriften einbetten**, um je Tag die gespeicherte
+    Unterschrift in das PDF zu übernehmen.
+  </Step>
+  <Step title="Exportieren">
+    Klicken Sie auf **Exportieren**. Es erscheint die Bestätigung und die Datei(en) werden
+    heruntergeladen. Gibt es im gewählten Zeitraum keine Einträge, erscheint „Keine
+    Einträge im gewählten Zeitraum.".
+  </Step>
+</Steps>
+
+<Tip>
+  Den Einsatznachweis für ein einzelnes Kind erzeugen Sie weiterhin im Bereich
+  [Kinder](/admin/kinder) – siehe
+  [Einsatznachweis exportieren](/admin/kostentraeger-export).
+</Tip>
+
+## Bearbeiten und löschen
+
+- **Details bearbeiten** öffnet den Pool zum Anpassen von Stammdaten und Mitgliedern.
+- **Löschen** entfernt den Pool. Die zugeordneten Kinder und Schulbegleitungen bleiben
+  bestehen – nur die Pool-Zuordnung wird aufgehoben.

@@ -13,6 +13,8 @@
     "db:migrate": "dotenv -e .env.local -- prisma migrate dev",
     "db:push": "dotenv -e .env.local -- prisma db push",
     "db:seed": "docker compose up -d --wait && dotenv -e .env -- prisma migrate reset --force --skip-seed && BETTER_AUTH_URL=http://localhost:3000 dotenv -e .env -- npx tsx scripts/seed.ts",
+    "docs:dev": "npm --prefix docs run dev",
+    "docs:check": "npm --prefix docs run broken-links",
     "prepare": "husky"
   },
   "dependencies": {

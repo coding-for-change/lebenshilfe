@@ -1,0 +1,13 @@
+{
+  "name": "lebenshilfe-docs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Benutzer-Dokumentation für das Lebenshilfe-München-Portal (Mintlify)",
+  "scripts": {
+    "dev": "mint dev",
+    "broken-links": "mint broken-links"
+  },
+  "devDependencies": {
+    "mint": "^4.2.632"
+  }
+}

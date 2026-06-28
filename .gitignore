@@ -45,3 +45,10 @@ src/generated/
 next-env.d.ts
 .gstack/
 docs/
+.playwright-mcp
+
+
+# Docs
+docs/node_modules/
+
+

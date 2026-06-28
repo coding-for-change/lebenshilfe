@@ -10,6 +10,7 @@ import {
   consumeUsedToken,
 } from "@/features/invitations/actions";
 import { authClient } from "@/lib/auth-client";
+import { logger } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -81,7 +82,7 @@ export default function OnboardPage({
         router.refresh();
       }, 2000);
     } catch (err: unknown) {
-      console.error(err);
+      logger.error(err);
       setStatus("error");
       setErrorMessage(
         err instanceof Error ? err.message : "Fehler beim Registrieren.",

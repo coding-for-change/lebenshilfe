@@ -6,6 +6,7 @@ import { Role, SchulbegleiterStatus } from "@/generated/prisma";
 import { sendMail } from "./mail";
 import { renderEmail } from "./email/render";
 import { ResetPasswordEmail } from "./email/templates/reset-password-email";
+import { logger } from "@/lib/logger";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -64,9 +65,9 @@ export const auth = betterAuth({
             });
           } catch (error) {
             // No matching profile (e.g. legacy invite without wizard data) — log and continue.
-            console.warn(
-              `[auth] could not link Schulbegleiter profile for ${user.email}:`,
-              error,
+            logger.error(
+              { error, email: user.email },
+              "[auth] could not link Schulbegleiter profile",
             );
           }
         },

@@ -11,6 +11,7 @@ import {
   type SubmitMonthlyReportInput,
   type UpdateEventInput,
 } from "./schemas";
+import { logBusinessEvent } from "@/lib/logger";
 import {
   deleteEventById,
   findEventById,
@@ -102,6 +103,7 @@ export const TimesheetFacade = {
   },
 
   async createEvent(userId: string, input: CreateEventInput) {
+    logBusinessEvent("TIMESHEET_CREATED", { userId, type: input.type });
     const parsed = CreateEventSchema.parse(input);
     const date = parseDateOnly(parsed.date);
 
@@ -248,6 +250,11 @@ export const TimesheetFacade = {
       parsed.month,
     ).padStart(2, "0")}.png`;
     await uploadSignature(key, parsed.signaturePngBase64);
+    logBusinessEvent("MONTHLY_REPORT_SUBMITTED", {
+      userId,
+      year: parsed.year,
+      month: parsed.month,
+    });
     return insertMonthlyReport({
       userId,
       year: parsed.year,

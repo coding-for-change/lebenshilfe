@@ -2,7 +2,15 @@ import Image from "next/image";
 
 import { LoginForm } from "@/components/login-form";
 
-export default function LoginPage() {
+type Props = {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+};
+
+export default async function LoginPage({ searchParams }: Props) {
+  const params = await searchParams;
+  const errorMessage =
+    typeof params.error === "string" ? params.error : undefined;
+
   return (
     <div className="relative flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
       <div
@@ -26,7 +34,7 @@ export default function LoginPage() {
             className="h-14 w-auto drop-shadow-lg"
           />
         </div>
-        <LoginForm />
+        <LoginForm initialError={errorMessage} />
       </div>
     </div>
   );

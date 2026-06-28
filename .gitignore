@@ -49,3 +49,6 @@ next-env.d.ts
 
 # Docs
 docs/node_modules/
+
+##docs
+docs/node_modules/*

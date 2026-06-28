@@ -93,3 +93,37 @@ export async function listEventsForChildInRange(
     orderBy: [{ date: "asc" }, { startTime: "asc" }],
   });
 }
+
+export async function findPoolForExport(poolId: string) {
+  return prisma.pool.findUnique({
+    where: { id: poolId },
+    select: { id: true, name: true },
+  });
+}
+
+export async function listEventsForPoolInRange(
+  poolId: string,
+  startInclusive: Date,
+  endExclusive: Date,
+): Promise<ExportEvent[]> {
+  return prisma.event.findMany({
+    where: {
+      poolId,
+      type: EventType.WORK,
+      date: { gte: startInclusive, lt: endExclusive },
+      deleted: false,
+    },
+    select: {
+      id: true,
+      type: true,
+      date: true,
+      startTime: true,
+      endTime: true,
+      note: true,
+      signatureKey: true,
+      userId: true,
+      user: { select: { id: true, name: true } },
+    },
+    orderBy: [{ date: "asc" }, { startTime: "asc" }],
+  });
+}

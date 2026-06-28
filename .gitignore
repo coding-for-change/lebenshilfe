@@ -44,11 +44,11 @@ src/generated/
 *.tsbuildinfo
 next-env.d.ts
 .gstack/
+docs/
 .playwright-mcp
 
 
 # Docs
 docs/node_modules/
 
-##docs
-docs/node_modules/*
+

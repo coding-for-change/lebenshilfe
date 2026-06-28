@@ -93,6 +93,7 @@ export default async function LandingPage() {
         name: profile?.name ?? "",
         email: user.email,
       }}
+      inPool={!!profile?.poolId}
       assignedChildren={assignedChildren}
       events={events}
       schedules={schedules}

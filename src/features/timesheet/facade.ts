@@ -2,10 +2,12 @@ import { randomUUID } from "crypto";
 import {
   ConfirmWorkEventsSchema,
   CreateEventSchema,
+  CreatePoolWorkEventSchema,
   SubmitMonthlyReportSchema,
   UpdateEventSchema,
   type ConfirmWorkEventsInput,
   type CreateEventInput,
+  type CreatePoolWorkEventInput,
   type SubmitMonthlyReportInput,
   type UpdateEventInput,
 } from "./schemas";
@@ -18,8 +20,10 @@ import {
   getEventsForUserInMonth,
   getEventsForUserInRange,
   getSchedulesForChildren,
+  getUserPoolId,
   insertIndirectEvent,
   insertMonthlyReport,
+  insertPoolWorkEvent,
   insertSickEvent,
   insertWorkEvents,
   listMonthlyReportsForUser,
@@ -147,6 +151,36 @@ export const TimesheetFacade = {
     await insertSickEvent({
       userId,
       date,
+      note: parsed.note ?? null,
+      signatureKey,
+    });
+    return { createdCount: 1, signatureKey };
+  },
+
+  async createPoolWorkEvent(userId: string, input: CreatePoolWorkEventInput) {
+    const parsed = CreatePoolWorkEventSchema.parse(input);
+    const poolId = await getUserPoolId(userId);
+    if (!poolId) {
+      throw new Error("Du bist keinem Pool zugewiesen.");
+    }
+    const date = parseDateOnly(parsed.date);
+
+    const report = await findMonthlyReport(
+      userId,
+      date.getUTCFullYear(),
+      date.getUTCMonth() + 1,
+    );
+    assertMonthNotLocked(report);
+
+    const eventId = randomUUID();
+    const signatureKey = `signatures/events/${userId}/${eventId}.png`;
+    await uploadSignature(signatureKey, parsed.signaturePngBase64);
+    await insertPoolWorkEvent({
+      userId,
+      poolId,
+      date,
+      startTime: parsed.startTime,
+      endTime: parsed.endTime,
       note: parsed.note ?? null,
       signatureKey,
     });

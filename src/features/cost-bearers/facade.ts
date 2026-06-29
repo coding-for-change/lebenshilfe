@@ -10,6 +10,7 @@ import {
   listKostentraeger,
   updateKostentraeger,
 } from "./services";
+import { logBusinessEvent } from "@/lib/logger";
 
 function normalize(input: CostBearerInput) {
   return {
@@ -30,6 +31,10 @@ export const CostBearersFacade = {
 
   async create(input: CostBearerInput) {
     const parsed = CreateKostentraegerSchema.parse(input);
+    logBusinessEvent("COST_BEARER_CREATED", {
+      name: parsed.name,
+      email: parsed.email,
+    });
     return createKostentraeger(normalize(parsed));
   },
 

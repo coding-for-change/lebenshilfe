@@ -1,0 +1,51 @@
+---
+title: "Ferienpläne verwalten"
+description: "Ferienpläne mit ihren Zeiträumen anlegen und Schulen zuordnen"
+---
+
+import { VideoPlaceholder } from "/snippets/loom.mdx";
+
+Ein **Ferienplan** bündelt mehrere **Ferienzeiträume** (z. B. Oster-, Sommer- und
+Weihnachtsferien). Schulen verweisen auf einen Ferienplan – an Ferientagen fallen die
+Einsätze automatisch aus. Den Bereich finden Sie unter
+[**Ferien**](https://lebenshilfe.codingforchange.com/admin/holiday-plans).
+
+<Frame caption="Die Ferienpläne-Übersicht">
+  <img src="/images/admin/ferienplaene.png" alt="Ferienpläne-Übersicht" />
+</Frame>
+
+## Einen Ferienplan anlegen
+
+<Steps>
+  <Step title="Neuer Ferienplan wählen">
+    Klicken Sie auf **Neuer Ferienplan** und vergeben Sie einen **Namen** (z. B.
+    „Bayern 2025/2026").
+  </Step>
+  <Step title="Ferienzeiträume hinzufügen">
+    Öffnen Sie den Plan und ergänzen Sie unter **Ferienzeiträume** die einzelnen
+    Zeiträume mit Start- und Enddatum. Änderungen werden sofort gespeichert.
+  </Step>
+</Steps>
+
+<Note>
+  Die Zeiträume „gelten für alle Schulen mit diesem Plan." Ändern Sie einen Zeitraum, wirkt
+  sich das also auf alle zugewiesenen Schulen aus.
+</Note>
+
+<VideoPlaceholder title="Einen Ferienplan anlegen" />
+
+## Übersicht
+
+Die Tabelle zeigt pro Plan die Spalten **Name**, **Zeiträume** (Anzahl) und **Schulen**
+(Anzahl zugewiesener Schulen). Über **Details bearbeiten** öffnen Sie einen Plan, über
+**Löschen** entfernen Sie ihn.
+
+<Warning>
+  Beim Löschen eines Plans wird die Zuweisung bei den betroffenen Schulen entfernt. Prüfen
+  Sie vorher, welche Schulen den Plan nutzen.
+</Warning>
+
+<Tip>
+  Die Zuordnung eines Plans **zu einer Schule** nehmen Sie im Bereich
+  [Schulen](/admin/schulen) vor – dort auch für mehrere Schulen gleichzeitig.
+</Tip>

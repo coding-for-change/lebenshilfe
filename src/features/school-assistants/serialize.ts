@@ -19,6 +19,7 @@ export type SerializedProfile = {
   zvNeuNachBescheid: boolean;
   zvNeuNote: string | null;
   introductionDay: string | null; // YYYY-MM-DD
+  pool: { id: string; name: string } | null;
   attendances: SerializedAttendance[];
 };
 
@@ -37,6 +38,7 @@ export function serializeProfile(p: ProfileWithAttendances): SerializedProfile {
     introductionDay: p.introductionDay
       ? formatIsoDateUtc(p.introductionDay)
       : null,
+    pool: p.pool ? { id: p.pool.id, name: p.pool.name } : null,
     attendances: p.attendances.map((a) => ({
       workshopId: a.workshopId,
       attendedOn: formatIsoDateUtc(a.attendedOn),

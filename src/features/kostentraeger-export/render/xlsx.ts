@@ -55,7 +55,7 @@ function writeMonthSheet(
   titleCell.value = "Einsatznachweis Schulbegleitung für:";
   titleCell.font = { bold: true };
   worksheet.mergeCells("C1:F1");
-  worksheet.getCell("C1").value = doc.childName;
+  worksheet.getCell("C1").value = doc.subjectName;
 
   worksheet.getCell("A2").value = "Monat / Jahr:";
   worksheet.getCell("A2").font = { bold: true };

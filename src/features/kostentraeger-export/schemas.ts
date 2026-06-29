@@ -49,6 +49,44 @@ export type ExportRequest = z.infer<typeof ExportRequestSchema>;
 export type ExportFormat = ExportRequest["format"];
 export type ExportScope = ExportRequest["scope"];
 
+export const PoolExportRequestSchema = z
+  .object({
+    poolId: z.string().min(1, "Kein Pool ausgewählt."),
+    format: z.enum(["pdf", "xlsx", "csv"]),
+    scope: z.enum(["combined", "per-assistant"]),
+    from: MonthMarkerSchema,
+    to: MonthMarkerSchema,
+    embedSignatures: z.boolean(),
+  })
+  .superRefine((value, ctx) => {
+    const span = monthIndex(value.to) - monthIndex(value.from);
+    if (span < 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["to"],
+        message: "Der End-Monat liegt vor dem Start-Monat.",
+      });
+    } else if (span > 23) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["to"],
+        message: "Es können höchstens 24 Monate auf einmal exportiert werden.",
+      });
+    }
+
+    const now = new Date();
+    const currentMonthIndex = now.getFullYear() * 12 + now.getMonth();
+    if (monthIndex(value.to) > currentMonthIndex) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["to"],
+        message: "Der Zeitraum darf nicht in der Zukunft liegen.",
+      });
+    }
+  });
+
+export type PoolExportRequest = z.infer<typeof PoolExportRequestSchema>;
+
 /** Labels for the format select in the export dialog. */
 export const FORMAT_OPTIONS: { value: ExportFormat; label: string }[] = [
   { value: "pdf", label: "PDF" },
@@ -96,11 +134,11 @@ export type ExportMonth = {
 };
 
 /**
- * A complete Einsatznachweis document for one child. For `per-assistant`
- * scope, one document is produced per Schulbegleiter.
+ * A complete Einsatznachweis document for one subject (a child or a pool). For
+ * `per-assistant` scope, one document is produced per Schulbegleiter.
  */
 export type ExportDocument = {
-  childName: string;
+  subjectName: string;
   /** Set for `per-assistant` documents, `null` for the combined document. */
   schulbegleiterName: string | null;
   months: ExportMonth[];

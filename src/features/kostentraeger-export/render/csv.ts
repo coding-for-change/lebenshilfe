@@ -25,7 +25,7 @@ export function renderCsv(doc: ExportDocument): Buffer {
     lines.push(cells.map(escapeCell).join(SEPARATOR));
 
   for (const month of doc.months) {
-    row(["Einsatznachweis Schulbegleitung für:", doc.childName]);
+    row(["Einsatznachweis Schulbegleitung für:", doc.subjectName]);
     row(["Monat / Jahr:", month.label]);
     if (doc.schulbegleiterName) {
       row(["SchulbegleiterIn:", doc.schulbegleiterName]);

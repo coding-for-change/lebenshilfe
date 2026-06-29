@@ -11,6 +11,7 @@ import {
   getAllInvitations as fetchAllInvitations,
 } from "./services";
 import { Role } from "@/generated/prisma";
+import { logBusinessEvent } from "@/lib/logger";
 
 export const InvitationFacade = {
   async generateAndSendInvite(
@@ -18,6 +19,7 @@ export const InvitationFacade = {
     role: Role = Role.SCHOOL_ASSISTANT,
   ) {
     CreateInvitationSchema.parse({ email, role });
+    logBusinessEvent("USER_INVITED", { role, email });
     // Token generation, database insertion, and email dispatch are delegated to the service boundary
     return processNewInvitation(email, role);
   },

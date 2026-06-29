@@ -45,6 +45,7 @@ export function ChildDetailSheet({
   const editor = useGeneralEditor(child);
   const [askSave, setAskSave] = useState(false);
   const activeTab: DetailTab = tab ?? "general";
+  const pool = child?.pool ?? null;
 
   function requestClose() {
     if (editor.dirty) setAskSave(true);
@@ -87,6 +88,12 @@ export function ChildDetailSheet({
             onValueChange={(v) => onTabChange?.(v as DetailTab)}
             className="flex flex-1 flex-col gap-3 overflow-hidden"
           >
+            {pool ? (
+              <div className="rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-sm text-sky-900 dark:border-sky-800/60 dark:bg-sky-950/40 dark:text-sky-200">
+                Dieses Kind wird über den Pool &bdquo;{pool.name}&ldquo;
+                verwaltet. Abrechnung und Zuweisungen erfolgen über den Pool.
+              </div>
+            ) : null}
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="general">Allgemeines</TabsTrigger>
               <TabsTrigger value="history">Historie</TabsTrigger>
@@ -106,6 +113,7 @@ export function ChildDetailSheet({
                     onCostBearerCreated={onCostBearerCreated}
                     schoolOptions={schoolOptions}
                     onSchoolCreated={onSchoolCreated}
+                    billingDisabled={!!pool}
                   />
                 ) : null}
               </TabsContent>
@@ -116,10 +124,18 @@ export function ChildDetailSheet({
                 />
               </TabsContent>
               <TabsContent value="calendar">
-                <TabCalendar
-                  child={child}
-                  schoolAssistantOptions={schoolAssistantOptions}
-                />
+                {pool ? (
+                  <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                    Zuweisungen und Stundenpläne werden für Pool-Kinder nicht
+                    einzeln gepflegt. Die Erfassung erfolgt über den Pool
+                    &bdquo;{pool.name}&ldquo;.
+                  </p>
+                ) : (
+                  <TabCalendar
+                    child={child}
+                    schoolAssistantOptions={schoolAssistantOptions}
+                  />
+                )}
               </TabsContent>
             </div>
           </Tabs>

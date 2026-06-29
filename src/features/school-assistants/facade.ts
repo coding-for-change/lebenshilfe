@@ -15,6 +15,7 @@ import {
   updateProfilePartial,
   listWorkEventsForUser,
 } from "./services";
+import { logBusinessEvent } from "@/lib/logger";
 
 function toFields(input: CreateSchoolAssistantInput) {
   return {
@@ -58,6 +59,8 @@ export const SchoolAssistantsFacade = {
         "Ein Schulbegleiter mit dieser E-Mail existiert bereits.",
       );
     }
+
+    logBusinessEvent("SCHOOL_ASSISTANT_CREATED", { email: parsed.email });
 
     return createProfileWithAttendances({
       email: parsed.email,

@@ -44,6 +44,13 @@ src/generated/
 *.tsbuildinfo
 next-env.d.ts
 .gstack/
+docs/
+.playwright-mcp
 
-##docs
-docs/node_modules/*
+
+# Docs
+docs/node_modules/
+
+
+
+.idea

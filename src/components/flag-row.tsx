@@ -1,6 +1,7 @@
 "use client";
 
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 
 type Props = {
   id: string;
@@ -8,17 +9,29 @@ type Props = {
   description: string;
   checked: boolean;
   onChange: (v: boolean) => void;
+  disabled?: boolean;
 };
 
-export function FlagRow({ id, label, description, checked, onChange }: Props) {
+export function FlagRow({
+  id,
+  label,
+  description,
+  checked,
+  onChange,
+  disabled,
+}: Props) {
   return (
     <label
       htmlFor={id}
-      className="flex cursor-pointer items-start gap-3"
+      className={cn(
+        "flex items-start gap-3",
+        disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
+      )}
     >
       <Checkbox
         id={id}
         checked={checked}
+        disabled={disabled}
         onCheckedChange={(v) => onChange(v === true)}
       />
       <div className="flex flex-col leading-tight">

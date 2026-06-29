@@ -9,6 +9,7 @@ import type {
   ConfirmWorkEventsInput,
   CreateEventInput,
   CreateIndirectByNameInput,
+  CreatePoolWorkEventInput,
   SubmitMonthlyReportInput,
   UpdateEventInput,
 } from "./schemas";
@@ -16,6 +17,15 @@ import type {
 export async function createEventAction(input: CreateEventInput) {
   const { id: userId } = await requireAuth();
   const result = await createTimesheetEvent(userId, input);
+  revalidatePath("/");
+  return result;
+}
+
+export async function createPoolWorkEventAction(
+  input: CreatePoolWorkEventInput,
+) {
+  const { id: userId } = await requireAuth();
+  const result = await TimesheetFacade.createPoolWorkEvent(userId, input);
   revalidatePath("/");
   return result;
 }

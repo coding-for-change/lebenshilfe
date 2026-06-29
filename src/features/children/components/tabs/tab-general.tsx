@@ -20,6 +20,7 @@ type Props = {
   onCostBearerCreated: (created: CostBearerOption) => void;
   schoolOptions: SchoolOption[];
   onSchoolCreated: (created: SchoolOption) => void;
+  billingDisabled?: boolean;
 };
 
 export function TabGeneral({
@@ -31,6 +32,7 @@ export function TabGeneral({
   onCostBearerCreated,
   schoolOptions,
   onSchoolCreated,
+  billingDisabled = false,
 }: Props) {
   return (
     <form
@@ -143,6 +145,7 @@ export function TabGeneral({
             min="0"
             step="0.5"
             value={form.approvedDirectHours}
+            disabled={billingDisabled}
             onChange={(e) => update({ approvedDirectHours: e.target.value })}
           />
         </Field>
@@ -163,6 +166,7 @@ export function TabGeneral({
             min="0"
             step="0.5"
             value={form.approvedIndirectHours}
+            disabled={billingDisabled}
             onChange={(e) => update({ approvedIndirectHours: e.target.value })}
           />
         </Field>
@@ -189,6 +193,7 @@ export function TabGeneral({
           description="+15 Min. vor der direkten Leistung im Export."
           checked={form.vorviertelstunde}
           onChange={(v) => update({ vorviertelstunde: v })}
+          disabled={billingDisabled}
         />
         <FlagRow
           id="det-nachviertelstunde"
@@ -196,6 +201,7 @@ export function TabGeneral({
           description="+15 Min. nach der direkten Leistung im Export."
           checked={form.nachviertelstunde}
           onChange={(v) => update({ nachviertelstunde: v })}
+          disabled={billingDisabled}
         />
         <FlagRow
           id="det-ausflug"

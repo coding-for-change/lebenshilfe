@@ -10,7 +10,7 @@ import {
   type VertretungPrefillLookupInput,
   type VertretungPrefillResult,
 } from "./schemas";
-import { timeToMinutes } from "@/lib/dates";
+import { parseIsoDate, timeToMinutes } from "@/lib/dates";
 import {
   countPendingRequests,
   createPendingVertretungRequest,
@@ -30,11 +30,6 @@ import {
 } from "./services";
 import { PendingVertretungStatus } from "@/generated/prisma";
 
-function parseDateOnly(dateStr: string): Date {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d));
-}
-
 export const VertretungRequestsFacade = {
   async create(substituteUserId: string, input: CreateVertretungRequestInput) {
     const parsed = CreateVertretungRequestSchema.parse(input);
@@ -43,7 +38,7 @@ export const VertretungRequestsFacade = {
     await uploadSignaturePng(signatureKey, parsed.signaturePngBase64);
 
     const match = await exactMatchChild(parsed.childNameText);
-    const date = parseDateOnly(parsed.date);
+    const date = parseIsoDate(parsed.date);
 
     if (match) {
       // If a Vertretung already exists for this SB+child+date, leave it alone —
@@ -136,7 +131,7 @@ export const VertretungRequestsFacade = {
     const match = await exactMatchChild(name);
     if (!match) return { matched: false };
 
-    const date = parseDateOnly(parsed.date);
+    const date = parseIsoDate(parsed.date);
     const weekday = (date.getUTCDay() + 6) % 7;
     const blocks = await getScheduleTimeBlocks(match.childId, weekday);
 

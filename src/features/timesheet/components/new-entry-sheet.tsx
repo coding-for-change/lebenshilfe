@@ -35,12 +35,12 @@ import {
 import {
   formatDuration,
   parseIsoDate,
-  shiftTime,
   timeToMinutes,
   weekdayIndex,
 } from "@/lib/dates";
 import type { ChildOption } from "./children-filter";
 import { childIdsForDate, type AssignmentsByWeekday } from "../weekday";
+import { quarterHourHint } from "../quarter-hour";
 import { cn, formatIsoDateUtc } from "@/lib/utils";
 import type { VertretungDay } from "./timesheet-shell";
 
@@ -92,8 +92,8 @@ export function NewEntrySheet({
   const [vertretungChildName, setVertretungChildName] = useState("");
   const [indirectChildName, setIndirectChildName] = useState("");
   const [vertretungQuarter, setVertretungQuarter] = useState<{
-    vor: boolean;
-    nach: boolean;
+    before: boolean;
+    after: boolean;
   } | null>(null);
   // Guards the debounce lookup from overwriting a quick-pick's exact block times.
   const pickedTimesRef = useRef(false);
@@ -241,7 +241,7 @@ export function NewEntrySheet({
       new Map(
         assignedChildren.map((c) => [
           c.id,
-          { vor: c.vorviertelstunde, nach: c.nachviertelstunde },
+          { before: c.vorviertelstunde, after: c.nachviertelstunde },
         ]),
       ),
     [assignedChildren],
@@ -250,13 +250,13 @@ export function NewEntrySheet({
   // Prefill a single schedule block: the first (by start) for which no entry
   // exists yet. So a split day (e.g. 08:00–11:00 + 13:00–18:00) prefills the
   // morning block first, then the afternoon block once the morning is entered.
-  // ±15 mirrors the export — vor only when the block is the child's earliest of
-  // the day, nach only when it is the latest.
+  // ±15 mirrors the export — before only when the block is the child's earliest
+  // of the day, after only when it is the latest.
   const dayScheduleTimes = useMemo<{
     start: string;
     end: string;
-    vor: boolean;
-    nach: boolean;
+    before: boolean;
+    after: boolean;
   } | null>(() => {
     const wd = weekdayIndex(parseIsoDate(date));
     const relevantChildIds =
@@ -300,35 +300,24 @@ export function NewEntrySheet({
     return {
       start: chosen.startTime,
       end: chosen.endTime,
-      vor: (flags?.vor ?? false) && chosen.startTime === minStart,
-      nach: (flags?.nach ?? false) && chosen.endTime === maxEnd,
+      before: (flags?.before ?? false) && chosen.startTime === minStart,
+      after: (flags?.after ?? false) && chosen.endTime === maxEnd,
     };
   }, [date, schedules, dayAssignedChildren, childIds, childFlags, events]);
 
   // Display-only billed span for the time inputs — the saved Start/End stay raw.
   const quarterHint = useMemo(() => {
-    const flags =
-      workVariant === "OWN"
-        ? dayScheduleTimes
-          ? { vor: dayScheduleTimes.vor, nach: dayScheduleTimes.nach }
-          : null
-        : workVariant === "VERTRETUNG"
-          ? vertretungQuarter
-          : null;
-    if (!flags || (!flags.vor && !flags.nach)) return null;
-    if (!startTime || !endTime) return null;
-    return {
-      vor: flags.vor,
-      nach: flags.nach,
-      billedStart: flags.vor ? shiftTime(startTime, -15) : startTime,
-      billedEnd: flags.nach ? shiftTime(endTime, 15) : endTime,
-      label:
-        flags.vor && flags.nach
-          ? "Vor- und Nachviertelstunde"
-          : flags.vor
-            ? "Vorviertelstunde"
-            : "Nachviertelstunde",
-    };
+    const flags = match(workVariant)
+      .with("OWN", () =>
+        dayScheduleTimes
+          ? { before: dayScheduleTimes.before, after: dayScheduleTimes.after }
+          : null,
+      )
+      .with("VERTRETUNG", () => vertretungQuarter)
+      .otherwise(() => null);
+    if (!flags || !startTime || !endTime) return null;
+    const hint = quarterHourHint(flags.before, flags.after, startTime, endTime);
+    return hint && { ...flags, ...hint };
   }, [workVariant, dayScheduleTimes, vertretungQuarter, startTime, endTime]);
 
   // Seed raw Start/End from the Stundenplan. Depends on `open` so reopening the
@@ -365,8 +354,8 @@ export function NewEntrySheet({
           return;
         }
         setVertretungQuarter({
-          vor: res.vorviertelstunde,
-          nach: res.nachviertelstunde,
+          before: res.vorviertelstunde,
+          after: res.nachviertelstunde,
         });
         if (res.startTime && res.endTime && !pickedTimesRef.current) {
           setStartTime(res.startTime);
@@ -756,7 +745,7 @@ export function NewEntrySheet({
                   <div className="space-y-1.5">
                     <Label htmlFor="start">
                       Start
-                      {quarterHint?.vor && (
+                      {quarterHint?.before && (
                         <span className="ml-1 font-normal text-muted-foreground">
                           (ohne ¼-Std.)
                         </span>
@@ -774,7 +763,7 @@ export function NewEntrySheet({
                   <div className="space-y-1.5">
                     <Label htmlFor="end">
                       Ende
-                      {quarterHint?.nach && (
+                      {quarterHint?.after && (
                         <span className="ml-1 font-normal text-muted-foreground">
                           (ohne ¼-Std.)
                         </span>
@@ -800,12 +789,12 @@ export function NewEntrySheet({
                   <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
                     <Info className="mt-0.5 size-3.5 shrink-0" />
                     <span>
-                      {quarterHint.label} genehmigt – wird automatisch als{" "}
+                      {quarterHint.label} genehmigt · Abrechnung{" "}
                       <span className="font-medium tabular-nums">
-                        {quarterHint.billedStart}–{quarterHint.billedEnd}
-                      </span>{" "}
-                      abgerechnet. Bitte die Zeit <strong>ohne</strong>{" "}
-                      ¼-Stunden eintragen.
+                        {quarterHint.billed}
+                      </span>
+                      . Bitte die Zeit <strong>ohne</strong> ¼-Stunden
+                      eintragen.
                     </span>
                   </p>
                 )}
@@ -830,8 +819,8 @@ export function NewEntrySheet({
                                   setStartTime(b.startTime);
                                   setEndTime(b.endTime);
                                   setVertretungQuarter({
-                                    vor: v.vorviertelstunde,
-                                    nach: v.nachviertelstunde,
+                                    before: v.vorviertelstunde,
+                                    after: v.nachviertelstunde,
                                   });
                                 }}
                                 className={cn(

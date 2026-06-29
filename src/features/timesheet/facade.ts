@@ -27,14 +27,9 @@ import {
   updateEventFields,
   uploadSignature,
 } from "./services";
+import { parseIsoDate } from "@/lib/dates";
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
-
-function parseDateOnly(dateStr: string): Date {
-  // "YYYY-MM-DD" -> UTC date (matches @db.Date semantics without TZ shift)
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d));
-}
 
 function assertMonthNotLocked(
   report: Awaited<ReturnType<typeof findMonthlyReport>>,
@@ -99,7 +94,7 @@ export const TimesheetFacade = {
 
   async createEvent(userId: string, input: CreateEventInput) {
     const parsed = CreateEventSchema.parse(input);
-    const date = parseDateOnly(parsed.date);
+    const date = parseIsoDate(parsed.date);
 
     const report = await findMonthlyReport(
       userId,

@@ -19,7 +19,6 @@ import {
   formatDuration,
   isSameUtcDay,
   relativeLabel,
-  shiftTime,
   timeToMinutes,
 } from "@/lib/dates";
 import { formatDate } from "@/lib/utils";
@@ -40,6 +39,7 @@ import type {
 } from "./timesheet-shell";
 import { childIdsForDate } from "../weekday";
 import type { AssignmentsByWeekday } from "../weekday";
+import { quarterHourHint } from "../quarter-hour";
 
 type EventWithChild = Event & {
   child: { firstName: string; lastName: string } | null;
@@ -453,24 +453,12 @@ export function TabDay({
                   const isLatest = sameChild.every(
                     (x) => timeToMinutes(s.endTime) >= timeToMinutes(x.endTime),
                   );
-                  const vor = s.child.vorviertelstunde && isEarliest;
-                  const nach = s.child.nachviertelstunde && isLatest;
-                  const label =
-                    vor && nach
-                      ? "Vor- & Nachviertelstunde"
-                      : vor
-                        ? "Vorviertelstunde"
-                        : nach
-                          ? "Nachviertelstunde"
-                          : null;
-                  const billed =
-                    vor && nach
-                      ? `${shiftTime(s.startTime, -15)}–${shiftTime(s.endTime, 15)}`
-                      : vor
-                        ? `ab ${shiftTime(s.startTime, -15)}`
-                        : nach
-                          ? `bis ${shiftTime(s.endTime, 15)}`
-                          : null;
+                  const hint = quarterHourHint(
+                    s.child.vorviertelstunde && isEarliest,
+                    s.child.nachviertelstunde && isLatest,
+                    s.startTime,
+                    s.endTime,
+                  );
                   return (
                     <li
                       key={s.id}
@@ -483,9 +471,9 @@ export function TabDay({
                         <span>
                           {s.startTime}–{s.endTime}
                         </span>
-                        {label && (
+                        {hint && (
                           <span className="mt-0.5 text-right text-xs font-medium text-amber-700">
-                            inkl. {label} · {billed}
+                            inkl. {hint.label} · {hint.billed}
                           </span>
                         )}
                       </span>
@@ -500,35 +488,22 @@ export function TabDay({
 
       {dayVertretungenGrouped.map((g) => {
         // Display-only billed span (±15 once per day); block times stay raw.
-        const vor = g.vorviertelstunde;
-        const nach = g.nachviertelstunde;
-        const label =
-          vor && nach
-            ? "Vor- & Nachviertelstunde"
-            : vor
-              ? "Vorviertelstunde"
-              : nach
-                ? "Nachviertelstunde"
-                : null;
-        let billed: string | null = null;
-        if (label && g.timeBlocks.length > 0) {
-          const earliest = g.timeBlocks.reduce(
-            (m, b) =>
-              timeToMinutes(b.startTime) < timeToMinutes(m) ? b.startTime : m,
-            g.timeBlocks[0].startTime,
-          );
-          const latest = g.timeBlocks.reduce(
-            (m, b) =>
-              timeToMinutes(b.endTime) > timeToMinutes(m) ? b.endTime : m,
-            g.timeBlocks[0].endTime,
-          );
-          billed =
-            vor && nach
-              ? `${shiftTime(earliest, -15)}–${shiftTime(latest, 15)}`
-              : vor
-                ? `ab ${shiftTime(earliest, -15)}`
-                : `bis ${shiftTime(latest, 15)}`;
-        }
+        const earliest = g.timeBlocks.reduce(
+          (m, b) =>
+            timeToMinutes(b.startTime) < timeToMinutes(m) ? b.startTime : m,
+          g.timeBlocks[0].startTime,
+        );
+        const latest = g.timeBlocks.reduce(
+          (m, b) =>
+            timeToMinutes(b.endTime) > timeToMinutes(m) ? b.endTime : m,
+          g.timeBlocks[0].endTime,
+        );
+        const hint = quarterHourHint(
+          g.vorviertelstunde,
+          g.nachviertelstunde,
+          earliest,
+          latest,
+        );
         return (
           <Card
             key={g.childId}
@@ -546,9 +521,9 @@ export function TabDay({
                     .map((b) => `${b.startTime}–${b.endTime}`)
                     .join(", ")}
                 </p>
-                {label && billed && (
+                {hint && (
                   <p className="text-xs font-medium text-amber-700">
-                    inkl. {label} · {billed}
+                    inkl. {hint.label} · {hint.billed}
                   </p>
                 )}
               </div>
@@ -645,33 +620,21 @@ export function TabDay({
             const bounds = ev.childId
               ? workBoundsByChild.get(ev.childId)
               : undefined;
-            const vor =
+            const before =
               ev.type === "WORK" &&
               (flagChild?.vorviertelstunde ?? false) &&
               !!bounds &&
               !!ev.startTime &&
               timeToMinutes(ev.startTime) === bounds.minStart;
-            const nach =
+            const after =
               ev.type === "WORK" &&
               (flagChild?.nachviertelstunde ?? false) &&
               !!bounds &&
               !!ev.endTime &&
               timeToMinutes(ev.endTime) === bounds.maxEnd;
-            const quarterLabel =
-              vor && nach
-                ? "Vor- & Nachviertelstunde"
-                : vor
-                  ? "Vorviertelstunde"
-                  : nach
-                    ? "Nachviertelstunde"
-                    : null;
-            const quarterBilled =
-              quarterLabel && ev.startTime && ev.endTime
-                ? vor && nach
-                  ? `${shiftTime(ev.startTime, -15)}–${shiftTime(ev.endTime, 15)}`
-                  : vor
-                    ? `ab ${shiftTime(ev.startTime, -15)}`
-                    : `bis ${shiftTime(ev.endTime, 15)}`
+            const hint =
+              ev.startTime && ev.endTime
+                ? quarterHourHint(before, after, ev.startTime, ev.endTime)
                 : null;
             const title = match(ev.type)
               .with("INDIRECT", () =>
@@ -718,9 +681,9 @@ export function TabDay({
                           <Badge variant="outline">Mehrere Kinder</Badge>
                         )}
                     </div>
-                    {quarterLabel && quarterBilled && (
+                    {hint && (
                       <p className="mt-1 text-xs font-medium text-amber-700">
-                        inkl. {quarterLabel} · {quarterBilled}
+                        inkl. {hint.label} · {hint.billed}
                       </p>
                     )}
                     {ev.note && (

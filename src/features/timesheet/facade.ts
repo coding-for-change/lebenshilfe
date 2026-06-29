@@ -160,7 +160,7 @@ export const TimesheetFacade = {
     if (!poolId) {
       throw new Error("Du bist keinem Pool zugewiesen.");
     }
-    const date = parseDateOnly(parsed.date);
+    const date = parseIsoDate(parsed.date);
 
     const report = await findMonthlyReport(
       userId,

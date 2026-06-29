@@ -186,6 +186,8 @@ export function TabDay({
       {
         childId: string;
         childName: string;
+        vorviertelstunde: boolean;
+        nachviertelstunde: boolean;
         timeBlocks: { startTime: string; endTime: string }[];
         sbRequestId: string | null;
       }
@@ -195,6 +197,8 @@ export function TabDay({
         map.set(v.childId, {
           childId: v.childId,
           childName: v.childName,
+          vorviertelstunde: v.vorviertelstunde,
+          nachviertelstunde: v.nachviertelstunde,
           timeBlocks: [],
           sbRequestId: v.sbRequestId ?? null,
         });
@@ -242,6 +246,25 @@ export function TabDay({
   const workEvents = dayEvents.filter(
     (e) => e.type === "WORK" || e.type === "INDIRECT",
   );
+
+  // Per child, the earliest start / latest end across the day's WORK entries —
+  // the ±15 hint applies only to those boundaries (mirrors the export).
+  const workBoundsByChild = new Map<
+    string,
+    { minStart: number; maxEnd: number }
+  >();
+  for (const e of workEvents) {
+    if (e.type !== "WORK" || !e.childId || !e.startTime || !e.endTime) continue;
+    const start = timeToMinutes(e.startTime);
+    const end = timeToMinutes(e.endTime);
+    const b = workBoundsByChild.get(e.childId);
+    if (!b) {
+      workBoundsByChild.set(e.childId, { minStart: start, maxEnd: end });
+      continue;
+    }
+    if (start < b.minStart) b.minStart = start;
+    if (end > b.maxEnd) b.maxEnd = end;
+  }
   const monthKey = `${selectedDate.getUTCFullYear()}-${
     selectedDate.getUTCMonth() + 1
   }`;
@@ -417,9 +440,21 @@ export function TabDay({
               <p className="text-sm font-semibold">Stundenplan der Kinder</p>
               <ul className="text-sm text-muted-foreground">
                 {daySchedules.map((s) => {
-                  // Display-only billed span — the schedule time itself stays raw.
-                  const vor = s.child.vorviertelstunde;
-                  const nach = s.child.nachviertelstunde;
+                  // Display-only billed span — the schedule time itself stays
+                  // raw. On a split day the ±15 applies only to the child's
+                  // earliest start / latest end (mirrors the export).
+                  const sameChild = daySchedules.filter(
+                    (x) => x.childId === s.childId,
+                  );
+                  const isEarliest = sameChild.every(
+                    (x) =>
+                      timeToMinutes(s.startTime) <= timeToMinutes(x.startTime),
+                  );
+                  const isLatest = sameChild.every(
+                    (x) => timeToMinutes(s.endTime) >= timeToMinutes(x.endTime),
+                  );
+                  const vor = s.child.vorviertelstunde && isEarliest;
+                  const nach = s.child.nachviertelstunde && isLatest;
                   const label =
                     vor && nach
                       ? "Vor- & Nachviertelstunde"
@@ -463,38 +498,75 @@ export function TabDay({
         </Card>
       )}
 
-      {dayVertretungenGrouped.map((g) => (
-        <Card
-          key={g.childId}
-          className="border-amber-200 bg-amber-500/5 p-4"
-        >
-          <div className="flex items-start gap-3">
-            <div className="grid place-items-center size-10 shrink-0 rounded-full bg-amber-500/15 text-amber-700">
-              <UserCheck className="size-5" />
+      {dayVertretungenGrouped.map((g) => {
+        // Display-only billed span (±15 once per day); block times stay raw.
+        const vor = g.vorviertelstunde;
+        const nach = g.nachviertelstunde;
+        const label =
+          vor && nach
+            ? "Vor- & Nachviertelstunde"
+            : vor
+              ? "Vorviertelstunde"
+              : nach
+                ? "Nachviertelstunde"
+                : null;
+        let billed: string | null = null;
+        if (label && g.timeBlocks.length > 0) {
+          const earliest = g.timeBlocks.reduce(
+            (m, b) =>
+              timeToMinutes(b.startTime) < timeToMinutes(m) ? b.startTime : m,
+            g.timeBlocks[0].startTime,
+          );
+          const latest = g.timeBlocks.reduce(
+            (m, b) =>
+              timeToMinutes(b.endTime) > timeToMinutes(m) ? b.endTime : m,
+            g.timeBlocks[0].endTime,
+          );
+          billed =
+            vor && nach
+              ? `${shiftTime(earliest, -15)}–${shiftTime(latest, 15)}`
+              : vor
+                ? `ab ${shiftTime(earliest, -15)}`
+                : `bis ${shiftTime(latest, 15)}`;
+        }
+        return (
+          <Card
+            key={g.childId}
+            className="border-amber-200 bg-amber-500/5 p-4"
+          >
+            <div className="flex items-start gap-3">
+              <div className="grid place-items-center size-10 shrink-0 rounded-full bg-amber-500/15 text-amber-700">
+                <UserCheck className="size-5" />
+              </div>
+              <div className="flex-1 space-y-0.5">
+                <p className="font-semibold text-amber-900">Vertretung</p>
+                <p className="text-sm text-amber-900/80">{g.childName}</p>
+                <p className="font-mono text-xs text-amber-700">
+                  {g.timeBlocks
+                    .map((b) => `${b.startTime}–${b.endTime}`)
+                    .join(", ")}
+                </p>
+                {label && billed && (
+                  <p className="text-xs font-medium text-amber-700">
+                    inkl. {label} · {billed}
+                  </p>
+                )}
+              </div>
+              {g.sbRequestId && !locked && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleDeleteVertretung(g.sbRequestId!)}
+                  disabled={busyId === g.sbRequestId}
+                  className="text-muted-foreground"
+                >
+                  Löschen
+                </Button>
+              )}
             </div>
-            <div className="flex-1 space-y-0.5">
-              <p className="font-semibold text-amber-900">Vertretung</p>
-              <p className="text-sm text-amber-900/80">{g.childName}</p>
-              <p className="font-mono text-xs text-amber-700">
-                {g.timeBlocks
-                  .map((b) => `${b.startTime}–${b.endTime}`)
-                  .join(", ")}
-              </p>
-            </div>
-            {g.sbRequestId && !locked && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => handleDeleteVertretung(g.sbRequestId!)}
-                disabled={busyId === g.sbRequestId}
-                className="text-muted-foreground"
-              >
-                Löschen
-              </Button>
-            )}
-          </div>
-        </Card>
-      ))}
+          </Card>
+        );
+      })}
 
       {dayPendingRequests
         .filter((r) => r.status === "PENDING")
@@ -564,14 +636,27 @@ export function TabDay({
             const childName = child
               ? `${child.firstName} ${child.lastName}`
               : null;
-            // Display-only billed span on direct WORK entries; entry time stays raw.
+            // Display-only billed span on direct WORK entries; entry time stays
+            // raw. On a split day the ±15 applies only to the child's earliest
+            // start / latest end across the day's entries (mirrors the export).
             const flagChild = ev.childId
               ? childById.get(ev.childId)
               : undefined;
+            const bounds = ev.childId
+              ? workBoundsByChild.get(ev.childId)
+              : undefined;
             const vor =
-              ev.type === "WORK" && (flagChild?.vorviertelstunde ?? false);
+              ev.type === "WORK" &&
+              (flagChild?.vorviertelstunde ?? false) &&
+              !!bounds &&
+              !!ev.startTime &&
+              timeToMinutes(ev.startTime) === bounds.minStart;
             const nach =
-              ev.type === "WORK" && (flagChild?.nachviertelstunde ?? false);
+              ev.type === "WORK" &&
+              (flagChild?.nachviertelstunde ?? false) &&
+              !!bounds &&
+              !!ev.endTime &&
+              timeToMinutes(ev.endTime) === bounds.maxEnd;
             const quarterLabel =
               vor && nach
                 ? "Vor- & Nachviertelstunde"

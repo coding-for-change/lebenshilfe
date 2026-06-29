@@ -44,7 +44,10 @@ import { childIdsForDate, type AssignmentsByWeekday } from "../weekday";
 import { cn, formatIsoDateUtc } from "@/lib/utils";
 import type { VertretungDay } from "./timesheet-shell";
 
-type EventLike = Pick<Event, "id" | "type" | "date" | "childId">;
+type EventLike = Pick<
+  Event,
+  "id" | "type" | "date" | "childId" | "startTime" | "endTime"
+>;
 type WorkVariant = "OWN" | "VERTRETUNG" | "INDIRECT";
 
 function isWeekend(iso: string) {
@@ -244,8 +247,11 @@ export function NewEntrySheet({
     [assignedChildren],
   );
 
-  // Earliest start + latest end across the day's schedules, plus the ±15 flags
-  // of whichever child owns each boundary (mirrors how the export widens).
+  // Prefill a single schedule block: the first (by start) for which no entry
+  // exists yet. So a split day (e.g. 08:00–11:00 + 13:00–18:00) prefills the
+  // morning block first, then the afternoon block once the morning is entered.
+  // ±15 mirrors the export — vor only when the block is the child's earliest of
+  // the day, nach only when it is the latest.
   const dayScheduleTimes = useMemo<{
     start: string;
     end: string;
@@ -255,23 +261,49 @@ export function NewEntrySheet({
     const wd = weekdayIndex(parseIsoDate(date));
     const relevantChildIds =
       childIds.length > 0 ? childIds : dayAssignedChildren.map((c) => c.id);
-    const daySchedules = schedules.filter(
-      (s) => s.weekday === wd && relevantChildIds.includes(s.childId),
-    );
+    const daySchedules = schedules
+      .filter((s) => s.weekday === wd && relevantChildIds.includes(s.childId))
+      .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
     if (daySchedules.length === 0) return null;
-    const startSchedule = daySchedules.reduce((acc, s) =>
-      timeToMinutes(s.startTime) < timeToMinutes(acc.startTime) ? s : acc,
+
+    const dayWorkEvents = events.filter(
+      (e) =>
+        e.type === "WORK" &&
+        e.childId &&
+        e.startTime &&
+        e.endTime &&
+        formatIsoDateUtc(e.date) === date,
     );
-    const endSchedule = daySchedules.reduce((acc, s) =>
-      timeToMinutes(s.endTime) > timeToMinutes(acc.endTime) ? s : acc,
+    const isCovered = (s: Schedule) =>
+      dayWorkEvents.some(
+        (e) =>
+          e.childId === s.childId &&
+          timeToMinutes(e.startTime!) < timeToMinutes(s.endTime) &&
+          timeToMinutes(s.startTime) < timeToMinutes(e.endTime!),
+      );
+
+    const chosen = daySchedules.find((s) => !isCovered(s)) ?? daySchedules[0];
+
+    // Per child, the earliest start / latest end across the day (the export
+    // widens only those boundaries, once per day).
+    const childDay = daySchedules.filter((s) => s.childId === chosen.childId);
+    const minStart = childDay.reduce(
+      (m, s) =>
+        timeToMinutes(s.startTime) < timeToMinutes(m) ? s.startTime : m,
+      childDay[0].startTime,
     );
+    const maxEnd = childDay.reduce(
+      (m, s) => (timeToMinutes(s.endTime) > timeToMinutes(m) ? s.endTime : m),
+      childDay[0].endTime,
+    );
+    const flags = childFlags.get(chosen.childId);
     return {
-      start: startSchedule.startTime,
-      end: endSchedule.endTime,
-      vor: childFlags.get(startSchedule.childId)?.vor ?? false,
-      nach: childFlags.get(endSchedule.childId)?.nach ?? false,
+      start: chosen.startTime,
+      end: chosen.endTime,
+      vor: (flags?.vor ?? false) && chosen.startTime === minStart,
+      nach: (flags?.nach ?? false) && chosen.endTime === maxEnd,
     };
-  }, [date, schedules, dayAssignedChildren, childIds, childFlags]);
+  }, [date, schedules, dayAssignedChildren, childIds, childFlags, events]);
 
   // Display-only billed span for the time inputs — the saved Start/End stay raw.
   const quarterHint = useMemo(() => {

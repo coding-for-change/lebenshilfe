@@ -14,6 +14,8 @@ export type ChildOption = {
   id: string;
   firstName: string;
   lastName: string;
+  vorviertelstunde: boolean;
+  nachviertelstunde: boolean;
 };
 
 type Props = {

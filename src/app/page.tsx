@@ -120,6 +120,8 @@ export default async function LandingPage() {
           childName: `${v.child.firstName} ${v.child.lastName}`,
           startTime: v.startTime,
           endTime: v.endTime,
+          vorviertelstunde: v.child.vorviertelstunde,
+          nachviertelstunde: v.child.nachviertelstunde,
           sbRequestId: sbRequest?.id ?? null,
         };
       })}

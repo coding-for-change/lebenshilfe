@@ -19,3 +19,22 @@ export const ResolveVertretungRequestSchema = z.object({
 export type ResolveVertretungRequestInput = z.infer<
   typeof ResolveVertretungRequestSchema
 >;
+
+export const VertretungPrefillLookupSchema = z.object({
+  name: z.string(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Ungültiges Datum."),
+});
+
+export type VertretungPrefillLookupInput = z.infer<
+  typeof VertretungPrefillLookupSchema
+>;
+
+export type VertretungPrefillResult =
+  | { matched: false }
+  | {
+      matched: true;
+      startTime: string | null;
+      endTime: string | null;
+      vorviertelstunde: boolean;
+      nachviertelstunde: boolean;
+    };

@@ -68,6 +68,8 @@ export type VertretungDay = {
   childName: string;
   startTime: string;
   endTime: string;
+  vorviertelstunde: boolean;
+  nachviertelstunde: boolean;
   /** When set, this Vertretung was created by the SB via free-text (auto-matched
    *  or admin-resolved). The id points at the originating PendingVertretungRequest
    *  so the SB can fully undo it from the dashboard. */

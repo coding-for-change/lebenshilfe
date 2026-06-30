@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { EventType, PendingVertretungStatus } from "@/generated/prisma";
+import {
+  EventType,
+  PendingRequestKind,
+  PendingVertretungStatus,
+} from "@/generated/prisma";
 
 export async function createPendingVertretungRequest(data: {
   substituteUserId: string;
@@ -11,13 +15,17 @@ export async function createPendingVertretungRequest(data: {
   matchedChildId: string | null;
   matchConfidence: number | null;
   status: PendingVertretungStatus;
+  kind?: PendingRequestKind;
+  note?: string | null;
 }) {
   return prisma.pendingVertretungRequest.create({ data });
 }
 
-export async function listPendingRequests() {
+export async function listPendingRequests(
+  kind: PendingRequestKind = PendingRequestKind.VERTRETUNG,
+) {
   return prisma.pendingVertretungRequest.findMany({
-    where: { status: PendingVertretungStatus.PENDING },
+    where: { status: PendingVertretungStatus.PENDING, kind },
     include: {
       substituteUser: { select: { id: true, name: true, email: true } },
     },
@@ -56,9 +64,35 @@ export async function rejectRequest(id: string, resolvedByUserId: string) {
   });
 }
 
-export async function countPendingRequests() {
+export async function countPendingRequests(
+  kind: PendingRequestKind = PendingRequestKind.VERTRETUNG,
+) {
   return prisma.pendingVertretungRequest.count({
-    where: { status: PendingVertretungStatus.PENDING },
+    where: { status: PendingVertretungStatus.PENDING, kind },
+  });
+}
+
+export async function insertIndirectWorkEvent(args: {
+  childId: string;
+  userId: string;
+  date: Date;
+  startTime: string;
+  endTime: string;
+  signatureKey: string;
+  note: string;
+}) {
+  return prisma.event.create({
+    data: {
+      childId: args.childId,
+      userId: args.userId,
+      type: EventType.INDIRECT,
+      date: args.date,
+      startTime: args.startTime,
+      endTime: args.endTime,
+      signatureKey: args.signatureKey,
+      note: args.note,
+      deleted: false,
+    },
   });
 }
 
@@ -70,6 +104,7 @@ export async function listRequestsForUser(
   return prisma.pendingVertretungRequest.findMany({
     where: {
       substituteUserId,
+      kind: PendingRequestKind.VERTRETUNG,
       status: {
         in: [PendingVertretungStatus.PENDING, PendingVertretungStatus.RESOLVED],
       },

@@ -2,13 +2,15 @@ import { requireAdmin } from "@/lib/auth-guards";
 import { VertretungRequestsFacade } from "@/features/vertretung-requests";
 import { ChildrenFacade } from "@/features/children";
 import { PendingRequestsTable } from "@/features/vertretung-requests/components/pending-requests-table";
+import { PendingIndirectRequestsTable } from "@/features/vertretung-requests/components/pending-indirect-requests-table";
 import { PageSection } from "@/components/page-section";
 
 export default async function HandlungsbedarfPage() {
   await requireAdmin();
 
-  const [rawRequests, children] = await Promise.all([
+  const [rawRequests, rawIndirectRequests, children] = await Promise.all([
     VertretungRequestsFacade.listPending(),
+    VertretungRequestsFacade.listPendingIndirect(),
     ChildrenFacade.list(),
   ]);
 
@@ -18,6 +20,16 @@ export default async function HandlungsbedarfPage() {
     date: r.date.toISOString().slice(0, 10),
     startTime: r.startTime,
     endTime: r.endTime,
+    substituteUser: r.substituteUser,
+  }));
+
+  const indirectRequests = rawIndirectRequests.map((r) => ({
+    id: r.id,
+    childNameText: r.childNameText,
+    date: r.date.toISOString().slice(0, 10),
+    startTime: r.startTime,
+    endTime: r.endTime,
+    note: r.note,
     substituteUser: r.substituteUser,
   }));
 
@@ -32,13 +44,20 @@ export default async function HandlungsbedarfPage() {
       <div>
         <h1 className="text-2xl font-semibold">Handlungsbedarf</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Vertretungs-Anträge, die noch einem Kind zugeordnet werden müssen.
+          Anträge, die noch einem Kind zugeordnet werden müssen.
         </p>
       </div>
 
-      <PageSection title={`Zuzuordnen (${requests.length})`}>
+      <PageSection title={`Vertretungs-Anträge (${requests.length})`}>
         <PendingRequestsTable
           requests={requests}
+          childOptions={childOptions}
+        />
+      </PageSection>
+
+      <PageSection title={`Indirekte Leistungen (${indirectRequests.length})`}>
+        <PendingIndirectRequestsTable
+          requests={indirectRequests}
           childOptions={childOptions}
         />
       </PageSection>

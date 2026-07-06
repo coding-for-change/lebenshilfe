@@ -60,14 +60,14 @@ export const SchoolAssistantsFacade = {
       );
     }
 
-    logBusinessEvent("SCHOOL_ASSISTANT_CREATED", { email: parsed.email });
-
-    return createProfileWithAttendances({
+    const created = await createProfileWithAttendances({
       email: parsed.email,
       name: parsed.name,
       fields: toFields(parsed),
       attendances: toAttendances(parsed),
     });
+    logBusinessEvent("SCHOOL_ASSISTANT_CREATED", { profileId: created.id });
+    return created;
   },
 
   async update(profileId: string, input: UpdateSchoolAssistantInput) {

@@ -66,7 +66,7 @@ export const auth = betterAuth({
           } catch (error) {
             // No matching profile (e.g. legacy invite without wizard data) — log and continue.
             logger.error(
-              { error, email: user.email },
+              { err: error, userId: user.id },
               "[auth] could not link Schulbegleiter profile",
             );
           }

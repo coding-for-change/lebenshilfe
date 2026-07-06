@@ -30,11 +30,12 @@ export const WorkshopsFacade = {
 
   async create(input: WorkshopInput) {
     const parsed = WorkshopSchema.parse(input);
-    logBusinessEvent("WORKSHOP_CREATED", { name: parsed.name });
-    return insertWorkshop(
+    const created = await insertWorkshop(
       parsed.name,
       normaliseDescription(parsed.description),
     );
+    logBusinessEvent("WORKSHOP_CREATED", { workshopId: created.id });
+    return created;
   },
 
   async update(id: string, input: UpdateWorkshopInput) {

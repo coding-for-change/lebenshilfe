@@ -135,12 +135,13 @@ export const ChildrenFacade = {
 
   async create(input: CreateChildInput) {
     const parsed = CreateChildSchema.parse(input);
+    const created = await createChild(childFieldsFromCreate(parsed));
     logBusinessEvent("CHILD_CREATED", {
-      leosOne: parsed.leosOne,
+      childId: created.id,
       schoolId: parsed.schoolId,
-      name: parsed.firstName + " " + parsed.lastName,
+      leosOne: parsed.leosOne,
     });
-    return createChild(childFieldsFromCreate(parsed));
+    return created;
   },
 
   async update(id: string, input: UpdateChildInput) {

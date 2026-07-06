@@ -234,8 +234,9 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
       cancelled = true;
     };
     // Re-run only on child switch or when a user action increments fetchGen.
-    // Other changes are always updated together with fetchGen, so LOADED
-    // adopting the server default cannot cause a redundant fetch.
+    // period/order/childId are read above but deliberately not deps: they are
+    // always updated together with fetchGen, so LOADED adopting the server
+    // default cannot cause a redundant fetch. Listing them would reintroduce it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [child.id, state.fetchGen]);
 

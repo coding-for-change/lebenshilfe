@@ -17,6 +17,7 @@ import type {
   HistoryQuery,
 } from "./schemas";
 import { HistoryQuerySchema } from "./schemas";
+import { resolveHistoryPeriod, historyRange } from "./history-period";
 
 const ROUTE = "/admin/children";
 
@@ -113,39 +114,6 @@ export async function deleteAbsenceAction(id: string) {
   await ChildrenFacade.deleteAbsence(id);
   revalidatePath(ROUTE);
   return { success: true as const };
-}
-
-// Resolves which period the history tab should show. An explicit query wins;
-// otherwise default to the most recent month that has data (which is the
-// current month whenever it contains entries, since events are never in the
-// future), falling back to the current month when the child has none.
-function resolveHistoryPeriod(
-  query: HistoryQuery | undefined,
-  bounds: { earliest: Date; latest: Date } | null,
-): HistoryQuery {
-  if (query) return query;
-  const base = bounds ? bounds.latest : new Date();
-  return {
-    year: base.getUTCFullYear(),
-    month: base.getUTCMonth() + 1,
-    order: "desc",
-  };
-}
-
-// Half-open [from, to) UTC range for a single month, or the whole year when
-// `month` is null ("Alle"). Date.UTC normalises month 12 → next January.
-function historyRange(period: HistoryQuery): { from: Date; to: Date } {
-  const { year, month } = period;
-  if (month === null) {
-    return {
-      from: new Date(Date.UTC(year, 0, 1)),
-      to: new Date(Date.UTC(year + 1, 0, 1)),
-    };
-  }
-  return {
-    from: new Date(Date.UTC(year, month - 1, 1)),
-    to: new Date(Date.UTC(year, month, 1)),
-  };
 }
 
 export async function listWorkEventsForChildAction(

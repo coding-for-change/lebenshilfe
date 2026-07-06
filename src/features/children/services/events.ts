@@ -9,7 +9,7 @@ export type ChildWorkEvent = Prisma.EventGetPayload<{
 export async function listWorkEventsForChild(
   childId: string,
   range?: { from: Date; to: Date },
-  order: "asc" | "desc" = "desc",
+  order: Prisma.SortOrder = "desc",
 ): Promise<ChildWorkEvent[]> {
   return prisma.event.findMany({
     where: {
@@ -32,24 +32,16 @@ export async function listWorkEventsForChild(
 export async function getEventDateBoundsForChild(
   childId: string,
 ): Promise<{ earliest: Date; latest: Date } | null> {
-  const where: Prisma.EventWhereInput = {
-    childId,
-    type: { in: [EventType.WORK, EventType.INDIRECT] },
-  };
-  const [earliest, latest] = await Promise.all([
-    prisma.event.findFirst({
-      where,
-      orderBy: { date: "asc" },
-      select: { date: true },
-    }),
-    prisma.event.findFirst({
-      where,
-      orderBy: { date: "desc" },
-      select: { date: true },
-    }),
-  ]);
-  if (!earliest || !latest) return null;
-  return { earliest: earliest.date, latest: latest.date };
+  const { _min, _max } = await prisma.event.aggregate({
+    where: {
+      childId,
+      type: { in: [EventType.WORK, EventType.INDIRECT] },
+    },
+    _min: { date: true },
+    _max: { date: true },
+  });
+  if (!_min.date || !_max.date) return null;
+  return { earliest: _min.date, latest: _max.date };
 }
 
 export async function createWorkEventAsAdmin(input: WorkEventInput) {

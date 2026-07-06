@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import {
   Select,
@@ -33,9 +32,9 @@ const DEFAULT_YEARS_BACK = 3;
 type Props = {
   id: string;
   label: string;
-  month: number;
+  month: number | null;
   year: number;
-  onMonthChange: (value: number) => void;
+  onMonthChange: (value: number | null) => void;
   onYearChange: (value: number) => void;
   /**
    * Earliest selectable year. Defaults to a few years back; pass the year of
@@ -44,9 +43,9 @@ type Props = {
    */
   minYear?: number;
   /**
-   * When set, adds an "Alle" month option (value 0) for selecting a whole year
-   * rather than a single month. Off by default so existing single-month
-   * callers are unaffected.
+   * When set, adds an "Alle" month option (which maps to null) for selecting a
+   * whole year rather than a single month. Off by default so existing
+   * single-month callers are unaffected.
    */
   allowAll?: boolean;
   /**
@@ -55,10 +54,6 @@ type Props = {
    * [earliest … current month]. Also fixes the first year of the dropdown.
    */
   earliest?: { year: number; month: number };
-  /** Tailwind width for the month trigger. Defaults to filling the row. */
-  monthClassName?: string;
-  /** Extra control(s) rendered in the same row, after the year select. */
-  trailing?: ReactNode;
 };
 
 /**
@@ -75,8 +70,6 @@ export function MonthYearPicker({
   minYear,
   allowAll = false,
   earliest,
-  monthClassName = "w-full",
-  trailing,
 }: Props) {
   const firstYear = Math.min(
     earliest?.year ?? minYear ?? CURRENT_YEAR - DEFAULT_YEARS_BACK,
@@ -89,7 +82,7 @@ export function MonthYearPicker({
 
   function handleYearChange(nextYear: number) {
     onYearChange(nextYear);
-    if (month === 0) return; // "Alle" is valid in any year.
+    if (month === null) return; // "Alle" is valid in any year.
     // Switching years can leave a now-future or now-too-early month selected.
     if (nextYear === CURRENT_YEAR && month > CURRENT_MONTH) {
       onMonthChange(CURRENT_MONTH);
@@ -111,17 +104,19 @@ export function MonthYearPicker({
       </FieldLabel>
       <div className="flex gap-2">
         <Select
-          value={String(month)}
-          onValueChange={(value) => onMonthChange(Number(value))}
+          value={month === null ? "all" : String(month)}
+          onValueChange={(value) =>
+            onMonthChange(value === "all" ? null : Number(value))
+          }
         >
           <SelectTrigger
             id={id}
-            className={monthClassName}
+            className="w-40"
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {allowAll && <SelectItem value="0">Alle Monate</SelectItem>}
+            {allowAll && <SelectItem value="all">Alle Monate</SelectItem>}
             {MONTHS.map((name, index) => (
               <SelectItem
                 key={name}
@@ -156,7 +151,6 @@ export function MonthYearPicker({
             ))}
           </SelectContent>
         </Select>
-        {trailing}
       </div>
     </Field>
   );

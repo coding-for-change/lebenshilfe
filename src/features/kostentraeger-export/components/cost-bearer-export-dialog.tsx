@@ -164,7 +164,7 @@ export function CostBearerExportDialog({
             month={fromMonth}
             year={fromYear}
             minYear={minYear}
-            onMonthChange={(m) => m !== null && setFromMonth(m)}
+            onMonthChange={setFromMonth}
             onYearChange={setFromYear}
           />
 
@@ -175,7 +175,7 @@ export function CostBearerExportDialog({
               month={toMonth}
               year={toYear}
               minYear={minYear}
-              onMonthChange={(m) => m !== null && setToMonth(m)}
+              onMonthChange={setToMonth}
               onYearChange={setToYear}
             />
           )}

@@ -1,34 +1,173 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "aspen",
-  "name": "Lebenshilfe",
+  "name": "Lebenshilfe München",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#0069B4",
+    "light": "#0A6CB5",
+    "dark": "#004E87"
   },
   "favicon": "/favicon.svg",
+  "fonts": {
+    "family": "Inter"
+  },
   "navigation": {
-    "pages": [
+    "languages": [
       {
-        "group": "Getting Started",
-        "pages": ["index", "quickstart"]
+        "language": "de",
+        "default": true,
+        "tabs": [
+          {
+            "tab": "Erste Schritte",
+            "groups": [
+              {
+                "group": "Willkommen",
+                "pages": ["index"]
+              },
+              {
+                "group": "Anmeldung & Konto",
+                "pages": [
+                  "erste-schritte/anmelden",
+                  "erste-schritte/konto-einrichten"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Für Schulbegleiter",
+            "groups": [
+              {
+                "group": "Grundlagen",
+                "pages": ["schulbegleiter/uebersicht"]
+              },
+              {
+                "group": "Tägliche Arbeit",
+                "pages": [
+                  "schulbegleiter/stunden-erfassen",
+                  "schulbegleiter/kind-krankmelden",
+                  "schulbegleiter/vertretung"
+                ]
+              },
+              {
+                "group": "Monatsabschluss",
+                "pages": ["schulbegleiter/monatsabschluss"]
+              },
+              {
+                "group": "Hilfe",
+                "pages": ["schulbegleiter/faq"]
+              }
+            ]
+          },
+          {
+            "tab": "Für Administratoren",
+            "groups": [
+              {
+                "group": "Grundlagen",
+                "pages": ["admin/uebersicht"]
+              },
+              {
+                "group": "Stammdaten verwalten",
+                "pages": [
+                  "admin/kinder",
+                  "admin/pools",
+                  "admin/schulbegleiter",
+                  "admin/schulen",
+                  "admin/ferienplaene",
+                  "admin/workshops"
+                ]
+              },
+              {
+                "group": "Täglicher Betrieb",
+                "pages": ["admin/handlungsbedarf", "admin/karte"]
+              },
+              {
+                "group": "Abrechnung & Verwaltung",
+                "pages": [
+                  "admin/kostentraeger-export",
+                  "admin/benutzerverwaltung"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "language": "en",
+        "tabs": [
+          {
+            "tab": "Getting Started",
+            "groups": [
+              {
+                "group": "Welcome",
+                "pages": ["en/index"]
+              },
+              {
+                "group": "Login & Account",
+                "pages": [
+                  "en/erste-schritte/anmelden",
+                  "en/erste-schritte/konto-einrichten"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "For School Assistants",
+            "groups": [
+              {
+                "group": "Basics",
+                "pages": ["en/schulbegleiter/uebersicht"]
+              },
+              {
+                "group": "Daily Work",
+                "pages": [
+                  "en/schulbegleiter/stunden-erfassen",
+                  "en/schulbegleiter/kind-krankmelden",
+                  "en/schulbegleiter/vertretung"
+                ]
+              },
+              {
+                "group": "Month-End",
+                "pages": ["en/schulbegleiter/monatsabschluss"]
+              },
+              {
+                "group": "Help",
+                "pages": ["en/schulbegleiter/faq"]
+              }
+            ]
+          },
+          {
+            "tab": "For Administrators",
+            "groups": [
+              {
+                "group": "Basics",
+                "pages": ["en/admin/uebersicht"]
+              },
+              {
+                "group": "Manage Master Data",
+                "pages": [
+                  "en/admin/kinder",
+                  "en/admin/schulbegleiter",
+                  "en/admin/schulen",
+                  "en/admin/ferienplaene",
+                  "en/admin/workshops"
+                ]
+              },
+              {
+                "group": "Daily Operations",
+                "pages": ["en/admin/handlungsbedarf", "en/admin/karte"]
+              },
+              {
+                "group": "Billing & Administration",
+                "pages": [
+                  "en/admin/kostentraeger-export",
+                  "en/admin/benutzerverwaltung"
+                ]
+              }
+            ]
+          }
+        ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
+    ]
   },
   "logo": {
     "light": "/logo/light.svg",
@@ -38,32 +177,33 @@
     "links": [
       {
         "label": "Support",
-        "href": "mailto:hi@mintlify.com"
+        "href": "mailto:info@codingforchange.de"
       }
     ],
     "primary": {
       "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.mintlify.com"
+      "label": "Zur App",
+      "href": "https://lebenshilfe.codingforchange.com"
     }
   },
   "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
-    ]
+    "options": ["copy", "view", "chatgpt", "claude"]
   },
   "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    "links": [
+      {
+        "header": "Lebenshilfe München",
+        "items": [
+          {
+            "label": "Zur App",
+            "href": "https://lebenshilfe.codingforchange.com"
+          },
+          {
+            "label": "Support",
+            "href": "mailto:info@codingforchange.de"
+          }
+        ]
+      }
+    ]
   }
 }

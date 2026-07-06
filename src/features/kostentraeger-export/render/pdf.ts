@@ -171,7 +171,7 @@ function drawMonthPage(
     cursorY -= 15;
   };
 
-  drawLabelValue("für:", doc.childName);
+  drawLabelValue("für:", doc.subjectName);
   drawLabelValue("Monat / Jahr:", month.label);
   if (doc.schulbegleiterName) {
     drawLabelValue("SchulbegleiterIn:", doc.schulbegleiterName);

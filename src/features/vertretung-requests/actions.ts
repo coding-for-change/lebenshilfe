@@ -6,6 +6,7 @@ import { VertretungRequestsFacade } from "./facade";
 import type {
   CreateVertretungRequestInput,
   ResolveVertretungRequestInput,
+  VertretungPrefillLookupInput,
 } from "./schemas";
 
 const VERTRETUNG_REVALIDATE_PATHS = [
@@ -24,6 +25,13 @@ export async function createVertretungRequestAction(
   const user = await requireAuth();
   await VertretungRequestsFacade.create(user.id, input);
   revalidateVertretungPaths();
+}
+
+export async function lookupVertretungPrefillAction(
+  input: VertretungPrefillLookupInput,
+) {
+  await requireAuth();
+  return VertretungRequestsFacade.lookupPrefill(input);
 }
 
 export async function resolveVertretungRequestAction(

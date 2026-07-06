@@ -1,6 +1,8 @@
 services:
   app:
     image: localhost:5000/lebenshilfe:latest
+    labels:
+      alloy-logging: true
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -8,3 +10,5 @@ services:
       - "3000:3000"
     env_file:
       - .env
+    environment:
+      - LOG_PRETTY=false

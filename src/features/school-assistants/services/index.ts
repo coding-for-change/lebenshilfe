@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma, SchulbegleiterStatus, EventType } from "@/generated/prisma";
 
 export type ProfileWithAttendances = Prisma.SchoolAssistantProfileGetPayload<{
-  include: { attendances: { include: { workshop: true } } };
+  include: { attendances: { include: { workshop: true } }; pool: true };
 }>;
 
 export type UserWorkEvent = Prisma.EventGetPayload<{
@@ -21,7 +21,7 @@ export async function listWorkEventsForUser(
 
 export async function listProfiles(): Promise<ProfileWithAttendances[]> {
   return prisma.schoolAssistantProfile.findMany({
-    include: { attendances: { include: { workshop: true } } },
+    include: { attendances: { include: { workshop: true } }, pool: true },
     orderBy: { createdAt: "desc" },
   });
 }
@@ -29,7 +29,7 @@ export async function listProfiles(): Promise<ProfileWithAttendances[]> {
 export async function findProfileById(id: string) {
   return prisma.schoolAssistantProfile.findUnique({
     where: { id },
-    include: { attendances: { include: { workshop: true } } },
+    include: { attendances: { include: { workshop: true } }, pool: true },
   });
 }
 

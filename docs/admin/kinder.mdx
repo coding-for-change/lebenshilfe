@@ -1,0 +1,98 @@
+---
+title: "Kinder verwalten"
+description: "Kinder anlegen, Stammdaten, Einsätze, Stundenpläne, Fehlzeiten und Nachweise"
+---
+
+import { VideoPlaceholder } from "/snippets/loom.mdx";
+
+Im Bereich [**Kinder**](https://lebenshilfe.codingforchange.com/admin/children) pflegen Sie
+alle betreuten Kinder – von den Stammdaten über die Einsätze der Schulbegleitungen bis zum
+Einsatznachweis für die Abrechnung.
+
+<Frame caption="Die Kinder-Übersicht">
+  <img src="/images/admin/kinder.png" alt="Kinder-Übersicht" />
+</Frame>
+
+## Ein neues Kind anlegen
+
+Über **Neues Kind anlegen** öffnet sich eine **geführte Anlage in drei Schritten**.
+
+<Steps>
+  <Step title="Stammdaten">
+    Erfassen Sie die Grunddaten des Kindes.
+  </Step>
+  <Step title="Verwaltung">
+    Hinterlegen Sie verwaltungsrelevante Angaben (z. B. Schule und Kostenträger).
+  </Step>
+  <Step title="Übersicht">
+    Prüfen Sie alle Eingaben und schließen Sie mit **Anlegen** ab. Mit **Speichern & neues
+    erstellen** legen Sie direkt das nächste Kind an, mit **Anlegen & Zuweisen** geht es
+    weiter zur Zuweisung einer Schulbegleitung.
+  </Step>
+</Steps>
+
+Mit **Weiter** und **Zurück** wechseln Sie zwischen den Schritten, mit **Abbrechen**
+verwerfen Sie die Anlage.
+
+<VideoPlaceholder title="Ein neues Kind anlegen" />
+
+## Ein Kind bearbeiten
+
+Klicken Sie bei einem Kind auf **Details bearbeiten** (bzw. die Zeile), um die Detailansicht
+zu öffnen. Sie ist in drei Reiter gegliedert:
+
+<Tabs>
+  <Tab title="Allgemeines">
+    Stammdaten sowie die **Einsätze** (Zuweisungen von Schulbegleitungen) und der
+    **Stundenplan** des Kindes. Hier legen Sie fest, welche Schulbegleitung an welchem
+    Wochentag und in welchem Zeitfenster eingesetzt ist. Wird ein Kind von zwei
+    Schulbegleitungen begleitet, spricht man von einem **Tandem**.
+  </Tab>
+  <Tab title="Historie">
+    Der **Einsatznachweis** – alle erfassten Arbeitseinträge des Kindes. Hier können Sie
+    Einträge nachträglich anlegen, ändern, löschen oder wiederherstellen sowie über
+    **Exportieren** einen Einsatznachweis erzeugen (siehe
+    [Kostenträger-Export](/admin/kostentraeger-export)).
+  </Tab>
+  <Tab title="Kalender">
+    Die Termine des Kindes im Kalenderüberblick – inklusive **Fehlzeiten** (Krankmeldungen)
+    und Stundenplan.
+  </Tab>
+</Tabs>
+
+Änderungen im Detailfenster speichern Sie über **Speichern**.
+
+## Einsätze, Stundenplan und Fehlzeiten
+
+<AccordionGroup>
+  <Accordion title="Einsätze (Zuweisungen)">
+    Ein Einsatz verbindet ein Kind mit einer Schulbegleitung – pro Wochentag, mit
+    Zeitfenster und optional als **Tandem**. Einsätze legen Sie an, bearbeiten oder löschen
+    Sie in der Detailansicht des Kindes.
+  </Accordion>
+  <Accordion title="Stundenplan">
+    Der offizielle Schulstundenplan des Kindes. Er dient den Schulbegleitungen als
+    Orientierung und erscheint bei ihnen in der Tages- und Wochenansicht.
+  </Accordion>
+  <Accordion title="Fehlzeiten">
+    Krankheits- und Abwesenheitstage. Diese können Schulbegleitungen selbst melden – die
+    Verwaltung kann sie hier ebenfalls erfassen oder korrigieren.
+  </Accordion>
+  <Accordion title="Einsatznachweis / Arbeitseinträge">
+    Die einzelnen Arbeitseinträge der Schulbegleitungen. Als Admin können Sie Einträge auch
+    nachträglich anlegen oder anpassen – die betroffene Schulbegleitung wird gebeten, die
+    Änderung zu **bestätigen**.
+  </Accordion>
+</AccordionGroup>
+
+## Ein Kind löschen
+
+Über **Löschen** entfernen Sie ein Kind. Eine Sicherheitsabfrage **Kind löschen?** weist
+darauf hin, dass „{`{Name}`} sowie alle zugehörigen Zuweisungen, Stundenpläne und
+Krankheitstage … unwiderruflich entfernt" werden.
+
+<Warning>
+  Das Löschen eines Kindes entfernt **alle zugehörigen Daten** unwiderruflich. Für die
+  Abrechnung benötigte Nachweise sollten Sie vorher
+  [exportieren](/admin/kostentraeger-export).
+</Warning>

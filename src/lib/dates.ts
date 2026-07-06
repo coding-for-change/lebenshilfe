@@ -120,6 +120,17 @@ export function timeToMinutes(t: string): number {
   return h * 60 + m;
 }
 
+/** Shift "HH:MM" by signed minutes, clamped to [00:00, 23:59]. */
+export function shiftTime(t: string, deltaMinutes: number): string {
+  const total = Math.max(
+    0,
+    Math.min(24 * 60 - 1, timeToMinutes(t) + deltaMinutes),
+  );
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 export function formatDuration(startTime: string, endTime: string): string {
   const mins = timeToMinutes(endTime) - timeToMinutes(startTime);
   const h = Math.floor(mins / 60);

@@ -5,6 +5,7 @@ export type ChildWithRelations = Prisma.ChildGetPayload<{
   include: {
     kostentraeger: true;
     school: { include: { holidayPlan: { include: { holidays: true } } } };
+    pool: true;
     assignments: { include: { user: true } };
     schedules: true;
     absences: true;
@@ -19,6 +20,7 @@ const childInclude = {
       holidayPlan: { include: { holidays: { orderBy: { startDate: "asc" } } } },
     },
   },
+  pool: true,
   assignments: { include: { user: true } },
   schedules: true,
   absences: true,

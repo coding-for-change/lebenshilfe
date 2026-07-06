@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { match } from "ts-pattern";
 import {
   Baby,
   Briefcase,
   FileText,
+  Info,
   Stethoscope,
   User,
   UserPlus,
@@ -25,9 +26,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { EventType, type Event, type Schedule } from "@/generated/prisma";
 import { SignaturePadDialog } from "./signature-pad-dialog";
-import { createEventAction, createIndirectEventByNameAction } from "../actions";
+import {
+  createEventAction,
+  createIndirectEventByNameAction,
+  createPoolWorkEventAction,
+} from "../actions";
 import { reportChildSickAction } from "@/features/children/actions";
-import { createVertretungRequestAction } from "@/features/vertretung-requests/actions";
+import {
+  createVertretungRequestAction,
+  lookupVertretungPrefillAction,
+} from "@/features/vertretung-requests/actions";
 import {
   formatDuration,
   parseIsoDate,
@@ -36,10 +44,14 @@ import {
 } from "@/lib/dates";
 import type { ChildOption } from "./children-filter";
 import { childIdsForDate, type AssignmentsByWeekday } from "../weekday";
+import { quarterHourHint } from "../quarter-hour";
 import { cn, formatIsoDateUtc } from "@/lib/utils";
 import type { VertretungDay } from "./timesheet-shell";
 
-type EventLike = Pick<Event, "id" | "type" | "date" | "childId">;
+type EventLike = Pick<
+  Event,
+  "id" | "type" | "date" | "childId" | "startTime" | "endTime"
+>;
 type WorkVariant = "OWN" | "VERTRETUNG" | "INDIRECT";
 
 function isWeekend(iso: string) {
@@ -60,6 +72,8 @@ type Props = {
   substituteOn?: VertretungDay[];
   /** Existing events — used to hide Vertretungen that already have an Eintrag. */
   events?: EventLike[];
+  /** Pool SB: only Direkt work + own sick, no child selection. */
+  inPool?: boolean;
 };
 
 export function NewEntrySheet({
@@ -72,6 +86,7 @@ export function NewEntrySheet({
   schedules,
   substituteOn = [],
   events = [],
+  inPool = false,
 }: Props) {
   const [type, setType] = useState<EventType>(EventType.WORK);
   const [workVariant, setWorkVariant] = useState<WorkVariant>("OWN");
@@ -83,6 +98,12 @@ export function NewEntrySheet({
   const [note, setNote] = useState("");
   const [vertretungChildName, setVertretungChildName] = useState("");
   const [indirectChildName, setIndirectChildName] = useState("");
+  const [vertretungQuarter, setVertretungQuarter] = useState<{
+    before: boolean;
+    after: boolean;
+  } | null>(null);
+  // Guards the debounce lookup from overwriting a quick-pick's exact block times.
+  const pickedTimesRef = useRef(false);
 
   // Child IDs that already have a work Event for this date — used to hide
   // Vertretungen the SB has already submitted an Eintrag for. Filtering by
@@ -116,6 +137,8 @@ export function NewEntrySheet({
       {
         childId: string;
         childName: string;
+        vorviertelstunde: boolean;
+        nachviertelstunde: boolean;
         timeBlocks: { startTime: string; endTime: string }[];
       }
     >();
@@ -124,6 +147,8 @@ export function NewEntrySheet({
         map.set(v.childId, {
           childId: v.childId,
           childName: v.childName,
+          vorviertelstunde: v.vorviertelstunde,
+          nachviertelstunde: v.nachviertelstunde,
           timeBlocks: [],
         });
       }
@@ -150,12 +175,13 @@ export function NewEntrySheet({
       setWorkVariant("OWN");
       setSickTarget(null);
       setSickChildId(null);
-      setStartTime("08:00");
-      setEndTime("17:00");
       setNote("");
       setVertretungChildName("");
       setIndirectChildName("");
+      setVertretungQuarter(null);
+      pickedTimesRef.current = false;
     }
+    // Start/End are owned by the Stundenplan effect below, not reset here.
   }, [open, defaultDate]);
 
   // Whenever the day's assigned children change (open, date change, or
@@ -191,6 +217,7 @@ export function NewEntrySheet({
     }
     if (workVariant === "OWN") {
       if (dateIsWeekend) return false;
+      if (inPool) return Boolean(duration);
       return childIds.length >= 1 && Boolean(duration);
     }
     // INDIRECT
@@ -209,6 +236,7 @@ export function NewEntrySheet({
     duration,
     indirectChildName,
     note,
+    inPool,
   ]);
 
   const toggleChild = (id: string) => {
@@ -217,38 +245,142 @@ export function NewEntrySheet({
     );
   };
 
-  // Times derived from the Schulbegleiter's assigned child(ren) Stundenplan for
-  // the chosen weekday. Earliest start + latest end across the relevant
-  // schedules. Null when no schedule covers the day — the SB then enters
-  // start/end manually.
+  const childFlags = useMemo(
+    () =>
+      new Map(
+        assignedChildren.map((c) => [
+          c.id,
+          { before: c.vorviertelstunde, after: c.nachviertelstunde },
+        ]),
+      ),
+    [assignedChildren],
+  );
+
+  // Prefill a single schedule block: the first (by start) for which no entry
+  // exists yet. So a split day (e.g. 08:00–11:00 + 13:00–18:00) prefills the
+  // morning block first, then the afternoon block once the morning is entered.
+  // ±15 mirrors the export — before only when the block is the child's earliest
+  // of the day, after only when it is the latest.
   const dayScheduleTimes = useMemo<{
     start: string;
     end: string;
+    before: boolean;
+    after: boolean;
   } | null>(() => {
     const wd = weekdayIndex(parseIsoDate(date));
     const relevantChildIds =
       childIds.length > 0 ? childIds : dayAssignedChildren.map((c) => c.id);
-    const daySchedules = schedules.filter(
-      (s) => s.weekday === wd && relevantChildIds.includes(s.childId),
-    );
+    const daySchedules = schedules
+      .filter((s) => s.weekday === wd && relevantChildIds.includes(s.childId))
+      .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
     if (daySchedules.length === 0) return null;
-    const start = daySchedules.reduce((acc, s) =>
-      timeToMinutes(s.startTime) < timeToMinutes(acc.startTime) ? s : acc,
-    ).startTime;
-    const end = daySchedules.reduce((acc, s) =>
-      timeToMinutes(s.endTime) > timeToMinutes(acc.endTime) ? s : acc,
-    ).endTime;
-    return { start, end };
-  }, [date, schedules, dayAssignedChildren, childIds]);
 
-  // Auto-fill Start/End from the Stundenplan when entering Arbeit/Eigenes Kind.
-  // The SB can still edit the times manually after the fill.
+    const dayWorkEvents = events.filter(
+      (e) =>
+        e.type === "WORK" &&
+        e.childId &&
+        e.startTime &&
+        e.endTime &&
+        formatIsoDateUtc(e.date) === date,
+    );
+    const isCovered = (s: Schedule) =>
+      dayWorkEvents.some(
+        (e) =>
+          e.childId === s.childId &&
+          timeToMinutes(e.startTime!) < timeToMinutes(s.endTime) &&
+          timeToMinutes(s.startTime) < timeToMinutes(e.endTime!),
+      );
+
+    const chosen = daySchedules.find((s) => !isCovered(s)) ?? daySchedules[0];
+
+    // Per child, the earliest start / latest end across the day (the export
+    // widens only those boundaries, once per day).
+    const childDay = daySchedules.filter((s) => s.childId === chosen.childId);
+    const minStart = childDay.reduce(
+      (m, s) =>
+        timeToMinutes(s.startTime) < timeToMinutes(m) ? s.startTime : m,
+      childDay[0].startTime,
+    );
+    const maxEnd = childDay.reduce(
+      (m, s) => (timeToMinutes(s.endTime) > timeToMinutes(m) ? s.endTime : m),
+      childDay[0].endTime,
+    );
+    const flags = childFlags.get(chosen.childId);
+    return {
+      start: chosen.startTime,
+      end: chosen.endTime,
+      before: (flags?.before ?? false) && chosen.startTime === minStart,
+      after: (flags?.after ?? false) && chosen.endTime === maxEnd,
+    };
+  }, [date, schedules, dayAssignedChildren, childIds, childFlags, events]);
+
+  // Display-only billed span for the time inputs — the saved Start/End stay raw.
+  const quarterHint = useMemo(() => {
+    const flags = match(workVariant)
+      .with("OWN", () =>
+        dayScheduleTimes
+          ? { before: dayScheduleTimes.before, after: dayScheduleTimes.after }
+          : null,
+      )
+      .with("VERTRETUNG", () => vertretungQuarter)
+      .otherwise(() => null);
+    if (!flags || !startTime || !endTime) return null;
+    const hint = quarterHourHint(flags.before, flags.after, startTime, endTime);
+    return hint && { ...flags, ...hint };
+  }, [workVariant, dayScheduleTimes, vertretungQuarter, startTime, endTime]);
+
+  // Seed raw Start/End from the Stundenplan. Depends on `open` so reopening the
+  // same day re-applies the schedule instead of keeping the previous fallback.
   useEffect(() => {
+    if (!open) return;
     if (type !== EventType.WORK || workVariant !== "OWN") return;
-    if (!dayScheduleTimes) return;
-    setStartTime(dayScheduleTimes.start);
-    setEndTime(dayScheduleTimes.end);
-  }, [type, workVariant, dayScheduleTimes]);
+    if (dayScheduleTimes) {
+      setStartTime(dayScheduleTimes.start);
+      setEndTime(dayScheduleTimes.end);
+    } else {
+      setStartTime("08:00");
+      setEndTime("17:00");
+    }
+  }, [open, type, workVariant, dayScheduleTimes]);
+
+  // Free-text Vertretung: debounce-look up the typed name and prefill its
+  // Stundenplan times + ±15 hint on an exact match.
+  useEffect(() => {
+    if (!open || type !== EventType.WORK || workVariant !== "VERTRETUNG")
+      return;
+    const name = vertretungChildName.trim();
+    if (name.length < 2) {
+      setVertretungQuarter(null);
+      return;
+    }
+    let cancelled = false;
+    const handle = setTimeout(async () => {
+      try {
+        const res = await lookupVertretungPrefillAction({ name, date });
+        if (cancelled) return;
+        if (!res.matched) {
+          setVertretungQuarter(null);
+          return;
+        }
+        setVertretungQuarter({
+          before: res.vorviertelstunde,
+          after: res.nachviertelstunde,
+        });
+        if (res.startTime && res.endTime && !pickedTimesRef.current) {
+          setStartTime(res.startTime);
+          setEndTime(res.endTime);
+        }
+      } catch {
+        // Lookup is a best-effort convenience — ignore failures silently.
+      } finally {
+        if (!cancelled) pickedTimesRef.current = false;
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [open, type, workVariant, vertretungChildName, date]);
 
   const submitWithSignature = async (pngBase64: string) => {
     setSubmitting(true);
@@ -271,6 +403,15 @@ export function NewEntrySheet({
           signaturePngBase64: pngBase64,
         });
         toast.success("Krankheit gespeichert");
+      } else if (workVariant === "OWN" && inPool) {
+        await createPoolWorkEventAction({
+          date,
+          startTime,
+          endTime,
+          note: note.trim() || undefined,
+          signaturePngBase64: pngBase64,
+        });
+        toast.success("Eintrag gespeichert");
       } else if (workVariant === "OWN") {
         await createEventAction({
           type: EventType.WORK,
@@ -508,40 +649,45 @@ export function NewEntrySheet({
 
             {type === EventType.WORK && (
               <>
-                <div className="grid grid-cols-3 gap-1.5">
-                  <Button
-                    type="button"
-                    variant={workVariant === "OWN" ? "default" : "outline"}
-                    onClick={() => setWorkVariant("OWN")}
-                    className="h-10 text-xs sm:text-sm"
-                  >
-                    <Briefcase className="size-3.5" /> Direkt
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={
-                      workVariant === "VERTRETUNG" ? "default" : "outline"
-                    }
-                    onClick={() => setWorkVariant("VERTRETUNG")}
-                    className={cn(
-                      "h-10 text-xs sm:text-sm",
-                      workVariant === "VERTRETUNG" &&
-                        "bg-amber-600 hover:bg-amber-700 text-white",
-                    )}
-                  >
-                    <UserPlus className="size-3.5" /> Vertretung
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={workVariant === "INDIRECT" ? "default" : "outline"}
-                    onClick={() => setWorkVariant("INDIRECT")}
-                    className="h-10 text-xs sm:text-sm"
-                  >
-                    <FileText className="size-3.5" /> Indirekt
-                  </Button>
-                </div>
+                {!inPool && (
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <Button
+                      type="button"
+                      variant={workVariant === "OWN" ? "default" : "outline"}
+                      onClick={() => setWorkVariant("OWN")}
+                      className="h-10 text-xs sm:text-sm"
+                    >
+                      <Briefcase className="size-3.5" /> Direkt
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={
+                        workVariant === "VERTRETUNG" ? "default" : "outline"
+                      }
+                      onClick={() => setWorkVariant("VERTRETUNG")}
+                      className={cn(
+                        "h-10 text-xs sm:text-sm",
+                        workVariant === "VERTRETUNG" &&
+                          "bg-amber-600 hover:bg-amber-700 text-white",
+                      )}
+                    >
+                      <UserPlus className="size-3.5" /> Vertretung
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={
+                        workVariant === "INDIRECT" ? "default" : "outline"
+                      }
+                      onClick={() => setWorkVariant("INDIRECT")}
+                      className="h-10 text-xs sm:text-sm"
+                    >
+                      <FileText className="size-3.5" /> Indirekt
+                    </Button>
+                  </div>
+                )}
 
-                {workVariant === "OWN" &&
+                {!inPool &&
+                  workVariant === "OWN" &&
                   (dayAssignedChildren.length === 0 ? (
                     <p className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
                       An diesem Tag ist dir kein Kind zugewiesen.
@@ -620,7 +766,14 @@ export function NewEntrySheet({
 
                 <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-end">
                   <div className="space-y-1.5">
-                    <Label htmlFor="start">Start</Label>
+                    <Label htmlFor="start">
+                      Start
+                      {quarterHint?.before && (
+                        <span className="ml-1 font-normal text-muted-foreground">
+                          (ohne ¼-Std.)
+                        </span>
+                      )}
+                    </Label>
                     <Input
                       id="start"
                       type="time"
@@ -631,7 +784,14 @@ export function NewEntrySheet({
                   </div>
                   <span className="pb-3 text-muted-foreground">→</span>
                   <div className="space-y-1.5">
-                    <Label htmlFor="end">Ende</Label>
+                    <Label htmlFor="end">
+                      Ende
+                      {quarterHint?.after && (
+                        <span className="ml-1 font-normal text-muted-foreground">
+                          (ohne ¼-Std.)
+                        </span>
+                      )}
+                    </Label>
                     <Input
                       id="end"
                       type="time"
@@ -648,6 +808,20 @@ export function NewEntrySheet({
                     : "Ende muss nach Start liegen"}
                 </p>
 
+                {quarterHint && (
+                  <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                    <Info className="mt-0.5 size-3.5 shrink-0" />
+                    <span>
+                      {quarterHint.label} genehmigt · Abrechnung{" "}
+                      <span className="font-medium tabular-nums">
+                        {quarterHint.billed}
+                      </span>
+                      . Bitte die Zeit <strong>ohne</strong> ¼-Stunden
+                      eintragen.
+                    </span>
+                  </p>
+                )}
+
                 {workVariant === "VERTRETUNG" && (
                   <>
                     {availableVertretungen.length > 0 && (
@@ -663,9 +837,14 @@ export function NewEntrySheet({
                                 key={`${v.childId}-${i}`}
                                 type="button"
                                 onClick={() => {
+                                  pickedTimesRef.current = true;
                                   setVertretungChildName(v.childName);
                                   setStartTime(b.startTime);
                                   setEndTime(b.endTime);
+                                  setVertretungQuarter({
+                                    before: v.vorviertelstunde,
+                                    after: v.nachviertelstunde,
+                                  });
                                 }}
                                 className={cn(
                                   "flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors",

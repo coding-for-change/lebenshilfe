@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 import { DetailSheet } from "@/components/detail-sheet";
 import { UnsavedChangesDialog } from "@/components/unsaved-changes-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
@@ -52,10 +55,24 @@ export function SchoolAssistantDetailSheet({
         title={profile?.name ?? ""}
         description={
           profile ? (
-            <span className="flex items-center gap-2">
+            <span className="flex flex-wrap items-center gap-2">
               <span>{profile.email}</span>
               <span>·</span>
               <StatusBadge status={profile.status} />
+              {profile.pool ? (
+                <Link
+                  href={`/admin/pools?pool=${profile.pool.id}`}
+                  className="rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
+                  <Badge
+                    variant="secondary"
+                    className="cursor-pointer gap-1 transition-colors hover:bg-secondary/70"
+                  >
+                    Pool: {profile.pool.name}
+                    <ArrowUpRight className="size-3" />
+                  </Badge>
+                </Link>
+              ) : null}
             </span>
           ) : null
         }

@@ -3,7 +3,9 @@ node_modules
 dist
 build
 public
+docs
 *.md
+*.mdx
 .env
 .env.*
 pnpm-lock.yaml

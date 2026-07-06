@@ -19,16 +19,21 @@ import { Input } from "@/components/ui/input";
 
 export function LoginForm({
   className,
+  initialError,
   ...props
-}: React.ComponentProps<"div">) {
+}: React.ComponentProps<"div"> & { initialError?: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [customError, setCustomError] = useState<string | undefined>(
+    initialError,
+  );
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setStatus("loading");
+    setCustomError(undefined);
 
     try {
       const result = await authClient.signIn.email({ email, password });
@@ -96,9 +101,9 @@ export function LoginForm({
                   className="h-11"
                 />
               </Field>
-              {status === "error" && (
+              {(status === "error" || customError) && (
                 <p className="-mt-2 text-center text-sm text-destructive">
-                  E-Mail oder Passwort falsch.
+                  {customError || "E-Mail oder Passwort falsch."}
                 </p>
               )}
               <Field>

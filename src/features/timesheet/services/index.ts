@@ -103,6 +103,38 @@ export async function insertWorkEvents(args: {
   });
 }
 
+export async function getUserPoolId(userId: string): Promise<string | null> {
+  const profile = await prisma.schoolAssistantProfile.findUnique({
+    where: { userId },
+    select: { poolId: true },
+  });
+  return profile?.poolId ?? null;
+}
+
+export async function insertPoolWorkEvent(args: {
+  userId: string;
+  poolId: string;
+  date: Date;
+  startTime: string;
+  endTime: string;
+  note?: string | null;
+  signatureKey: string;
+}) {
+  return prisma.event.create({
+    data: {
+      userId: args.userId,
+      poolId: args.poolId,
+      childId: null,
+      type: EventType.WORK,
+      date: args.date,
+      startTime: args.startTime,
+      endTime: args.endTime,
+      note: args.note ?? null,
+      signatureKey: args.signatureKey,
+    },
+  });
+}
+
 export async function insertSickEvent(args: {
   userId: string;
   date: Date;

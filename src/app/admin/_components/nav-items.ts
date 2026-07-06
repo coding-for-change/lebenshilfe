@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   TriangleAlert,
   Users,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 
@@ -38,6 +39,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: "Kinder",
     description: "Stammdaten, Kalender und Kontakte.",
     icon: Baby,
+  },
+  {
+    href: "/admin/pools",
+    label: "Pools",
+    description: "Gruppen aus Kindern und Schulbegleitern verwalten.",
+    icon: UsersRound,
   },
   {
     href: "/admin/schools",

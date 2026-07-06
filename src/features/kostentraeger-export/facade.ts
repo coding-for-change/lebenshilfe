@@ -1,13 +1,17 @@
 import {
   ExportRequestSchema,
+  PoolExportRequestSchema,
   type ExportDay,
   type ExportDocument,
   type ExportMonth,
   type ExportRequest,
+  type PoolExportRequest,
 } from "./schemas";
 import {
   findChildForExport,
+  findPoolForExport,
   listEventsForChildInRange,
+  listEventsForPoolInRange,
   type ExportEvent,
 } from "./services";
 import {
@@ -309,7 +313,7 @@ export const CostBearerExportFacade = {
     if (request.scope === "combined") {
       return [
         {
-          childName,
+          subjectName: childName,
           schulbegleiterName: null,
           months: months.map((marker) =>
             buildMonth(
@@ -360,7 +364,7 @@ export const CostBearerExportFacade = {
     );
 
     return sortedAssistants.map((assistant, assistantIndex) => ({
-      childName,
+      subjectName: childName,
       schulbegleiterName: assistant.name,
       months: months.map((marker, monthIndex) =>
         buildMonth(
@@ -372,5 +376,76 @@ export const CostBearerExportFacade = {
         ),
       ),
     }));
+  },
+
+  async buildForPool(input: PoolExportRequest): Promise<ExportDocument[]> {
+    const request = PoolExportRequestSchema.parse(input);
+
+    const pool = await findPoolForExport(request.poolId);
+    if (!pool) {
+      throw new Error("Pool nicht gefunden.");
+    }
+
+    const noQuarterHour = { before: false, after: false };
+    const months = monthsInRange(request.from, request.to);
+    const rangeStart = utcDate(request.from.year, request.from.month, 1);
+    const rangeEnd = utcDate(
+      request.to.month === 12 ? request.to.year + 1 : request.to.year,
+      request.to.month === 12 ? 1 : request.to.month + 1,
+      1,
+    );
+
+    const events = await listEventsForPoolInRange(
+      request.poolId,
+      rangeStart,
+      rangeEnd,
+    );
+
+    if (request.scope === "combined") {
+      return [
+        {
+          subjectName: pool.name,
+          schulbegleiterName: null,
+          months: months.map((marker) =>
+            buildMonth(marker.year, marker.month, events, null, noQuarterHour),
+          ),
+        },
+      ];
+    }
+
+    const byAssistant = new Map<
+      string,
+      { name: string; events: ExportEvent[] }
+    >();
+    for (const event of events) {
+      const entry = byAssistant.get(event.userId) ?? {
+        name: event.user?.name ?? "Unbekannt",
+        events: [],
+      };
+      entry.events.push(event);
+      byAssistant.set(event.userId, entry);
+    }
+
+    if (byAssistant.size === 0) {
+      throw new Error(
+        "Im gewählten Zeitraum gibt es keine Einträge für diesen Pool.",
+      );
+    }
+
+    return [...byAssistant.values()]
+      .sort((a, b) => a.name.localeCompare(b.name, "de"))
+      .map((assistant) => ({
+        subjectName: pool.name,
+        schulbegleiterName: assistant.name,
+        months: months.map((marker) =>
+          buildMonth(
+            marker.year,
+            marker.month,
+            assistant.events,
+            null,
+            noQuarterHour,
+          ),
+        ),
+      }));
   },
 };

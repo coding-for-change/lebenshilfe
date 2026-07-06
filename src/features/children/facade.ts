@@ -18,6 +18,7 @@ import {
   type WorkEventInput,
   type UpdateWorkEventInput,
 } from "./schemas";
+import { logBusinessEvent } from "@/lib/logger";
 import {
   createAssignment,
   createChild,
@@ -135,6 +136,11 @@ export const ChildrenFacade = {
 
   async create(input: CreateChildInput) {
     const parsed = CreateChildSchema.parse(input);
+    logBusinessEvent("CHILD_CREATED", {
+      leosOne: parsed.leosOne,
+      schoolId: parsed.schoolId,
+      name: parsed.firstName + " " + parsed.lastName,
+    });
     return createChild(childFieldsFromCreate(parsed));
   },
 
@@ -159,6 +165,10 @@ export const ChildrenFacade = {
 
   async createAssignment(input: AssignmentInput) {
     const parsed = AssignmentSchema.parse(input);
+    logBusinessEvent("CHILD_ASSIGNED", {
+      childId: parsed.childId,
+      userId: parsed.userId,
+    });
     return createAssignment(parsed);
   },
 

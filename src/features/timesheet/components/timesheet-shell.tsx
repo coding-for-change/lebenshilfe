@@ -68,6 +68,8 @@ export type VertretungDay = {
   childName: string;
   startTime: string;
   endTime: string;
+  vorviertelstunde: boolean;
+  nachviertelstunde: boolean;
   /** When set, this Vertretung was created by the SB via free-text (auto-matched
    *  or admin-resolved). The id points at the originating PendingVertretungRequest
    *  so the SB can fully undo it from the dashboard. */
@@ -96,6 +98,8 @@ type Props = {
   substituteOn?: VertretungDay[];
   /** Own pending Vertretung requests (submitted but not yet resolved by admin). */
   pendingVertretungRequests?: PendingVertretungRequestItem[];
+  /** When true, the SB belongs to a pool: simplified entry form, no child selection. */
+  inPool?: boolean;
 };
 
 const NAV_ITEMS: Array<{
@@ -129,6 +133,7 @@ export function SchoolAssistantApp({
   childSchoolHolidays,
   substituteOn = [],
   pendingVertretungRequests = [],
+  inPool = false,
 }: Props) {
   const today = useMemo(() => startOfDayUtc(new Date()), []);
   const [activeTab, setActiveTab] = useState<Exclude<TabId, "mehr">>("tag");
@@ -391,6 +396,7 @@ export function SchoolAssistantApp({
           schedules={schedules}
           substituteOn={substituteOn}
           events={events}
+          inPool={inPool}
         />
 
         <SettingsDialog

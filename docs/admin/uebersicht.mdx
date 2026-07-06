@@ -1,0 +1,67 @@
+---
+title: "Übersicht: Verwaltungsbereich"
+description: "Der Aufbau des Admin-Bereichs und die Navigation"
+---
+
+import { VideoPlaceholder } from "/snippets/loom.mdx";
+
+Als Administrator:in landen Sie nach der Anmeldung im
+[**Verwaltungsbereich**](https://lebenshilfe.codingforchange.com/admin). Hier begrüßt Sie
+„Willkommen im Verwaltungsbereich. Wähle einen Bereich, um zu beginnen."
+
+<Frame caption="Der Verwaltungsbereich mit der Seitennavigation">
+  <img src="/images/admin/uebersicht.png" alt="Verwaltungsbereich" />
+</Frame>
+
+## Die Navigation
+
+Links (auf dem Smartphone über das Menü) finden Sie alle Bereiche:
+
+<CardGroup cols={2}>
+  <Card title="Übersicht" icon="house" href="/admin/uebersicht">
+    Startseite des Verwaltungsbereichs.
+  </Card>
+  <Card title="Schulbegleiter" icon="user" href="/admin/schulbegleiter">
+    Schulbegleitungen anlegen und verwalten.
+  </Card>
+  <Card title="Kinder" icon="child" href="/admin/kinder">
+    Kinder, ihre Einsätze, Stundenpläne und Nachweise.
+  </Card>
+  <Card title="Pools" icon="users" href="/admin/pools">
+    Gruppen aus Kindern und Schulbegleitern für gemeinsame Abrechnung.
+  </Card>
+  <Card title="Schulen" icon="school" href="/admin/schulen">
+    Schulen samt Standort und Ferienplan.
+  </Card>
+  <Card title="Ferien" icon="umbrella-beach" href="/admin/ferienplaene">
+    Ferienpläne mit ihren Zeiträumen.
+  </Card>
+  <Card title="Workshops" icon="chalkboard-user" href="/admin/workshops">
+    Fortbildungen für Schulbegleitungen.
+  </Card>
+  <Card title="Handlungsbedarf" icon="bell" href="/admin/handlungsbedarf">
+    Offene Vertretungs-Anträge zuordnen.
+  </Card>
+  <Card title="Karte" icon="map-location-dot" href="/admin/karte">
+    Tagesübersicht aller Einsätze auf der Landkarte.
+  </Card>
+</CardGroup>
+
+Im Abschnitt **Admin** gibt es zusätzlich die **Benutzerverwaltung** – sie ist
+Administrator:innen und Owner:innen vorbehalten.
+
+<VideoPlaceholder title="Rundgang durch den Verwaltungsbereich" />
+
+## Rollen: Admin und Owner
+
+Es gibt zwei Verwaltungsrollen:
+
+- **Admin** – kann alle Bereiche verwalten (Kinder, Schulen, Schulbegleiter, Exporte usw.).
+- **Owner** – wie Admin, kann zusätzlich in der **Benutzerverwaltung** andere Owner ernennen
+  oder entfernen.
+
+<Note>
+  Wiederkehrende Bedienelemente: Über **Details bearbeiten** öffnen Sie einen Datensatz,
+  über **Löschen** entfernen Sie ihn (jeweils mit Sicherheitsabfrage). Neue Datensätze legen
+  Sie über die Schaltfläche oben rechts an (z. B. **Neues Kind anlegen**).
+</Note>

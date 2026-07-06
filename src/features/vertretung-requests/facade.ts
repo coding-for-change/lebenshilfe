@@ -4,9 +4,13 @@ import { exactMatchChild } from "@/lib/child-matching";
 import {
   CreateVertretungRequestSchema,
   ResolveVertretungRequestSchema,
+  VertretungPrefillLookupSchema,
   type CreateVertretungRequestInput,
   type ResolveVertretungRequestInput,
+  type VertretungPrefillLookupInput,
+  type VertretungPrefillResult,
 } from "./schemas";
+import { parseIsoDate, timeToMinutes } from "@/lib/dates";
 import {
   countPendingRequests,
   createPendingVertretungRequest,
@@ -26,11 +30,6 @@ import {
 } from "./services";
 import { PendingVertretungStatus } from "@/generated/prisma";
 
-function parseDateOnly(dateStr: string): Date {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d));
-}
-
 export const VertretungRequestsFacade = {
   async create(substituteUserId: string, input: CreateVertretungRequestInput) {
     const parsed = CreateVertretungRequestSchema.parse(input);
@@ -39,7 +38,7 @@ export const VertretungRequestsFacade = {
     await uploadSignaturePng(signatureKey, parsed.signaturePngBase64);
 
     const match = await exactMatchChild(parsed.childNameText);
-    const date = parseDateOnly(parsed.date);
+    const date = parseIsoDate(parsed.date);
 
     if (match) {
       // If a Vertretung already exists for this SB+child+date, leave it alone —
@@ -118,6 +117,46 @@ export const VertretungRequestsFacade = {
       matchConfidence: null,
       status: PendingVertretungStatus.PENDING,
     });
+  },
+
+  // Reuses the same exact-match rule that auto-assigns on submit, so prefill and
+  // submission never diverge. `matched: false` leaks nothing about the roster.
+  async lookupPrefill(
+    input: VertretungPrefillLookupInput,
+  ): Promise<VertretungPrefillResult> {
+    const parsed = VertretungPrefillLookupSchema.parse(input);
+    const name = parsed.name.trim();
+    if (name.length < 2) return { matched: false };
+
+    const match = await exactMatchChild(name);
+    if (!match) return { matched: false };
+
+    const date = parseIsoDate(parsed.date);
+    const weekday = (date.getUTCDay() + 6) % 7;
+    const blocks = await getScheduleTimeBlocks(match.childId, weekday);
+
+    let startTime: string | null = null;
+    let endTime: string | null = null;
+    if (blocks.length > 0) {
+      startTime = blocks.reduce(
+        (acc, b) =>
+          timeToMinutes(b.startTime) < timeToMinutes(acc) ? b.startTime : acc,
+        blocks[0].startTime,
+      );
+      endTime = blocks.reduce(
+        (acc, b) =>
+          timeToMinutes(b.endTime) > timeToMinutes(acc) ? b.endTime : acc,
+        blocks[0].endTime,
+      );
+    }
+
+    return {
+      matched: true,
+      startTime,
+      endTime,
+      vorviertelstunde: match.vorviertelstunde,
+      nachviertelstunde: match.nachviertelstunde,
+    };
   },
 
   async listPending() {

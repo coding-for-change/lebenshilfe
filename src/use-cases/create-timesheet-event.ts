@@ -16,11 +16,7 @@
 import { ChildrenFacade } from "@/features/children/facade";
 import { TimesheetFacade } from "@/features/timesheet/facade";
 import type { CreateEventInput } from "@/features/timesheet/schemas";
-
-function parseDateOnly(dateStr: string): Date {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d));
-}
+import { parseIsoDate } from "@/lib/dates";
 
 export async function createTimesheetEvent(
   userId: string,
@@ -32,7 +28,7 @@ export async function createTimesheetEvent(
     Array.isArray(input.childIds) &&
     input.childIds.length > 0
   ) {
-    const date = parseDateOnly(input.date);
+    const date = parseIsoDate(input.date);
     await ChildrenFacade.assertChildrenAccessForUser(
       userId,
       input.childIds,

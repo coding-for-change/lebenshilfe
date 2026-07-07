@@ -43,6 +43,19 @@ export const auth = betterAuth({
       });
     },
   },
+  session: {
+    // Sliding session: expires 3 days after last use (idle timeout); active
+    // sessions refresh at most once per day. Shorter than the 7-day default
+    // given the Art. 9 data and shared/school devices.
+    expiresIn: 60 * 60 * 24 * 3,
+    updateAge: 60 * 60 * 24,
+  },
+  advanced: {
+    // Pin the Secure cookie flag to production rather than relying on inferred
+    // protocol/URL. NODE_ENV=production is set in the Dockerfile; local dev runs
+    // over http (incl. dev:local on a LAN IP), where a Secure cookie is rejected.
+    useSecureCookies: process.env.NODE_ENV === "production",
+  },
   databaseHooks: {
     user: {
       create: {

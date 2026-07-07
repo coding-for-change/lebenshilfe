@@ -20,6 +20,18 @@ export const auth = betterAuth({
         "Dieses Passwort taucht in bekannten Datenlecks auf. Bitte wähle ein anderes.",
     }),
   ],
+  rateLimit: {
+    enabled: true,
+    storage: "database",
+    // Tightened per-IP limits on top of better-auth's defaults. Uses the
+    // RateLimit table (prisma/schema.prisma) so counters survive restarts and
+    // are shared across replicas — the default in-process Map does not.
+    customRules: {
+      "/sign-in/email": { window: 60, max: 10 },
+      "/forget-password": { window: 300, max: 3 },
+      "/reset-password": { window: 300, max: 5 },
+    },
+  },
   user: {
     additionalFields: {
       role: {

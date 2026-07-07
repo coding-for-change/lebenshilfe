@@ -3,15 +3,17 @@ import type { ExportDocument } from "../schemas";
 
 const SEPARATOR = ";";
 
+// Spreadsheet formula injection: a cell beginning with = + - @ (or a tab/CR) is
+// executed as a formula by Excel/Sheets. Prefix such values with an apostrophe
+// so the recipient's spreadsheet renders them as literal text.
+const FORMULA_LEAD = /^[=+\-@\t\r]/;
+
 function escapeCell(value: string): string {
-  if (
-    value.includes(SEPARATOR) ||
-    value.includes('"') ||
-    value.includes("\n")
-  ) {
-    return `"${value.replace(/"/g, '""')}"`;
+  const safe = FORMULA_LEAD.test(value) ? `'${value}` : value;
+  if (safe.includes(SEPARATOR) || safe.includes('"') || safe.includes("\n")) {
+    return `"${safe.replace(/"/g, '""')}"`;
   }
-  return value;
+  return safe;
 }
 
 /**

@@ -27,8 +27,8 @@ function ResetPasswordForm() {
       return;
     }
 
-    if (password.length < 8) {
-      setErrorMsg("Das Passwort muss mindestens 8 Zeichen lang sein.");
+    if (password.length < 12) {
+      setErrorMsg("Das Passwort muss mindestens 12 Zeichen lang sein.");
       setStatus("error");
       return;
     }
@@ -42,7 +42,9 @@ function ResetPasswordForm() {
 
     if (result.error) {
       setErrorMsg(
-        "Der Reset-Link ist ungültig oder abgelaufen. Bitte fordere einen neuen an.",
+        result.error.code === "PASSWORD_COMPROMISED"
+          ? "Dieses Passwort taucht in bekannten Datenlecks auf. Bitte wähle ein anderes."
+          : "Der Reset-Link ist ungültig oder abgelaufen. Bitte fordere einen neuen an.",
       );
       setStatus("error");
     } else {
@@ -86,7 +88,7 @@ function ResetPasswordForm() {
         onChange={(e) => setPassword(e.target.value)}
         className="h-12"
         disabled={status === "loading"}
-        minLength={8}
+        minLength={12}
       />
       <Input
         type="password"

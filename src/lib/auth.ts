@@ -7,11 +7,19 @@ import { sendMail } from "./mail";
 import { renderEmail } from "./email/render";
 import { ResetPasswordEmail } from "./email/templates/reset-password-email";
 import { logger } from "@/lib/logger";
+import { haveIBeenPwned } from "better-auth/plugins";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "mysql",
   }),
+  plugins: [
+    // Reject breached passwords (HIBP k-anonymity: only a hashed SHA-1 prefix leaves the server).
+    haveIBeenPwned({
+      customPasswordCompromisedMessage:
+        "Dieses Passwort taucht in bekannten Datenlecks auf. Bitte wähle ein anderes.",
+    }),
+  ],
   user: {
     additionalFields: {
       role: {
@@ -22,6 +30,7 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
+    minPasswordLength: 12,
     sendResetPassword: async ({ url, user }) => {
       const { html, text } = await renderEmail(
         createElement(ResetPasswordEmail, { resetUrl: url }),

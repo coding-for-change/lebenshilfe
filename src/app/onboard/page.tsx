@@ -63,7 +63,12 @@ export default function OnboardPage({
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!password.trim() || !name.trim()) return;
+    if (!name.trim()) return;
+    if (password.length < 12) {
+      setStatus("error");
+      setErrorMessage("Das Passwort muss mindestens 12 Zeichen lang sein.");
+      return;
+    }
 
     setStatus("loading");
     try {
@@ -189,6 +194,7 @@ export default function OnboardPage({
                       id="password"
                       type="password"
                       required
+                      minLength={12}
                       autoComplete="new-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}

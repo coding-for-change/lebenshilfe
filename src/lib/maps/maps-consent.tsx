@@ -4,21 +4,37 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
-  useState,
+  useSyncExternalStore,
 } from "react";
-import { setMapsConsentGranted } from "@/lib/maps/maps-loader";
+import { MAPS_CONSENT_STORAGE_KEY } from "@/lib/maps/maps-loader";
 
 // First-party record of the user's decision to load Google Maps. Storing the
 // consent choice itself is strictly necessary (§25 Abs. 2 TDDDG) and needs no
-// consent; the value never leaves the browser.
-const STORAGE_KEY = "lh.mapsConsent";
+// consent; the value never leaves the browser. localStorage is the single source
+// of truth — the maps loader reads the same key to gate Google requests.
+const CHANGE_EVENT = "lh:maps-consent-change";
+
+function readConsent(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.localStorage.getItem(MAPS_CONSENT_STORAGE_KEY) === "granted"
+  );
+}
+
+function subscribe(onChange: () => void): () => void {
+  // `storage` fires for changes made in other tabs; the custom event covers
+  // grant/revoke within this tab.
+  window.addEventListener("storage", onChange);
+  window.addEventListener(CHANGE_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(CHANGE_EVENT, onChange);
+  };
+}
 
 type MapsConsent = {
   /** Whether Google Maps may load. */
   consent: boolean;
-  /** False until the persisted choice has been read (avoids a wrong first paint). */
-  ready: boolean;
   grant: () => void;
   revoke: () => void;
 };
@@ -30,32 +46,24 @@ export function MapsConsentProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [consent, setConsent] = useState(false);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    const granted = localStorage.getItem(STORAGE_KEY) === "granted";
-    setMapsConsentGranted(granted);
-    setConsent(granted);
-    setReady(true);
-  }, []);
+  // Reads the persisted choice without a setState-in-effect and stays
+  // hydration-safe: the server snapshot is `false`, then the client syncs.
+  const consent = useSyncExternalStore(subscribe, readConsent, () => false);
 
   const grant = useCallback(() => {
-    localStorage.setItem(STORAGE_KEY, "granted");
-    setMapsConsentGranted(true);
-    setConsent(true);
+    window.localStorage.setItem(MAPS_CONSENT_STORAGE_KEY, "granted");
+    window.dispatchEvent(new Event(CHANGE_EVENT));
   }, []);
 
   const revoke = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
-    setMapsConsentGranted(false);
-    setConsent(false);
     // Google's script/state cannot be unloaded within the session; a reload
-    // clears it. Callers that need immediate effect should reload after revoke.
+    // clears it. Callers needing immediate effect should reload after revoke.
+    window.localStorage.removeItem(MAPS_CONSENT_STORAGE_KEY);
+    window.dispatchEvent(new Event(CHANGE_EVENT));
   }, []);
 
   return (
-    <MapsConsentContext.Provider value={{ consent, ready, grant, revoke }}>
+    <MapsConsentContext.Provider value={{ consent, grant, revoke }}>
       {children}
     </MapsConsentContext.Provider>
   );

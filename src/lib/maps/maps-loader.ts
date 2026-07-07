@@ -5,22 +5,21 @@ import { importLibrary, setOptions } from "@googlemaps/js-api-loader";
 type MapsLibraryName = "places" | "maps" | "marker";
 
 let initialized = false;
-let consentGranted = false;
 const cache = new Map<MapsLibraryName, Promise<unknown>>();
 
-// Gates all Google Maps loading behind explicit consent (TDDDG §25). Set by the
-// MapsConsentProvider; until it is true no Google request is made, even if a
-// caller forgets to wrap itself in a consent gate.
-export function setMapsConsentGranted(granted: boolean): void {
-  consentGranted = granted;
-}
+// localStorage key holding the user's Google Maps consent choice. This module and
+// the MapsConsentProvider (maps-consent.tsx) read the same key — one source of truth.
+export const MAPS_CONSENT_STORAGE_KEY = "lh.mapsConsent";
 
 function ensureInitialized(): void {
   if (initialized) return;
   if (typeof window === "undefined") {
     throw new Error("ssr");
   }
-  if (!consentGranted) {
+  // Gate all Google Maps loading behind explicit consent (TDDDG §25): no Google
+  // request is made until the user has consented, even if a caller forgets to
+  // wrap itself in a consent gate.
+  if (window.localStorage.getItem(MAPS_CONSENT_STORAGE_KEY) !== "granted") {
     throw new Error("maps-consent-required");
   }
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;

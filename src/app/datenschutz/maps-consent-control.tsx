@@ -7,8 +7,7 @@ import { useMapsConsent } from "@/lib/maps/maps-consent";
 // Revoking reloads the page so any Google script already loaded this session is
 // cleared.
 export function MapsConsentControl() {
-  const { consent, ready, grant, revoke } = useMapsConsent();
-  if (!ready) return null;
+  const { consent, grant, revoke } = useMapsConsent();
 
   return (
     <div className="mt-2 flex flex-col gap-2 rounded-md border bg-muted/30 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">

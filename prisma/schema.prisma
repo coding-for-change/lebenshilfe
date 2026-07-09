@@ -414,3 +414,15 @@ model PendingVertretungRequest {
   @@index([status, date])
   @@map("pending_vertretung_request")
 }
+
+// better-auth rate-limit storage (F-09). Persists throttle counters in MySQL so
+// they survive restarts and are shared across replicas (the default in-process
+// Map does not). Written/read by better-auth's "database" rateLimit storage.
+model RateLimit {
+  id          String  @id @default(cuid())
+  key         String?
+  count       Int?
+  lastRequest BigInt?
+
+  @@map("rate_limit")
+}

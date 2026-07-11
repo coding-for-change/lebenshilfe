@@ -6,10 +6,11 @@ import {
   type InviteAdminUserInput,
 } from "@/features/users/schemas";
 import { Role } from "@/generated/prisma";
+import { logBusinessEvent } from "@/lib/logger";
 
 export async function inviteAdminUserUseCase(input: InviteAdminUserInput) {
   // Anyone with admin or owner access may invite a new ADMIN; only OWNERs may invite a new OWNER.
-  await requireAdmin();
+  const actor = await requireAdmin();
 
   const parsed = InviteAdminUserSchema.parse(input);
 
@@ -22,7 +23,17 @@ export async function inviteAdminUserUseCase(input: InviteAdminUserInput) {
     throw new Error("Es existiert bereits ein Benutzer mit dieser E-Mail.");
   }
 
-  await InvitationFacade.generateAndSendInvite(parsed.email, parsed.role);
+  const invitation = await InvitationFacade.generateAndSendInvite(
+    parsed.email,
+    parsed.role,
+  );
+  // Who invited whom, by reference only (no email/PII): resolve the invitee via
+  // invitationId in the DB if needed.
+  logBusinessEvent("USER_INVITED", {
+    role: parsed.role,
+    invitationId: invitation.id,
+    invitedByUserId: actor.id,
+  });
 
   return { success: true };
 }

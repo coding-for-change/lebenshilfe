@@ -25,6 +25,10 @@ export async function requireAdmin() {
       "/login?error=" + encodeURIComponent("Admin-Rechte erforderlich."),
     );
   }
+  // Admin/owner accounts guard special-category data — a second factor is mandatory.
+  if (!session.user.twoFactorEnabled) {
+    redirect("/2fa/setup");
+  }
   return session.user;
 }
 
@@ -37,6 +41,10 @@ export async function requireOwner() {
     redirect(
       "/login?error=" + encodeURIComponent("Inhaber-Rechte erforderlich."),
     );
+  }
+  // Admin/owner accounts guard special-category data — a second factor is mandatory.
+  if (!session.user.twoFactorEnabled) {
+    redirect("/2fa/setup");
   }
   return session.user;
 }

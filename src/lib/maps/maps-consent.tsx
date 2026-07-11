@@ -1,69 +1,55 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useSyncExternalStore,
-} from "react";
-import { MAPS_CONSENT_STORAGE_KEY } from "@/lib/maps/maps-loader";
+import { createContext, useCallback, useContext, useState } from "react";
 
-// First-party record of the user's decision to load Google Maps. Storing the
-// consent choice itself is strictly necessary (§25 Abs. 2 TDDDG) and needs no
-// consent; the value never leaves the browser. localStorage is the single source
-// of truth — the maps loader reads the same key to gate Google requests.
-const CHANGE_EVENT = "lh:maps-consent-change";
-
-function readConsent(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.localStorage.getItem(MAPS_CONSENT_STORAGE_KEY) === "granted"
-  );
-}
-
-function subscribe(onChange: () => void): () => void {
-  // `storage` fires for changes made in other tabs; the custom event covers
-  // grant/revoke within this tab.
-  window.addEventListener("storage", onChange);
-  window.addEventListener(CHANGE_EVENT, onChange);
-  return () => {
-    window.removeEventListener("storage", onChange);
-    window.removeEventListener(CHANGE_EVENT, onChange);
-  };
-}
+// Google-Maps consent is stored server-side against the user account (an
+// append-only ConsentEvent log — demonstrable consent per Art. 7 DSGVO) rather
+// than in the browser, so it persists across devices and the controller can
+// prove it. The provider is seeded from the server on each full page load; the
+// consumers (gate, autocompletes) load Google only when `consent` is true.
+// The persistence action is injected by the app layer so this stays free of a
+// feature dependency.
 
 type MapsConsent = {
-  /** Whether Google Maps may load. */
+  /** Whether Google Maps may load for the current user. */
   consent: boolean;
-  grant: () => void;
-  revoke: () => void;
+  /** Whether a user is signed in (only then can consent be recorded). */
+  authenticated: boolean;
+  grant: () => Promise<void>;
+  revoke: () => Promise<void>;
 };
 
 const MapsConsentContext = createContext<MapsConsent | null>(null);
 
 export function MapsConsentProvider({
   children,
+  initialConsent,
+  authenticated,
+  onSetConsent,
 }: {
   children: React.ReactNode;
+  initialConsent: boolean;
+  authenticated: boolean;
+  onSetConsent: (granted: boolean) => Promise<unknown>;
 }) {
-  // Reads the persisted choice without a setState-in-effect and stays
-  // hydration-safe: the server snapshot is `false`, then the client syncs.
-  const consent = useSyncExternalStore(subscribe, readConsent, () => false);
+  const [consent, setConsent] = useState(initialConsent);
 
-  const grant = useCallback(() => {
-    window.localStorage.setItem(MAPS_CONSENT_STORAGE_KEY, "granted");
-    window.dispatchEvent(new Event(CHANGE_EVENT));
-  }, []);
+  // Record consent server-side first, then flip local state — so Google is only
+  // loaded after the decision is durably stored (never processing-before-consent).
+  const grant = useCallback(async () => {
+    await onSetConsent(true);
+    setConsent(true);
+  }, [onSetConsent]);
 
-  const revoke = useCallback(() => {
-    // Google's script/state cannot be unloaded within the session; a reload
-    // clears it. Callers needing immediate effect should reload after revoke.
-    window.localStorage.removeItem(MAPS_CONSENT_STORAGE_KEY);
-    window.dispatchEvent(new Event(CHANGE_EVENT));
-  }, []);
+  const revoke = useCallback(async () => {
+    await onSetConsent(false);
+    setConsent(false);
+  }, [onSetConsent]);
 
   return (
-    <MapsConsentContext.Provider value={{ consent, grant, revoke }}>
+    <MapsConsentContext.Provider
+      value={{ consent, authenticated, grant, revoke }}
+    >
       {children}
     </MapsConsentContext.Provider>
   );

@@ -2,6 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { MapsConsentProvider } from "@/lib/maps/maps-consent";
+import { getSession } from "@/lib/auth-guards";
+import { ConsentFacade } from "@/features/consent";
+import { setMapsConsentAction } from "@/features/consent/actions";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -24,18 +27,30 @@ export const viewport: Viewport = {
   interactiveWidget: "resizes-content",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Seed Maps consent from the user's account so it persists across devices.
+  const session = await getSession();
+  const initialConsent = session
+    ? await ConsentFacade.getMapsConsent(session.user.id)
+    : false;
+
   return (
     <html
       lang="de"
       className={`${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
-        <MapsConsentProvider>{children}</MapsConsentProvider>
+        <MapsConsentProvider
+          initialConsent={initialConsent}
+          authenticated={!!session}
+          onSetConsent={setMapsConsentAction}
+        >
+          {children}
+        </MapsConsentProvider>
       </body>
     </html>
   );

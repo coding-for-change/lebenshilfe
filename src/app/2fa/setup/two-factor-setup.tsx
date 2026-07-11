@@ -76,6 +76,26 @@ export function TwoFactorSetup() {
     setStep("backup");
   }
 
+  function downloadCodes() {
+    const payload = JSON.stringify(
+      {
+        service: "Lebenshilfe München",
+        type: "2fa-backup-codes",
+        codes: backupCodes,
+      },
+      null,
+      2,
+    );
+    const url = URL.createObjectURL(
+      new Blob([payload], { type: "application/json" }),
+    );
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "lebenshilfe-wiederherstellungscodes.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function finish() {
     router.push("/");
     router.refresh();
@@ -205,16 +225,25 @@ export function TwoFactorSetup() {
                 </li>
               ))}
             </ul>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() =>
-                navigator.clipboard?.writeText(backupCodes.join("\n"))
-              }
-            >
-              Codes kopieren
-            </Button>
+            <div className="flex flex-col gap-2">
+              <Button
+                type="button"
+                className="w-full"
+                onClick={downloadCodes}
+              >
+                Codes herunterladen
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() =>
+                  navigator.clipboard?.writeText(backupCodes.join("\n"))
+                }
+              >
+                Codes kopieren
+              </Button>
+            </div>
             <label className="flex items-start gap-2 text-sm">
               <Checkbox
                 checked={saved}

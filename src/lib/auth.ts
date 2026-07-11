@@ -31,6 +31,9 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 12,
+    // Invalidate all existing sessions on password reset, so resetting a
+    // compromised account actually logs out an attacker holding a live session.
+    revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ url, user }) => {
       const { html, text } = await renderEmail(
         createElement(ResetPasswordEmail, { resetUrl: url }),
@@ -44,10 +47,10 @@ export const auth = betterAuth({
     },
   },
   session: {
-    // Sliding session: expires 3 days after last use (idle timeout); active
-    // sessions refresh at most once per day. Shorter than the 7-day default
-    // given the Art. 9 data and shared/school devices.
-    expiresIn: 60 * 60 * 24 * 3,
+    // Sliding session: expires 7 days after last use (idle timeout); active
+    // sessions refresh at most once per day. Every admin login is additionally
+    // gated by 2FA, and the cookie is Secure/HttpOnly/SameSite.
+    expiresIn: 60 * 60 * 24 * 7,
     updateAge: 60 * 60 * 24,
   },
   advanced: {

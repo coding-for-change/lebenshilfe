@@ -2,6 +2,11 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
+// The nonce-based CSP (src/proxy.ts) needs per-request rendering so Next can
+// stamp the request's nonce onto its scripts; opt every route out of static
+// prerendering (a prerendered page has no per-request nonce → broken hydration).
+export const dynamic = "force-dynamic";
+
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],

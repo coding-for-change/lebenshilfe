@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { loadMapsLibrary } from "@/lib/maps/maps-loader";
 import { usePlaceSuggestions } from "@/lib/maps/places-api";
+import { useMapsConsent } from "@/lib/maps/maps-consent";
 
 type Props = {
   value: string;
@@ -22,10 +23,12 @@ export function AddressAutocomplete({
   placeholder,
   ariaInvalid,
 }: Props) {
+  const { consent, grant } = useMapsConsent();
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!consent) return;
     let cancelled = false;
     loadMapsLibrary("places")
       .then(() => {
@@ -37,20 +40,32 @@ export function AddressAutocomplete({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [consent]);
 
-  // Gracefully degrade to a plain text input if Maps is unavailable.
-  if (error || !ready) {
+  // Before consent (§25 TDDDG) or if Maps is unavailable, fall back to a plain
+  // text input; without consent, offer to enable Google address suggestions.
+  if (!consent || error || !ready) {
     return (
-      <Input
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={
-          error ? "Adresse manuell eingeben…" : (placeholder ?? "Adresse…")
-        }
-        aria-invalid={ariaInvalid}
-      />
+      <div>
+        <Input
+          id={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={
+            error ? "Adresse manuell eingeben…" : (placeholder ?? "Adresse…")
+          }
+          aria-invalid={ariaInvalid}
+        />
+        {!consent && !error ? (
+          <button
+            type="button"
+            onClick={grant}
+            className="mt-1 text-xs text-muted-foreground underline underline-offset-2"
+          >
+            Adress-Vorschläge über Google Maps aktivieren
+          </button>
+        ) : null}
+      </div>
     );
   }
 

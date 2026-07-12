@@ -55,9 +55,26 @@ model User {
   createdChildAbsences       ChildAbsence[]             @relation("ChildAbsenceCreator")
   pendingVertretungRequests  PendingVertretungRequest[] @relation("PendingVertretungSubstitute")
   resolvedVertretungRequests PendingVertretungRequest[] @relation("PendingVertretungResolver")
+  consentEvents              ConsentEvent[]
 
   @@unique([email])
   @@map("user")
+}
+
+// Append-only log of a user's consent decisions (e.g. loading Google Maps). The
+// current state for a (user, type) is the most recent event; keeping every
+// grant/withdrawal with a timestamp is the demonstrable-consent record Art. 7
+// DSGVO requires — unlike device-local storage, which the controller can't produce.
+model ConsentEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  granted   Boolean
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@map("consent_event")
 }
 
 model Session {

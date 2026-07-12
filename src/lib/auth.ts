@@ -43,6 +43,9 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 12,
+    // Invalidate all existing sessions on password reset, so resetting a
+    // compromised account actually logs out an attacker holding a live session.
+    revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ url, user }) => {
       const { html, text } = await renderEmail(
         createElement(ResetPasswordEmail, { resetUrl: url }),
@@ -54,6 +57,19 @@ export const auth = betterAuth({
         text,
       });
     },
+  },
+  session: {
+    // Sliding session: expires 7 days after last use (idle timeout); active
+    // sessions refresh at most once per day. Every admin login is additionally
+    // gated by 2FA, and the cookie is Secure/HttpOnly/SameSite.
+    expiresIn: 60 * 60 * 24 * 7,
+    updateAge: 60 * 60 * 24,
+  },
+  advanced: {
+    // Pin the Secure cookie flag to production rather than relying on inferred
+    // protocol/URL. NODE_ENV=production is set in the Dockerfile; local dev runs
+    // over http (incl. dev:local on a LAN IP), where a Secure cookie is rejected.
+    useSecureCookies: process.env.NODE_ENV === "production",
   },
   databaseHooks: {
     user: {

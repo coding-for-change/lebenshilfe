@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { loadMapsLibrary } from "@/lib/maps/maps-loader";
 import { fetchPlaceDetails, usePlaceSuggestions } from "@/lib/maps/places-api";
+import { useMapsConsent } from "@/lib/maps/maps-consent";
 import { EMPTY_SCHOOL_VALUE, type SchoolValue } from "../schemas";
 
 export type { SchoolValue };
@@ -29,10 +30,12 @@ export function SchoolAutocomplete({
   id,
   ariaInvalid,
 }: Props) {
+  const { consent, grant } = useMapsConsent();
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!consent) return;
     let cancelled = false;
     loadMapsLibrary("places")
       .then(() => {
@@ -44,7 +47,35 @@ export function SchoolAutocomplete({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [consent]);
+
+  // Before consent (§25 TDDDG): manual entry + an opt-in to Google suggestions.
+  if (!consent) {
+    return (
+      <div>
+        <Input
+          id={id}
+          value={value.name ?? ""}
+          onChange={(e) =>
+            onChange({
+              ...EMPTY_SCHOOL_VALUE,
+              name: e.target.value,
+              address: e.target.value,
+            })
+          }
+          placeholder="Schulname / Adresse manuell eingeben…"
+          aria-invalid={ariaInvalid}
+        />
+        <button
+          type="button"
+          onClick={grant}
+          className="mt-1 text-xs text-muted-foreground underline underline-offset-2"
+        >
+          Schul-/Adresssuche über Google Maps aktivieren
+        </button>
+      </div>
+    );
+  }
 
   if (error) {
     return (

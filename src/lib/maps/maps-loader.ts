@@ -7,6 +7,9 @@ type MapsLibraryName = "places" | "maps" | "marker";
 let initialized = false;
 const cache = new Map<MapsLibraryName, Promise<unknown>>();
 
+// Consent (TDDDG §25) is enforced by the callers: every consumer reads
+// `useMapsConsent().consent` and only calls loadMapsLibrary once it is true.
+// Consent itself is stored server-side (see maps-consent.tsx / features/consent).
 function ensureInitialized(): void {
   if (initialized) return;
   if (typeof window === "undefined") {

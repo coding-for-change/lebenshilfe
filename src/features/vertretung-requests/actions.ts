@@ -5,6 +5,7 @@ import { requireAuth, requireAdmin } from "@/lib/auth-guards";
 import { VertretungRequestsFacade } from "./facade";
 import type {
   CreateVertretungRequestInput,
+  ResolveIndirectRequestInput,
   ResolveVertretungRequestInput,
   VertretungPrefillLookupInput,
 } from "./schemas";
@@ -58,5 +59,20 @@ export async function deleteOwnVertretungRequestAction(id: string) {
 export async function deleteOwnVertretungAction(id: string) {
   const user = await requireAuth();
   await VertretungRequestsFacade.deleteOwnVertretung(id, user.id);
+  revalidateVertretungPaths();
+}
+
+export async function resolveIndirectRequestAction(
+  id: string,
+  input: ResolveIndirectRequestInput,
+) {
+  const admin = await requireAdmin();
+  await VertretungRequestsFacade.resolveIndirect(id, admin.id, input);
+  revalidateVertretungPaths();
+}
+
+export async function rejectIndirectRequestAction(id: string) {
+  const admin = await requireAdmin();
+  await VertretungRequestsFacade.reject(id, admin.id);
   revalidateVertretungPaths();
 }

@@ -2,10 +2,14 @@ import { randomUUID } from "crypto";
 import { uploadSignaturePng } from "@/lib/storage";
 import { exactMatchChild } from "@/lib/child-matching";
 import {
+  CreateIndirectPendingRequestSchema,
   CreateVertretungRequestSchema,
+  ResolveIndirectRequestSchema,
   ResolveVertretungRequestSchema,
   VertretungPrefillLookupSchema,
+  type CreateIndirectPendingRequestInput,
   type CreateVertretungRequestInput,
+  type ResolveIndirectRequestInput,
   type ResolveVertretungRequestInput,
   type VertretungPrefillLookupInput,
   type VertretungPrefillResult,
@@ -22,13 +26,17 @@ import {
   findRequestById,
   getScheduleTimeBlocks,
   insertChildVertretungBlocks,
+  insertIndirectWorkEvent,
   insertVertretungWorkEvent,
   listPendingRequests,
   listRequestsForUser,
   rejectRequest,
   resolveRequest,
 } from "./services";
-import { PendingVertretungStatus } from "@/generated/prisma";
+import {
+  PendingRequestKind,
+  PendingVertretungStatus,
+} from "@/generated/prisma";
 
 export const VertretungRequestsFacade = {
   async create(substituteUserId: string, input: CreateVertretungRequestInput) {
@@ -259,5 +267,80 @@ export const VertretungRequestsFacade = {
       throw new Error("Dieser Antrag wurde bereits bearbeitet.");
     }
     return rejectRequest(id, adminUserId);
+  },
+
+  /**
+   * INDIRECT-Antrag, dessen Name nicht eindeutig einem Kind zugeordnet werden
+   * konnte: Signatur hochladen, Anfrage in die Admin-Queue stellen (PENDING).
+   * Caller (Use Case) hat den exactMatchChild-Check schon gemacht.
+   */
+  async createIndirectPending(
+    substituteUserId: string,
+    input: CreateIndirectPendingRequestInput,
+  ) {
+    const parsed = CreateIndirectPendingRequestSchema.parse(input);
+
+    const signatureKey = `signatures/indirect-requests/${randomUUID()}.png`;
+    await uploadSignaturePng(signatureKey, parsed.signaturePngBase64);
+
+    const date = parseIsoDate(parsed.date);
+    return createPendingVertretungRequest({
+      kind: PendingRequestKind.INDIRECT,
+      substituteUserId,
+      childNameText: parsed.childNameText,
+      date,
+      startTime: parsed.startTime,
+      endTime: parsed.endTime,
+      signatureKey,
+      note: parsed.note,
+      matchedChildId: null,
+      matchConfidence: null,
+      status: PendingVertretungStatus.PENDING,
+    });
+  },
+
+  async listPendingIndirect() {
+    return listPendingRequests(PendingRequestKind.INDIRECT);
+  },
+
+  async countPendingIndirect() {
+    return countPendingRequests(PendingRequestKind.INDIRECT);
+  },
+
+  /**
+   * Admin ordnet einen unentschiedenen INDIRECT-Antrag einem Kind zu. Erzeugt
+   * ein INDIRECT-Event (mit ursprünglicher Signatur, Zeiten, Notiz) und
+   * markiert die Anfrage als RESOLVED.
+   */
+  async resolveIndirect(
+    id: string,
+    adminUserId: string,
+    input: ResolveIndirectRequestInput,
+  ) {
+    const parsed = ResolveIndirectRequestSchema.parse(input);
+
+    const request = await findRequestById(id);
+    if (!request) throw new Error("Antrag nicht gefunden.");
+    if (request.kind !== PendingRequestKind.INDIRECT) {
+      throw new Error("Antrag ist keine indirekte Leistung.");
+    }
+    if (request.status !== PendingVertretungStatus.PENDING) {
+      throw new Error("Dieser Antrag wurde bereits bearbeitet.");
+    }
+    if (!request.note) {
+      throw new Error("Antrag enthält keine Notiz.");
+    }
+
+    await insertIndirectWorkEvent({
+      childId: parsed.childId,
+      userId: request.substituteUserId,
+      date: request.date,
+      startTime: request.startTime,
+      endTime: request.endTime,
+      signatureKey: request.signatureKey,
+      note: request.note,
+    });
+
+    return resolveRequest(id, parsed.childId, adminUserId);
   },
 };

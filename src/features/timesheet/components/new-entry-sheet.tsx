@@ -428,7 +428,7 @@ export function NewEntrySheet({
           })`,
         );
       } else {
-        await createIndirectEventByNameAction({
+        const result = await createIndirectEventByNameAction({
           childNameText: indirectChildName.trim(),
           date,
           startTime,
@@ -436,7 +436,13 @@ export function NewEntrySheet({
           note: note.trim(),
           signaturePngBase64: pngBase64,
         });
-        toast.success("Indirekte Leistung gespeichert");
+        if (result.status === "QUEUED") {
+          toast.success(
+            "Indirekte Leistung gespeichert — wird vom Admin dem Kind zugeordnet.",
+          );
+        } else {
+          toast.success("Indirekte Leistung gespeichert");
+        }
       }
       setSigOpen(false);
       onOpenChange(false);

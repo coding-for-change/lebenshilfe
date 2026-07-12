@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,11 +41,45 @@ export function ChildrenTable({
   schoolAssistantOptions,
   schoolOptions,
 }: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [wizardOpen, setWizardOpen] = useState(false);
-  const [openChildId, setOpenChildId] = useState<string | null>(null);
-  const [openTab, setOpenTab] = useState<"general" | "history" | "calendar">(
-    "general",
+  const [openChildId, setOpenChildId] = useState<string | null>(
+    searchParams.get("childId"),
   );
+  const [openTab, setOpenTab] = useState<"general" | "history" | "calendar">(
+    () => {
+      const t = searchParams.get("tab");
+      return t === "history" || t === "calendar" ? t : "general";
+    },
+  );
+
+  // Keep the URL in sync with deep-links from other admin pages
+  // (e.g. /admin/handlungsbedarf flags). Without this, navigating to
+  // /admin/children?childId=…&tab=calendar a second time would not re-open
+  // the sheet because state was already initialized.
+  useEffect(() => {
+    const urlChildId = searchParams.get("childId");
+    const urlTab = searchParams.get("tab");
+    if (urlChildId && urlChildId !== openChildId) setOpenChildId(urlChildId);
+    if (
+      (urlTab === "history" || urlTab === "calendar" || urlTab === "general") &&
+      urlTab !== openTab
+    ) {
+      setOpenTab(urlTab);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  // Strip the query params when the sheet is closed so a refresh doesn't
+  // re-open it. `replace` (not `push`) keeps the back button clean.
+  const clearDeepLink = () => {
+    if (searchParams.has("childId") || searchParams.has("tab")) {
+      router.replace(pathname);
+    }
+  };
   const [extraOptions, setExtraOptions] = useState<CostBearerOption[]>([]);
   const [extraSchoolOptions, setExtraSchoolOptions] = useState<SchoolOption[]>(
     [],
@@ -219,7 +254,12 @@ export function ChildrenTable({
       <ChildDetailSheet
         child={openChild}
         open={!!openChild}
-        onOpenChange={(next) => !next && setOpenChildId(null)}
+        onOpenChange={(next) => {
+          if (!next) {
+            setOpenChildId(null);
+            clearDeepLink();
+          }
+        }}
         tab={openTab}
         onTabChange={setOpenTab}
         costBearerOptions={allCostBearerOptions}

@@ -30,6 +30,12 @@ export function canRemoveTarget(actor: RoleLike, target: RoleLike): boolean {
   return isAdmin(actor);
 }
 
+// Any admin may reset another user's second factor, but only an owner may reset an owner's.
+export function canResetTwoFactor(actor: RoleLike, target: RoleLike): boolean {
+  if (target === Role.OWNER) return isOwner(actor);
+  return isAdmin(actor);
+}
+
 export function canPromoteToOwner(actor: RoleLike): boolean {
   return isOwner(actor);
 }

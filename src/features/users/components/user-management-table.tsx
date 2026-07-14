@@ -27,6 +27,7 @@ export type AdminUserRow = {
   email: string;
   role: Role;
   createdAt: string; // ISO
+  twoFactorEnabled: boolean;
 };
 
 export type AdminInvitationRow = {

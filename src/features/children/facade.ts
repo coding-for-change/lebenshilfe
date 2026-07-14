@@ -46,6 +46,7 @@ import {
   listSchedulesForChildren,
   listVertretungenForUserAsSubstitute,
   listWorkEventsForChild,
+  getEventDateBoundsForChild,
   syncVertretungBlocksForChildWeekday,
   listWorkEventsForChildInRange,
   updateAssignment,
@@ -135,12 +136,13 @@ export const ChildrenFacade = {
 
   async create(input: CreateChildInput) {
     const parsed = CreateChildSchema.parse(input);
+    const created = await createChild(childFieldsFromCreate(parsed));
     logBusinessEvent("CHILD_CREATED", {
-      leosOne: parsed.leosOne,
+      childId: created.id,
       schoolId: parsed.schoolId,
-      name: parsed.firstName + " " + parsed.lastName,
+      leosOne: parsed.leosOne,
     });
-    return createChild(childFieldsFromCreate(parsed));
+    return created;
   },
 
   async update(id: string, input: UpdateChildInput) {
@@ -242,8 +244,16 @@ export const ChildrenFacade = {
     await deleteAbsenceById(id);
   },
 
-  async listWorkEventsForChild(childId: string) {
-    return listWorkEventsForChild(childId);
+  async listWorkEventsForChild(
+    childId: string,
+    range?: { from: Date; to: Date },
+    order: "asc" | "desc" = "desc",
+  ) {
+    return listWorkEventsForChild(childId, range, order);
+  },
+
+  async getEventDateBoundsForChild(childId: string) {
+    return getEventDateBoundsForChild(childId);
   },
 
   async createVertretung(input: VertretungInput) {

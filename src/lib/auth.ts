@@ -7,6 +7,7 @@ import { sendMail } from "./mail";
 import { renderEmail } from "./email/render";
 import { ResetPasswordEmail } from "./email/templates/reset-password-email";
 import { logger } from "@/lib/logger";
+import { twoFactor } from "better-auth/plugins";
 // Local fail-open replacement for better-auth's built-in haveIBeenPwned: a
 // transient outage of pwnedpasswords.com must not 500 the password-reset /
 // sign-up / change-password flows. See the module for details.
@@ -21,6 +22,13 @@ export const auth = betterAuth({
     haveIBeenPwned({
       customPasswordCompromisedMessage:
         "Dieses Passwort taucht in bekannten Datenlecks auf. Bitte wähle ein anderes.",
+    }),
+    // TOTP (authenticator app) as the only second factor — no email/SMS OTP.
+    // better-auth encrypts the TOTP secret at rest with BETTER_AUTH_SECRET; backup
+    // codes default to plaintext, so encrypt them too.
+    twoFactor({
+      issuer: "Lebenshilfe München",
+      backupCodeOptions: { storeBackupCodes: "encrypted" },
     }),
   ],
   rateLimit: {
@@ -106,7 +114,7 @@ export const auth = betterAuth({
           } catch (error) {
             // No matching profile (e.g. legacy invite without wizard data) — log and continue.
             logger.error(
-              { error, email: user.email },
+              { err: error, userId: user.id },
               "[auth] could not link Schulbegleiter profile",
             );
           }

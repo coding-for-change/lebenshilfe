@@ -7,6 +7,17 @@ export async function getSession() {
   return auth.api.getSession({ headers: await headers() });
 }
 
+// Admin/owner accounts guard special-category data, so a second factor is
+// mandatory. better-auth issues a full session to accounts that haven't enrolled
+// yet (it only gates login once 2FA exists), so first-time enrollment is forced
+// here as well as in the app-wide gate (src/proxy.ts). This stays server-side
+// because Next.js proxy must not be the sole authz for Server Actions.
+function requireTwoFactorEnrolled(user: { twoFactorEnabled?: boolean | null }) {
+  if (!user.twoFactorEnabled) {
+    redirect("/2fa/setup");
+  }
+}
+
 export async function requireAuth() {
   const session = await getSession();
   if (!session) {
@@ -25,6 +36,7 @@ export async function requireAdmin() {
       "/login?error=" + encodeURIComponent("Admin-Rechte erforderlich."),
     );
   }
+  requireTwoFactorEnrolled(session.user);
   return session.user;
 }
 
@@ -38,5 +50,6 @@ export async function requireOwner() {
       "/login?error=" + encodeURIComponent("Inhaber-Rechte erforderlich."),
     );
   }
+  requireTwoFactorEnrolled(session.user);
   return session.user;
 }

@@ -14,7 +14,10 @@ import type {
   VertretungInput,
   WorkEventInput,
   UpdateWorkEventInput,
+  HistoryQuery,
 } from "./schemas";
+import { HistoryQuerySchema } from "./schemas";
+import { resolveHistoryPeriod, historyRange } from "./history-period";
 
 const ROUTE = "/admin/children";
 
@@ -113,13 +116,26 @@ export async function deleteAbsenceAction(id: string) {
   return { success: true as const };
 }
 
-export async function listWorkEventsForChildAction(childId: string) {
+export async function listWorkEventsForChildAction(
+  childId: string,
+  query?: HistoryQuery,
+) {
   await requireAdmin();
-  const events = await ChildrenFacade.listWorkEventsForChild(childId);
+
+  const parsedQuery = query ? HistoryQuerySchema.parse(query) : undefined;
+  const bounds = await ChildrenFacade.getEventDateBoundsForChild(childId);
+  const period = resolveHistoryPeriod(parsedQuery, bounds);
+
+  const events = await ChildrenFacade.listWorkEventsForChild(
+    childId,
+    historyRange(period),
+    period.order,
+  );
 
   // Fetch each signed event's signature once, in parallel; failed/missing
   // fetches just leave the row without an image rather than aborting the
-  // whole load.
+  // whole load. Bounded to the selected period, so this never fans out across
+  // a child's entire history.
   const signaturesByEventId = new Map<string, string>();
   await Promise.all(
     events
@@ -134,19 +150,32 @@ export async function listWorkEventsForChildAction(childId: string) {
       }),
   );
 
-  return events.map((e) => ({
-    id: e.id,
-    date: e.date.toISOString().slice(0, 10),
-    startTime: e.startTime,
-    endTime: e.endTime,
-    note: e.note,
-    type: e.type,
-    userName: e.user.name,
-    userId: e.userId,
-    deleted: e.deleted,
-    signed: !!e.signatureKey,
-    signatureBase64: signaturesByEventId.get(e.id) ?? null,
-  }));
+  return {
+    year: period.year,
+    month: period.month,
+    // Earliest month with data (null when the child has none). Drives the
+    // picker's selectable range (everything before it is disabled, like the
+    // future) and the export dialog's year floor.
+    earliest: bounds
+      ? {
+          year: bounds.earliest.getUTCFullYear(),
+          month: bounds.earliest.getUTCMonth() + 1,
+        }
+      : null,
+    events: events.map((e) => ({
+      id: e.id,
+      date: e.date.toISOString().slice(0, 10),
+      startTime: e.startTime,
+      endTime: e.endTime,
+      note: e.note,
+      type: e.type,
+      userName: e.user.name,
+      userId: e.userId,
+      deleted: e.deleted,
+      signed: !!e.signatureKey,
+      signatureBase64: signaturesByEventId.get(e.id) ?? null,
+    })),
+  };
 }
 
 export async function createWorkEventAsAdminAction(input: WorkEventInput) {

@@ -486,7 +486,7 @@ export function NewEntrySheet({
               e.preventDefault();
               if (canProceed && !submitting) setSigOpen(true);
             }}
-            className="px-4 pb-6 space-y-4"
+            className="min-w-0 px-4 pb-6 space-y-4"
           >
             <div className="space-y-1.5">
               <Label htmlFor="date">Datum</Label>
@@ -771,7 +771,10 @@ export function NewEntrySheet({
                   </p>
                 )}
 
-                <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
+                {/* minmax(0,1fr) lets the columns collapse below the native
+                    time input's intrinsic width (iOS keeps that width wide and
+                    ignores min-width:0), so two inputs fit side by side. */}
+                <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
                   <div className="min-w-0 space-y-1.5">
                     <Label htmlFor="start">
                       Start
@@ -786,16 +789,16 @@ export function NewEntrySheet({
                       type="time"
                       value={startTime}
                       onChange={(e) => setStartTime(e.target.value)}
-                      className="h-14 text-xl font-mono tabular-nums"
+                      className="h-12 text-base font-mono tabular-nums"
                     />
                   </div>
-                  {/* h-14 matches the input height so the arrow centres on the
+                  {/* h-12 matches the input height so the arrow centres on the
                       inputs (not the label+input stack) regardless of label wrap. */}
                   <div
                     aria-hidden
-                    className="flex h-14 items-center justify-center text-muted-foreground"
+                    className="flex h-12 items-center justify-center text-muted-foreground"
                   >
-                    <ArrowRight className="size-5" />
+                    <ArrowRight className="size-4" />
                   </div>
                   <div className="min-w-0 space-y-1.5">
                     <Label htmlFor="end">
@@ -811,7 +814,7 @@ export function NewEntrySheet({
                       type="time"
                       value={endTime}
                       onChange={(e) => setEndTime(e.target.value)}
-                      className="h-14 text-xl font-mono tabular-nums"
+                      className="h-12 text-base font-mono tabular-nums"
                     />
                   </div>
                 </div>

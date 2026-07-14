@@ -1,21 +1,21 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma";
 
-export type AssignmentWithUser = Prisma.ChildAssignmentGetPayload<{
-  include: { user: true };
+export type AssignmentWithProfile = Prisma.ChildAssignmentGetPayload<{
+  include: { profile: true };
 }>;
 
 export async function listAssignmentsForChild(childId: string) {
   return prisma.childAssignment.findMany({
     where: { childId },
-    include: { user: true },
+    include: { profile: true },
     orderBy: [{ weekday: "asc" }, { startTime: "asc" }],
   });
 }
 
 export async function listAssignmentsForUser(userId: string) {
   return prisma.childAssignment.findMany({
-    where: { userId },
+    where: { profile: { userId } },
     include: { child: true },
     orderBy: [{ weekday: "asc" }, { startTime: "asc" }],
   });
@@ -23,7 +23,7 @@ export async function listAssignmentsForUser(userId: string) {
 
 export async function createAssignment(data: {
   childId: string;
-  userId: string;
+  profileId: string;
   weekday: number;
   startTime: string;
   endTime: string;
@@ -35,7 +35,7 @@ export async function createAssignment(data: {
 export async function updateAssignment(
   id: string,
   data: Partial<{
-    userId: string;
+    profileId: string;
     weekday: number;
     startTime: string;
     endTime: string;
@@ -60,7 +60,7 @@ export async function getAssignmentCoverage(
 ): Promise<Set<string>> {
   if (childIds.length === 0) return new Set();
   const rows = await prisma.childAssignment.findMany({
-    where: { userId, childId: { in: childIds }, weekday },
+    where: { profile: { userId }, childId: { in: childIds }, weekday },
     select: { childId: true },
   });
   return new Set(rows.map((r) => r.childId));

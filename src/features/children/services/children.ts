@@ -6,7 +6,7 @@ export type ChildWithRelations = Prisma.ChildGetPayload<{
     kostentraeger: true;
     school: { include: { holidayPlan: { include: { holidays: true } } } };
     pool: true;
-    assignments: { include: { user: true } };
+    assignments: { include: { profile: true } };
     schedules: true;
     absences: true;
     vertretungen: { include: { substituteUser: true } };
@@ -21,7 +21,7 @@ const childInclude = {
     },
   },
   pool: true,
-  assignments: { include: { user: true } },
+  assignments: { include: { profile: true } },
   schedules: true,
   absences: true,
   vertretungen: { include: { substituteUser: true } },
@@ -61,7 +61,7 @@ export async function searchAssignedChildrenByName(
   if (trimmed.length < 1) return [];
   return prisma.child.findMany({
     where: {
-      assignments: { some: { userId } },
+      assignments: { some: { profile: { userId } } },
       OR: [
         { firstName: { contains: trimmed } },
         { lastName: { contains: trimmed } },

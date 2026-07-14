@@ -447,13 +447,15 @@ function DayAssignmentForm({
   onSaved: () => void;
   onBack: () => void;
 }) {
-  const [userId, setUserId] = useState(schoolAssistantOptions[0]?.id ?? "");
+  const [profileId, setProfileId] = useState(
+    schoolAssistantOptions[0]?.id ?? "",
+  );
   const [tandem, setTandem] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSave() {
-    if (!userId) {
+    if (!profileId) {
       setError("Bitte Schulbegleiter wählen.");
       return;
     }
@@ -464,7 +466,7 @@ function DayAssignmentForm({
       // pin them to the visible day boundaries.
       await createAssignmentAction({
         childId,
-        userId,
+        profileId,
         weekday,
         startTime: "00:00",
         endTime: "23:59",
@@ -486,8 +488,8 @@ function DayAssignmentForm({
       <div className="text-xs font-medium">Neue Zuweisung</div>
       <SchoolAssistantCombobox
         options={schoolAssistantOptions}
-        value={userId || null}
-        onChange={(id) => setUserId(id ?? "")}
+        value={profileId || null}
+        onChange={(id) => setProfileId(id ?? "")}
         placeholder="Schulbegleiter…"
       />
       <label className="flex cursor-pointer items-center gap-2">

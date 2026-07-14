@@ -3,7 +3,7 @@ import type { ChildWithRelations } from "./services";
 
 export type SerializedAssignment = {
   id: string;
-  userId: string;
+  profileId: string;
   userName: string;
   weekday: number;
   startTime: string;
@@ -133,8 +133,8 @@ export function serializeChild(c: ChildWithRelations): SerializedChild {
     pool: c.pool ? { id: c.pool.id, name: c.pool.name } : null,
     assignments: c.assignments.map((a) => ({
       id: a.id,
-      userId: a.userId,
-      userName: a.user.name,
+      profileId: a.profileId,
+      userName: a.profile.name,
       weekday: a.weekday,
       startTime: a.startTime,
       endTime: a.endTime,

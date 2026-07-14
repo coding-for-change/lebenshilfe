@@ -22,9 +22,10 @@ export default async function ChildrenPage() {
         id: k.id,
         name: k.name,
       }))}
-      schoolAssistantOptions={schoolAssistants
-        .filter((p) => !!p.userId)
-        .map((p) => ({ id: p.userId as string, name: p.name }))}
+      schoolAssistantOptions={schoolAssistants.map((p) => ({
+        id: p.id,
+        name: p.name,
+      }))}
       schoolOptions={schools.map((s) => ({ id: s.id, name: s.name }))}
     />
   );

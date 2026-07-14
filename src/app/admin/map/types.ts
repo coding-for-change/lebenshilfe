@@ -1,5 +1,5 @@
 export type MapAssistant = {
-  userId: string;
+  profileId: string;
   name: string;
   tandem: boolean;
   startTime: string;

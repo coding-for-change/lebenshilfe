@@ -35,7 +35,7 @@ function buildIndex(schools: MapSchool[]): Entry[] {
         searchValue: `kind:${fullName}|${school.name}|${child.id}|${assistantNames}`,
       });
       for (const a of child.assistants) {
-        const dedupeKey = `${school.key}::${a.userId}`;
+        const dedupeKey = `${school.key}::${a.profileId}`;
         if (seenAssistants.has(dedupeKey)) continue;
         seenAssistants.add(dedupeKey);
         entries.push({
@@ -43,7 +43,7 @@ function buildIndex(schools: MapSchool[]): Entry[] {
           schoolName: school.name || "Schule",
           label: a.name,
           kind: "assistant",
-          searchValue: `sb:${a.name}|${school.name}|${a.userId}`,
+          searchValue: `sb:${a.name}|${school.name}|${a.profileId}`,
         });
       }
     }

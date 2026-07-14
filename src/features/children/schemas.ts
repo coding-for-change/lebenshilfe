@@ -120,7 +120,7 @@ export type UpdateChildInput = z.infer<typeof UpdateChildSchema>;
 
 export const AssignmentSchema = z.object({
   childId: z.string().min(1),
-  userId: z.string().min(1),
+  profileId: z.string().min(1),
   weekday: z.number().int().min(0).max(6),
   startTime: timeString,
   endTime: timeString,

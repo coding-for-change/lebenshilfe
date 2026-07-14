@@ -35,7 +35,7 @@ export function MapHoverCard({ school }: { school: MapSchool }) {
                 <ul className="mt-0.5 space-y-0.5">
                   {child.assistants.map((a) => (
                     <li
-                      key={`${child.id}-${a.userId}`}
+                      key={`${child.id}-${a.profileId}`}
                       className="text-xs text-foreground"
                     >
                       {a.name}

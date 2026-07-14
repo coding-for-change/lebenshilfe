@@ -64,7 +64,7 @@ export function SchoolAssistantCombobox({
             {selected
               ? selected.name
               : options.length === 0
-                ? "Keine angenommenen Schulbegleiter."
+                ? "Keine Schulbegleiter."
                 : placeholder}
           </span>
           <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />

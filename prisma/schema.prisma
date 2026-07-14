@@ -52,7 +52,6 @@ model User {
   sessions                   Session[]
   accounts                   Account[]
   twoFactors                 TwoFactor[]
-  assignments                ChildAssignment[]
   events                     Event[]
   monthlyReports             MonthlyReport[]
   profile                    SchoolAssistantProfile?
@@ -241,16 +240,16 @@ model HolidayPlanEntry {
 model ChildAssignment {
   id        String   @id @default(cuid())
   childId   String
-  userId    String
+  profileId String
   weekday   Int      @default(0)
   startTime String   @default("08:00")
   endTime   String   @default("14:00")
   tandem    Boolean  @default(false)
   createdAt DateTime @default(now())
-  child     Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  child     Child                  @relation(fields: [childId], references: [id], onDelete: Cascade)
+  profile   SchoolAssistantProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([profileId])
   @@index([childId, weekday])
   @@map("child_assignment")
 }
@@ -395,6 +394,7 @@ model SchoolAssistantProfile {
   user              User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
   pool              Pool?                @relation(fields: [poolId], references: [id], onDelete: SetNull)
   attendances       WorkshopAttendance[]
+  assignments       ChildAssignment[]
 
   @@index([status])
   @@index([poolId])

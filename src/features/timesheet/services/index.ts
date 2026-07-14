@@ -11,7 +11,7 @@ export async function getAssignedChildren(userId: string) {
   // A Schulbegleiter can have multiple ChildAssignment rows for the same
   // child (one per weekday), so we dedupe by child id before returning.
   const rows = await prisma.childAssignment.findMany({
-    where: { userId },
+    where: { profile: { userId } },
     include: { child: true },
     orderBy: { child: { firstName: "asc" } },
   });
@@ -32,7 +32,7 @@ export async function getAssignmentsByWeekday(
   userId: string,
 ): Promise<AssignmentsByWeekday> {
   const rows = await prisma.childAssignment.findMany({
-    where: { userId },
+    where: { profile: { userId } },
     select: { childId: true, weekday: true },
   });
   const result = emptyAssignmentsByWeekday();

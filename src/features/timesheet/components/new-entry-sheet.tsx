@@ -771,11 +771,13 @@ export function NewEntrySheet({
                   </p>
                 )}
 
-                {/* minmax(0,1fr) lets the columns collapse below the native
-                    time input's intrinsic width (iOS keeps that width wide and
-                    ignores min-width:0), so two inputs fit side by side. */}
-                <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
-                  <div className="min-w-0 space-y-1.5">
+                {/* flex-1 + min-w-0 on each side lets the two inputs share one
+                    row and collapse. (A grid-cols-[minmax(0,1fr)…] arbitrary
+                    value silently didn't compile, which stacked them onto two
+                    lines.) min-w-0 is also what lets the native time inputs —
+                    which keep a wide intrinsic size on iOS — actually shrink. */}
+                <div className="flex items-end gap-2">
+                  <div className="min-w-0 flex-1 space-y-1.5">
                     <Label htmlFor="start">
                       Start
                       {quarterHint?.before && (
@@ -800,7 +802,7 @@ export function NewEntrySheet({
                   >
                     <ArrowRight className="size-4" />
                   </div>
-                  <div className="min-w-0 space-y-1.5">
+                  <div className="min-w-0 flex-1 space-y-1.5">
                     <Label htmlFor="end">
                       Ende
                       {quarterHint?.after && (

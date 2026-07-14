@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { match } from "ts-pattern";
 import {
+  ArrowRight,
   Baby,
   Briefcase,
   FileText,
@@ -485,7 +486,7 @@ export function NewEntrySheet({
               e.preventDefault();
               if (canProceed && !submitting) setSigOpen(true);
             }}
-            className="px-4 pb-6 space-y-4"
+            className="min-w-0 overflow-x-hidden px-4 pb-6 space-y-4"
           >
             <div className="space-y-1.5">
               <Label htmlFor="date">Datum</Label>
@@ -770,7 +771,7 @@ export function NewEntrySheet({
                   </p>
                 )}
 
-                <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-end">
+                <div className="flex items-end gap-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="start">
                       Start
@@ -780,15 +781,22 @@ export function NewEntrySheet({
                         </span>
                       )}
                     </Label>
-                    <Input
-                      id="start"
-                      type="time"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      className="h-14 text-xl font-mono tabular-nums"
-                    />
+                    <div className="flex h-12 w-28 items-center overflow-hidden rounded-md border border-input bg-transparent px-3 shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 dark:bg-input/30">
+                      <input
+                        id="start"
+                        type="time"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        className="w-full appearance-none bg-transparent text-base font-mono tabular-nums text-foreground outline-none [-webkit-appearance:none]"
+                      />
+                    </div>
                   </div>
-                  <span className="pb-3 text-muted-foreground">→</span>
+                  <div
+                    aria-hidden
+                    className="flex h-12 items-center justify-center text-muted-foreground"
+                  >
+                    <ArrowRight className="size-4" />
+                  </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="end">
                       Ende
@@ -798,13 +806,15 @@ export function NewEntrySheet({
                         </span>
                       )}
                     </Label>
-                    <Input
-                      id="end"
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      className="h-14 text-xl font-mono tabular-nums"
-                    />
+                    <div className="flex h-12 w-28 items-center overflow-hidden rounded-md border border-input bg-transparent px-3 shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 dark:bg-input/30">
+                      <input
+                        id="end"
+                        type="time"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        className="w-full appearance-none bg-transparent text-base font-mono tabular-nums text-foreground outline-none [-webkit-appearance:none]"
+                      />
+                    </div>
                   </div>
                 </div>
 

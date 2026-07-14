@@ -771,13 +771,14 @@ export function NewEntrySheet({
                   </p>
                 )}
 
-                {/* flex-1 + min-w-0 on each side lets the two inputs share one
-                    row and collapse. (A grid-cols-[minmax(0,1fr)…] arbitrary
-                    value silently didn't compile, which stacked them onto two
-                    lines.) min-w-0 is also what lets the native time inputs —
-                    which keep a wide intrinsic size on iOS — actually shrink. */}
-                <div className="flex items-end gap-2">
-                  <div className="min-w-0 flex-1 space-y-1.5">
+                {/* Fixed, small time boxes. The wrapper owns the border + a
+                    fixed width and clips (overflow-hidden), so the visible box
+                    stays small even though iOS Safari forces a wide intrinsic
+                    size onto the native <input type="time"> it can't override
+                    via width/min-width. appearance:none lets the input fill the
+                    box on engines that do honour width. */}
+                <div className="flex items-end gap-3">
+                  <div className="space-y-1.5">
                     <Label htmlFor="start">
                       Start
                       {quarterHint?.before && (
@@ -786,27 +787,25 @@ export function NewEntrySheet({
                         </span>
                       )}
                     </Label>
-                    <Input
-                      id="start"
-                      type="time"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      // iOS Safari gives native time inputs a fixed intrinsic
-                      // min-width that ignores min-w-0, overflowing the sheet.
-                      // Dropping the native appearance lets them shrink to the
-                      // flex column; ≥sm keeps the native control (clock icon).
-                      className="h-12 appearance-none text-base font-mono tabular-nums [-webkit-appearance:none] sm:appearance-auto sm:[-webkit-appearance:auto]"
-                    />
+                    <div className="flex h-12 w-28 items-center overflow-hidden rounded-md border border-input bg-transparent px-3 shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 dark:bg-input/30">
+                      <input
+                        id="start"
+                        type="time"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        className="w-full appearance-none bg-transparent text-base font-mono tabular-nums text-foreground outline-none [-webkit-appearance:none]"
+                      />
+                    </div>
                   </div>
-                  {/* h-12 matches the input height so the arrow centres on the
-                      inputs (not the label+input stack) regardless of label wrap. */}
+                  {/* h-12 matches the box height so the arrow centres on the
+                      boxes (not the label+box stack) regardless of label wrap. */}
                   <div
                     aria-hidden
                     className="flex h-12 items-center justify-center text-muted-foreground"
                   >
                     <ArrowRight className="size-4" />
                   </div>
-                  <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="space-y-1.5">
                     <Label htmlFor="end">
                       Ende
                       {quarterHint?.after && (
@@ -815,17 +814,15 @@ export function NewEntrySheet({
                         </span>
                       )}
                     </Label>
-                    <Input
-                      id="end"
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      // iOS Safari gives native time inputs a fixed intrinsic
-                      // min-width that ignores min-w-0, overflowing the sheet.
-                      // Dropping the native appearance lets them shrink to the
-                      // flex column; ≥sm keeps the native control (clock icon).
-                      className="h-12 appearance-none text-base font-mono tabular-nums [-webkit-appearance:none] sm:appearance-auto sm:[-webkit-appearance:auto]"
-                    />
+                    <div className="flex h-12 w-28 items-center overflow-hidden rounded-md border border-input bg-transparent px-3 shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 dark:bg-input/30">
+                      <input
+                        id="end"
+                        type="time"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        className="w-full appearance-none bg-transparent text-base font-mono tabular-nums text-foreground outline-none [-webkit-appearance:none]"
+                      />
+                    </div>
                   </div>
                 </div>
 

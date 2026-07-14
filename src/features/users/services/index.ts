@@ -35,7 +35,6 @@ export async function listAdminUsers() {
       email: true,
       role: true,
       createdAt: true,
-      twoFactorEnabled: true,
     },
   });
 }
@@ -50,20 +49,6 @@ export async function updateUserRole(id: string, role: Role) {
 
 export async function deleteUserById(id: string) {
   return prisma.user.delete({ where: { id } });
-}
-
-// Clears a user's 2FA enrollment so they must set up a fresh authenticator on
-// next sign-in (admin recovery for a user who lost their device and codes).
-export async function resetUserTwoFactor(id: string) {
-  return prisma.$transaction(async (tx) => {
-    const user = await tx.user.findUnique({ where: { id } });
-    if (!user) {
-      throw new Error("Benutzer nicht gefunden.");
-    }
-    await tx.twoFactor.deleteMany({ where: { userId: id } });
-    await tx.user.update({ where: { id }, data: { twoFactorEnabled: false } });
-    return user;
-  });
 }
 
 // Atomically delete a user, refusing to remove the final OWNER.

@@ -7,11 +7,7 @@ import { sendMail } from "./mail";
 import { renderEmail } from "./email/render";
 import { ResetPasswordEmail } from "./email/templates/reset-password-email";
 import { logger } from "@/lib/logger";
-import { twoFactor } from "better-auth/plugins";
-// Local fail-open replacement for better-auth's built-in haveIBeenPwned: a
-// transient outage of pwnedpasswords.com must not 500 the password-reset /
-// sign-up / change-password flows. See the module for details.
-import { haveIBeenPwned } from "@/lib/auth-plugins/have-i-been-pwned";
+import { haveIBeenPwned, twoFactor } from "better-auth/plugins";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {

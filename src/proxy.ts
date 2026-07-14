@@ -79,8 +79,14 @@ export async function proxy(request: NextRequest) {
       },
     );
 
-    if (session && isAdmin(session.user.role) && !session.user.twoFactorEnabled) {
-      const redirect = NextResponse.redirect(new URL("/2fa/setup", request.url));
+    if (
+      session &&
+      isAdmin(session.user.role) &&
+      !session.user.twoFactorEnabled
+    ) {
+      const redirect = NextResponse.redirect(
+        new URL("/2fa/setup", request.url),
+      );
       redirect.headers.set("Content-Security-Policy", csp);
       return redirect;
     }

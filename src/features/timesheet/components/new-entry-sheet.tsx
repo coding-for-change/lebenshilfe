@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { match } from "ts-pattern";
 import {
+  ArrowRight,
   Baby,
   Briefcase,
   FileText,
@@ -770,8 +771,8 @@ export function NewEntrySheet({
                   </p>
                 )}
 
-                <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-end">
-                  <div className="space-y-1.5">
+                <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
+                  <div className="min-w-0 space-y-1.5">
                     <Label htmlFor="start">
                       Start
                       {quarterHint?.before && (
@@ -788,8 +789,15 @@ export function NewEntrySheet({
                       className="h-14 text-xl font-mono tabular-nums"
                     />
                   </div>
-                  <span className="pb-3 text-muted-foreground">→</span>
-                  <div className="space-y-1.5">
+                  {/* h-14 matches the input height so the arrow centres on the
+                      inputs (not the label+input stack) regardless of label wrap. */}
+                  <div
+                    aria-hidden
+                    className="flex h-14 items-center justify-center text-muted-foreground"
+                  >
+                    <ArrowRight className="size-5" />
+                  </div>
+                  <div className="min-w-0 space-y-1.5">
                     <Label htmlFor="end">
                       Ende
                       {quarterHint?.after && (

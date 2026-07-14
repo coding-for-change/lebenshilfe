@@ -8,6 +8,7 @@ import {
   listAdminUsers,
   countOwners,
   updateUserRole,
+  resetUserTwoFactor,
 } from "./services";
 import { Role } from "@/generated/prisma";
 
@@ -63,5 +64,9 @@ export const UserFacade = {
   // Removes a user, enforcing the "always at least one owner" invariant atomically.
   async removeUser(userId: string) {
     return deleteUserWithLastOwnerGuard(userId);
+  },
+
+  async resetTwoFactor(userId: string) {
+    return resetUserTwoFactor(userId);
   },
 };

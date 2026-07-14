@@ -40,6 +40,14 @@ export function LoginForm({
 
       if (result.error) {
         setStatus("error");
+      } else if (
+        result.data &&
+        "twoFactorRedirect" in result.data &&
+        result.data.twoFactorRedirect
+      ) {
+        // Password was correct but the account has 2FA enabled — only a partial
+        // session cookie was issued; finish on the verify page.
+        router.push("/2fa");
       } else {
         router.push("/");
         router.refresh();

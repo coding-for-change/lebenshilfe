@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowUpCircle, MoreVertical, ShieldOff, Trash2 } from "lucide-react";
+import { ArrowUpCircle, MoreVertical, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,25 +13,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Role } from "@/generated/prisma";
-import {
-  canPromoteToOwner,
-  canRemoveTarget,
-  canResetTwoFactor,
-} from "@/lib/roles";
-import {
-  promoteUserToOwnerAction,
-  removeAdminUserAction,
-  resetUserTwoFactorAction,
-} from "../actions";
+import { canPromoteToOwner, canRemoveTarget } from "@/lib/roles";
+import { promoteUserToOwnerAction, removeAdminUserAction } from "../actions";
 
 type Props = {
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    role: Role;
-    twoFactorEnabled: boolean;
-  };
+  user: { id: string; name: string; email: string; role: Role };
   currentUser: { id: string; role: Role };
   ownerCount: number;
 };
@@ -39,7 +25,6 @@ type Props = {
 export function AdminUserActions({ user, currentUser, ownerCount }: Props) {
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [confirmPromote, setConfirmPromote] = useState(false);
-  const [confirmResetTwoFactor, setConfirmResetTwoFactor] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const isSelf = user.id === currentUser.id;
@@ -48,12 +33,8 @@ export function AdminUserActions({ user, currentUser, ownerCount }: Props) {
   const showPromote =
     canPromoteToOwner(currentUser.role) && user.role === Role.ADMIN && !isSelf;
   const showRemove = canRemoveTarget(currentUser.role, user.role) && !isSelf;
-  const showResetTwoFactor =
-    canResetTwoFactor(currentUser.role, user.role) &&
-    user.twoFactorEnabled &&
-    !isSelf;
 
-  if (!showPromote && !showRemove && !showResetTwoFactor) {
+  if (!showPromote && !showRemove) {
     return null;
   }
 
@@ -84,20 +65,6 @@ export function AdminUserActions({ user, currentUser, ownerCount }: Props) {
     }
   }
 
-  async function handleResetTwoFactor() {
-    try {
-      await resetUserTwoFactorAction(user.id);
-      toast.success(
-        `2FA für ${user.name} zurückgesetzt. Beim nächsten Login wird eine neue Einrichtung verlangt.`,
-      );
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Zurücksetzen fehlgeschlagen.",
-      );
-      throw error;
-    }
-  }
-
   return (
     <>
       <DropdownMenu>
@@ -123,21 +90,7 @@ export function AdminUserActions({ user, currentUser, ownerCount }: Props) {
               Zum Owner befördern
             </DropdownMenuItem>
           ) : null}
-          {showPromote && showResetTwoFactor ? <DropdownMenuSeparator /> : null}
-          {showResetTwoFactor ? (
-            <DropdownMenuItem
-              onSelect={(e) => {
-                e.preventDefault();
-                setConfirmResetTwoFactor(true);
-              }}
-            >
-              <ShieldOff />
-              2FA zurücksetzen
-            </DropdownMenuItem>
-          ) : null}
-          {(showPromote || showResetTwoFactor) && showRemove ? (
-            <DropdownMenuSeparator />
-          ) : null}
+          {showPromote && showRemove ? <DropdownMenuSeparator /> : null}
           {showRemove ? (
             <DropdownMenuItem
               variant="destructive"
@@ -182,22 +135,6 @@ export function AdminUserActions({ user, currentUser, ownerCount }: Props) {
         confirmLabel="Entfernen"
         variant="destructive"
         onConfirm={handleRemove}
-      />
-
-      <ConfirmDialog
-        open={confirmResetTwoFactor}
-        onOpenChange={setConfirmResetTwoFactor}
-        title="2FA zurücksetzen?"
-        description={
-          <>
-            Die Zwei-Faktor-Einrichtung von <strong>{user.name}</strong> wird
-            gelöscht. Beim nächsten Login genügt das Passwort und es muss eine
-            neue Authenticator-App eingerichtet werden. Nutze dies nur, wenn die
-            Person keinen Zugriff mehr auf App und Wiederherstellungscodes hat.
-          </>
-        }
-        confirmLabel="Zurücksetzen"
-        onConfirm={handleResetTwoFactor}
       />
     </>
   );

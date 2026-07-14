@@ -48,10 +48,8 @@ model User {
   banned                     Boolean?                   @default(false)
   banReason                  String?
   banExpires                 DateTime?
-  twoFactorEnabled           Boolean                    @default(false)
   sessions                   Session[]
   accounts                   Account[]
-  twoFactors                 TwoFactor[]
   assignments                ChildAssignment[]
   events                     Event[]
   monthlyReports             MonthlyReport[]
@@ -117,17 +115,6 @@ model Account {
 
   @@index([userId])
   @@map("account")
-}
-
-model TwoFactor {
-  id          String @id
-  secret      String @db.Text
-  backupCodes String @db.Text
-  userId      String
-  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@map("two_factor")
 }
 
 model Verification {

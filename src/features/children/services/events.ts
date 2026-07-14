@@ -8,15 +8,40 @@ export type ChildWorkEvent = Prisma.EventGetPayload<{
 
 export async function listWorkEventsForChild(
   childId: string,
+  range?: { from: Date; to: Date },
+  order: Prisma.SortOrder = "desc",
 ): Promise<ChildWorkEvent[]> {
   return prisma.event.findMany({
     where: {
       childId,
       type: { in: [EventType.WORK, EventType.INDIRECT] },
+      // `range` bounds the query to one month (or one year for "Alle") so the
+      // history view never loads a child's entire event history at once.
+      ...(range ? { date: { gte: range.from, lt: range.to } } : {}),
     },
     include: { user: true },
-    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    orderBy: [{ date: order }, { createdAt: order }],
   });
+}
+
+/**
+ * Earliest and latest work/indirect event dates for a child, or null when the
+ * child has none. Drives the history period picker's year range and its
+ * default selection (most recent month with data) without loading every row.
+ */
+export async function getEventDateBoundsForChild(
+  childId: string,
+): Promise<{ earliest: Date; latest: Date } | null> {
+  const { _min, _max } = await prisma.event.aggregate({
+    where: {
+      childId,
+      type: { in: [EventType.WORK, EventType.INDIRECT] },
+    },
+    _min: { date: true },
+    _max: { date: true },
+  });
+  if (!_min.date || !_max.date) return null;
+  return { earliest: _min.date, latest: _max.date };
 }
 
 export async function createWorkEventAsAdmin(input: WorkEventInput) {

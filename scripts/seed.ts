@@ -9,36 +9,34 @@ type SeedUser = {
   role: Role;
 };
 
-const SEED_PASSWORD = "Lebenshilfe-Dev-2026!";
-
 const USERS: SeedUser[] = [
   {
     email: "owner@lebenshilfe.de",
-    password: SEED_PASSWORD,
+    password: "password123",
     name: "Olivia Owner",
     role: Role.OWNER,
   },
   {
     email: "admin@lebenshilfe.de",
-    password: SEED_PASSWORD,
+    password: "password123",
     name: "System Admin",
     role: Role.ADMIN,
   },
   {
     email: "anna.schmidt@lebenshilfe.de",
-    password: SEED_PASSWORD,
+    password: "password123",
     name: "Anna Schmidt",
     role: Role.SCHOOL_ASSISTANT,
   },
   {
     email: "ben.weber@lebenshilfe.de",
-    password: SEED_PASSWORD,
+    password: "password123",
     name: "Ben Weber",
     role: Role.SCHOOL_ASSISTANT,
   },
   {
     email: "clara.becker@lebenshilfe.de",
-    password: SEED_PASSWORD,
+    password: "password123",
     name: "Clara Becker",
     role: Role.SCHOOL_ASSISTANT,
   },

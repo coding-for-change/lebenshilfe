@@ -4,7 +4,7 @@ import { Role } from "../src/generated/prisma";
 
 async function seed() {
   const email = "admin@lebenshilfe.de";
-  const password = "password123";
+  const password = "Lebenshilfe-Dev-2026!";
 
   console.log("Seeding database...");
 

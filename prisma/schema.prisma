@@ -31,6 +31,11 @@ enum PendingVertretungStatus {
   REJECTED
 }
 
+enum PendingRequestKind {
+  VERTRETUNG
+  INDIRECT
+}
+
 model User {
   id                         String                     @id
   name                       String
@@ -423,12 +428,14 @@ model WorkshopAttendance {
 
 model PendingVertretungRequest {
   id               String                  @id @default(cuid())
+  kind             PendingRequestKind      @default(VERTRETUNG)
   substituteUserId String
   childNameText    String
   date             DateTime                @db.Date
   startTime        String
   endTime          String
   signatureKey     String
+  note             String?
   matchedChildId   String?
   matchConfidence  Float?
   status           PendingVertretungStatus @default(PENDING)
@@ -442,6 +449,7 @@ model PendingVertretungRequest {
 
   @@index([substituteUserId, status])
   @@index([status, date])
+  @@index([kind, status, date])
   @@map("pending_vertretung_request")
 }
 

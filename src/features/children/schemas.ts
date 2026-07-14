@@ -230,3 +230,16 @@ export const UpdateWorkEventSchema = z.object({
   note: optionalText(2000),
 });
 export type UpdateWorkEventInput = z.infer<typeof UpdateWorkEventSchema>;
+
+/**
+ * Scopes the per-child Historie to a single month, or a whole year when
+ * `month` is null ("Alle"). Keeps the history query — and its per-event
+ * signature downloads — bounded instead of loading every event at once.
+ */
+export const HistoryQuerySchema = z.object({
+  year: z.number().int().min(2000).max(3000),
+  month: z.number().int().min(1).max(12).nullable(),
+  // Date sort direction for the listed entries. "desc" = newest first.
+  order: z.enum(["asc", "desc"]).default("desc"),
+});
+export type HistoryQuery = z.infer<typeof HistoryQuerySchema>;

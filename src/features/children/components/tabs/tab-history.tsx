@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useReducer, useState, useTransition } from "react";
 import {
   FileDown,
   Loader2,
@@ -35,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MonthYearPicker } from "@/components/month-year-picker";
 import { CostBearerExportDialog } from "@/features/kostentraeger-export";
 import {
   listWorkEventsForChildAction,
@@ -51,9 +52,8 @@ type Props = {
   schoolAssistantOptions: { id: string; name: string }[];
 };
 
-type WorkEvent = Awaited<
-  ReturnType<typeof listWorkEventsForChildAction>
->[number];
+type HistoryResult = Awaited<ReturnType<typeof listWorkEventsForChildAction>>;
+type WorkEvent = HistoryResult["events"][number];
 
 function groupByMonth(events: WorkEvent[]) {
   const groups = new Map<string, { label: string; rows: WorkEvent[] }>();
@@ -79,24 +79,107 @@ function totalHours(events: WorkEvent[]) {
   return (mins / 60).toFixed(2).replace(".", ",");
 }
 
-/** Earliest calendar year present in the events, or undefined when none. */
-function earliestEventYear(events: WorkEvent[]): number | undefined {
-  if (events.length === 0) return undefined;
-  return events.reduce((earliest, event) => {
-    const year = new Date(`${event.date}T00:00:00`).getFullYear();
-    return year < earliest ? year : earliest;
-  }, Number.POSITIVE_INFINITY);
+type Period = { year: number; month: number };
+// month null = "Alle" (the whole selected year)
+type Selection = { year: number; month: number | null };
+
+// One reducer holds all history-tab data so the first load can adopt the
+// server-resolved default period (period + events together) without kicking off
+// a second fetch.
+type State = {
+  childId: string;
+  status: "loading" | "loaded" | "error";
+  events: WorkEvent[];
+  message: string;
+  period: Selection | null;
+  earliest: Period | null;
+  order: "asc" | "desc";
+  // Incremented only by actions that must trigger a fetch.
+  fetchGen: number;
+};
+
+type Action =
+  | { type: "FETCH_START" }
+  | { type: "SET_MONTH"; month: number | null }
+  | { type: "SET_YEAR"; year: number }
+  | { type: "SET_ORDER"; order: "asc" | "desc" }
+  | { type: "JUMP_TO"; year: number; month: number }
+  | { type: "RELOAD" }
+  | {
+      type: "LOADED";
+      childId: string;
+      events: WorkEvent[];
+      resolved: Selection;
+      earliest: Period | null;
+    }
+  | { type: "ERROR"; childId: string; message: string };
+
+function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case "FETCH_START":
+      return { ...state, status: "loading" };
+    case "SET_MONTH":
+      return state.period
+        ? {
+            ...state,
+            period: { ...state.period, month: action.month },
+            fetchGen: state.fetchGen + 1,
+          }
+        : state;
+    case "SET_YEAR":
+      return state.period
+        ? {
+            ...state,
+            period: { ...state.period, year: action.year },
+            fetchGen: state.fetchGen + 1,
+          }
+        : state;
+    case "SET_ORDER":
+      return { ...state, order: action.order, fetchGen: state.fetchGen + 1 };
+    case "JUMP_TO":
+      return {
+        ...state,
+        period: { year: action.year, month: action.month },
+        fetchGen: state.fetchGen + 1,
+      };
+    case "RELOAD":
+      return { ...state, fetchGen: state.fetchGen + 1 };
+    case "LOADED":
+      return {
+        ...state,
+        childId: action.childId,
+        status: "loaded",
+        events: action.events,
+        earliest: action.earliest,
+        // Adopt the server default on first load / child switch, keep the
+        // user's selection otherwise.
+        period:
+          action.childId !== state.childId
+            ? action.resolved
+            : (state.period ?? action.resolved),
+      };
+    case "ERROR":
+      return {
+        ...state,
+        childId: action.childId,
+        status: "error",
+        message: action.message,
+      };
+    default:
+      return state;
+  }
 }
 
-type LoadState =
-  | { status: "loading"; childId: string }
-  | { status: "loaded"; childId: string; events: WorkEvent[] }
-  | { status: "error"; childId: string; message: string };
-
 export function TabHistory({ child, schoolAssistantOptions }: Props) {
-  const [state, setState] = useState<LoadState>({
-    status: "loading",
+  const [state, dispatch] = useReducer(reducer, {
     childId: child.id,
+    status: "loading",
+    events: [],
+    message: "",
+    period: null,
+    earliest: null,
+    order: "desc",
+    fetchGen: 0,
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -111,36 +194,68 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
   const [isPending, startTransition] = useTransition();
   const [exportOpen, setExportOpen] = useState(false);
 
+  // null mid-switch (state still belongs to the previous child) → picker hidden.
+  const active = state.childId === child.id ? state.period : null;
+
   useEffect(() => {
     let cancelled = false;
-    listWorkEventsForChildAction(child.id)
-      .then((rows) => {
-        if (!cancelled) {
-          setState({ status: "loaded", childId: child.id, events: rows });
-        }
+    dispatch({ type: "FETCH_START" });
+    // Mid-switch the childId is still the previous child's, so treat it as "no
+    // selection yet" and let the server resolve a fresh default.
+    const sameChild = state.childId === child.id;
+    const query =
+      sameChild && state.period
+        ? {
+            year: state.period.year,
+            month: state.period.month,
+            order: state.order,
+          }
+        : undefined;
+    listWorkEventsForChildAction(child.id, query)
+      .then((res) => {
+        if (cancelled) return;
+        dispatch({
+          type: "LOADED",
+          childId: child.id,
+          events: res.events,
+          resolved: { year: res.year, month: res.month },
+          earliest: res.earliest,
+        });
       })
       .catch((err) => {
-        if (!cancelled) {
-          setState({
-            status: "error",
-            childId: child.id,
-            message:
-              err instanceof Error ? err.message : "Laden fehlgeschlagen.",
-          });
-        }
+        if (cancelled) return;
+        dispatch({
+          type: "ERROR",
+          childId: child.id,
+          message: err instanceof Error ? err.message : "Laden fehlgeschlagen.",
+        });
       });
     return () => {
       cancelled = true;
     };
-  }, [child.id]);
+    // Re-run only on child switch or when a user action increments fetchGen.
+    // period/order/childId are read above but deliberately not deps: they are
+    // always updated together with fetchGen, so LOADED adopting the server
+    // default cannot cause a redundant fetch. Listing them would reintroduce it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [child.id, state.fetchGen]);
 
-  const minYear =
-    state.status === "loaded" ? earliestEventYear(state.events) : undefined;
+  const reload = () => dispatch({ type: "RELOAD" });
 
-  const reload = () =>
-    listWorkEventsForChildAction(child.id).then((rows) =>
-      setState({ status: "loaded", childId: child.id, events: rows }),
-    );
+  const handleMonthChange = (month: number | null) =>
+    dispatch({ type: "SET_MONTH", month });
+
+  const handleYearChange = (year: number) =>
+    dispatch({ type: "SET_YEAR", year });
+
+  // Selectable range floor: earliest month with data, or — for a child with no
+  // data yet — the current month, so it is always selectable.
+  const now = new Date();
+  const periodFloor = state.earliest ?? {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+  };
+  const minYear = state.earliest?.year;
 
   const handleOpenAdd = () => {
     setEditingEvent(null);
@@ -206,6 +321,7 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
             note: formData.note || undefined,
           });
           toast.success("Eintrag aktualisiert.");
+          reload();
         } else {
           if (!formData.userId) throw new Error("Benutzer auswählen.");
           await createWorkEventAsAdminAction({
@@ -217,9 +333,12 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
             note: formData.note || undefined,
           });
           toast.success("Eintrag hinzugefügt.");
+          // Jump to the new entry's month so it is visible even if it lands
+          // outside the period currently shown; this also refetches.
+          const [year, month] = formData.date.split("-").map(Number);
+          dispatch({ type: "JUMP_TO", year, month });
         }
         setDialogOpen(false);
-        reload();
       } catch (err) {
         toast.error(
           err instanceof Error ? err.message : "Speichern fehlgeschlagen.",
@@ -276,6 +395,37 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
           </div>
         </div>
 
+        {active && (
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="w-fit">
+              <MonthYearPicker
+                id="history-period"
+                label="Zeitraum"
+                month={active.month}
+                year={active.year}
+                earliest={periodFloor}
+                allowAll
+                onMonthChange={handleMonthChange}
+                onYearChange={handleYearChange}
+              />
+            </div>
+            <Select
+              value={state.order}
+              onValueChange={(v) =>
+                dispatch({ type: "SET_ORDER", order: v as "asc" | "desc" })
+              }
+            >
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="desc">Neueste zuerst</SelectItem>
+                <SelectItem value="asc">Älteste zuerst</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {match(state)
           .with({ status: "error", childId: child.id }, ({ message }) => (
             <div className="rounded-md border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive">
@@ -284,7 +434,7 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
           ))
           .with({ status: "loaded", childId: child.id, events: [] }, () => (
             <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-              Noch keine erfassten Zeiten.
+              Keine Einträge in diesem Zeitraum.
             </div>
           ))
           .with({ status: "loaded", childId: child.id }, ({ events }) => (
@@ -297,8 +447,8 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
                   <div className="flex items-baseline justify-between gap-2 border-b bg-muted/40 px-4 py-2">
                     <h4 className="text-sm font-medium">{label}</h4>
                     <span className="text-xs text-muted-foreground">
-                      {rows.length} Eintrag {rows.length === 1 ? "" : "e"} ·{" "}
-                      {totalHours(rows)} h
+                      {rows.length} {rows.length === 1 ? "Eintrag" : "Einträge"}{" "}
+                      · {totalHours(rows)} h
                     </span>
                   </div>
                   <ul className="divide-y">

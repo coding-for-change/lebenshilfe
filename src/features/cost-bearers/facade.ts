@@ -31,11 +31,9 @@ export const CostBearersFacade = {
 
   async create(input: CostBearerInput) {
     const parsed = CreateKostentraegerSchema.parse(input);
-    logBusinessEvent("COST_BEARER_CREATED", {
-      name: parsed.name,
-      email: parsed.email,
-    });
-    return createKostentraeger(normalize(parsed));
+    const created = await createKostentraeger(normalize(parsed));
+    logBusinessEvent("COST_BEARER_CREATED", { costBearerId: created.id });
+    return created;
   },
 
   async update(id: string, input: CostBearerInput) {

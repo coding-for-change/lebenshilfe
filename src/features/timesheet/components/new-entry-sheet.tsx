@@ -771,12 +771,6 @@ export function NewEntrySheet({
                   </p>
                 )}
 
-                {/* Fixed, small time boxes. The wrapper owns the border + a
-                    fixed width and clips (overflow-hidden), so the visible box
-                    stays small even though iOS Safari forces a wide intrinsic
-                    size onto the native <input type="time"> it can't override
-                    via width/min-width. appearance:none lets the input fill the
-                    box on engines that do honour width. */}
                 <div className="flex items-end gap-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="start">
@@ -797,8 +791,6 @@ export function NewEntrySheet({
                       />
                     </div>
                   </div>
-                  {/* h-12 matches the box height so the arrow centres on the
-                      boxes (not the label+box stack) regardless of label wrap. */}
                   <div
                     aria-hidden
                     className="flex h-12 items-center justify-center text-muted-foreground"

@@ -486,7 +486,7 @@ export function NewEntrySheet({
               e.preventDefault();
               if (canProceed && !submitting) setSigOpen(true);
             }}
-            className="min-w-0 px-4 pb-6 space-y-4"
+            className="min-w-0 overflow-x-hidden px-4 pb-6 space-y-4"
           >
             <div className="space-y-1.5">
               <Label htmlFor="date">Datum</Label>
@@ -791,7 +791,11 @@ export function NewEntrySheet({
                       type="time"
                       value={startTime}
                       onChange={(e) => setStartTime(e.target.value)}
-                      className="h-12 text-base font-mono tabular-nums"
+                      // iOS Safari gives native time inputs a fixed intrinsic
+                      // min-width that ignores min-w-0, overflowing the sheet.
+                      // Dropping the native appearance lets them shrink to the
+                      // flex column; ≥sm keeps the native control (clock icon).
+                      className="h-12 appearance-none text-base font-mono tabular-nums [-webkit-appearance:none] sm:appearance-auto sm:[-webkit-appearance:auto]"
                     />
                   </div>
                   {/* h-12 matches the input height so the arrow centres on the
@@ -816,7 +820,11 @@ export function NewEntrySheet({
                       type="time"
                       value={endTime}
                       onChange={(e) => setEndTime(e.target.value)}
-                      className="h-12 text-base font-mono tabular-nums"
+                      // iOS Safari gives native time inputs a fixed intrinsic
+                      // min-width that ignores min-w-0, overflowing the sheet.
+                      // Dropping the native appearance lets them shrink to the
+                      // flex column; ≥sm keeps the native control (clock icon).
+                      className="h-12 appearance-none text-base font-mono tabular-nums [-webkit-appearance:none] sm:appearance-auto sm:[-webkit-appearance:auto]"
                     />
                   </div>
                 </div>

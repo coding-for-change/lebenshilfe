@@ -330,7 +330,7 @@ async function wipeSeedData() {
     where: { user: { email: { in: seedEmails } } },
   });
   await prisma.childAssignment.deleteMany({
-    where: { user: { email: { in: seedEmails } } },
+    where: { profile: { email: { in: seedEmails } } },
   });
   await prisma.childAbsence.deleteMany({
     where: { childId: { in: childIds } },
@@ -526,11 +526,24 @@ async function enrichProfiles() {
   });
 }
 
-async function assignChildren(usersByEmail: Record<string, string>) {
+async function assignChildren() {
   console.log("Assigning children to school assistants per weekday…");
-  const annaId = usersByEmail["anna.schmidt@lebenshilfe.de"];
-  const benId = usersByEmail["ben.weber@lebenshilfe.de"];
-  const claraId = usersByEmail["clara.becker@lebenshilfe.de"];
+  const profiles = await prisma.schoolAssistantProfile.findMany({
+    where: {
+      email: {
+        in: [
+          "anna.schmidt@lebenshilfe.de",
+          "ben.weber@lebenshilfe.de",
+          "clara.becker@lebenshilfe.de",
+        ],
+      },
+    },
+    select: { id: true, email: true },
+  });
+  const byEmail = Object.fromEntries(profiles.map((p) => [p.email, p.id]));
+  const annaId = byEmail["anna.schmidt@lebenshilfe.de"];
+  const benId = byEmail["ben.weber@lebenshilfe.de"];
+  const claraId = byEmail["clara.becker@lebenshilfe.de"];
 
   // Anna splits her week: Lena Mon/Wed/Fri, Max Tue/Thu.
   // Ben covers Mia all five weekdays. Clara covers Paul all five weekdays.
@@ -539,7 +552,7 @@ async function assignChildren(usersByEmail: Record<string, string>) {
   // the app: WEEKDAYS[0]="mon" and (getUTCDay()+6)%7), so Mon=0 … Fri=4.
   const assignments: Array<{
     childId: string;
-    userId: string;
+    profileId: string;
     weekday: number;
     startTime: string;
     endTime: string;
@@ -548,7 +561,7 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     // Anna ↔ Lena (Mon/Wed/Fri)
     {
       childId: "seed-lena-fischer",
-      userId: annaId,
+      profileId: annaId,
       weekday: 0,
       startTime: "08:00",
       endTime: "13:00",
@@ -556,7 +569,7 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     },
     {
       childId: "seed-lena-fischer",
-      userId: annaId,
+      profileId: annaId,
       weekday: 2,
       startTime: "08:00",
       endTime: "13:00",
@@ -564,7 +577,7 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     },
     {
       childId: "seed-lena-fischer",
-      userId: annaId,
+      profileId: annaId,
       weekday: 4,
       startTime: "08:00",
       endTime: "13:00",
@@ -573,7 +586,7 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     // Anna ↔ Max (Tue/Thu)
     {
       childId: "seed-max-huber",
-      userId: annaId,
+      profileId: annaId,
       weekday: 1,
       startTime: "08:00",
       endTime: "12:30",
@@ -581,7 +594,7 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     },
     {
       childId: "seed-max-huber",
-      userId: annaId,
+      profileId: annaId,
       weekday: 3,
       startTime: "08:00",
       endTime: "12:30",
@@ -590,7 +603,7 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     // Ben ↔ Mia (full week)
     {
       childId: "seed-mia-bauer",
-      userId: benId,
+      profileId: benId,
       weekday: 0,
       startTime: "09:00",
       endTime: "14:00",
@@ -598,7 +611,7 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     },
     {
       childId: "seed-mia-bauer",
-      userId: benId,
+      profileId: benId,
       weekday: 1,
       startTime: "09:00",
       endTime: "14:00",
@@ -606,7 +619,7 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     },
     {
       childId: "seed-mia-bauer",
-      userId: benId,
+      profileId: benId,
       weekday: 2,
       startTime: "09:00",
       endTime: "14:00",
@@ -614,7 +627,7 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     },
     {
       childId: "seed-mia-bauer",
-      userId: benId,
+      profileId: benId,
       weekday: 3,
       startTime: "09:00",
       endTime: "14:00",
@@ -622,7 +635,7 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     },
     {
       childId: "seed-mia-bauer",
-      userId: benId,
+      profileId: benId,
       weekday: 4,
       startTime: "09:00",
       endTime: "14:00",
@@ -631,7 +644,7 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     // Clara ↔ Paul (full week)
     {
       childId: "seed-paul-koch",
-      userId: claraId,
+      profileId: claraId,
       weekday: 0,
       startTime: "08:00",
       endTime: "13:00",
@@ -639,7 +652,7 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     },
     {
       childId: "seed-paul-koch",
-      userId: claraId,
+      profileId: claraId,
       weekday: 1,
       startTime: "08:00",
       endTime: "13:00",
@@ -647,7 +660,7 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     },
     {
       childId: "seed-paul-koch",
-      userId: claraId,
+      profileId: claraId,
       weekday: 2,
       startTime: "08:00",
       endTime: "13:00",
@@ -655,7 +668,7 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     },
     {
       childId: "seed-paul-koch",
-      userId: claraId,
+      profileId: claraId,
       weekday: 3,
       startTime: "08:00",
       endTime: "13:00",
@@ -663,7 +676,7 @@ async function assignChildren(usersByEmail: Record<string, string>) {
     },
     {
       childId: "seed-paul-koch",
-      userId: claraId,
+      profileId: claraId,
       weekday: 4,
       startTime: "08:00",
       endTime: "13:00",
@@ -1016,7 +1029,7 @@ async function main() {
   await seedHolidayPlans();
   await seedSchools();
   await seedChildrenAndSchedules();
-  await assignChildren(usersByEmail);
+  await assignChildren();
   await seedVertretungen(usersByEmail);
   await seedChildAbsences();
   await enrichProfiles();

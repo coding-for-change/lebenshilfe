@@ -33,7 +33,7 @@ export function EventFormAssignment({
   onSaved,
   onCancel,
 }: Props) {
-  const [userId, setUserId] = useState<string>(
+  const [profileId, setProfileId] = useState<string>(
     schoolAssistantOptions[0]?.id ?? "",
   );
   const [tandem, setTandem] = useState(false);
@@ -44,7 +44,7 @@ export function EventFormAssignment({
 
   async function handleSubmit() {
     setError(null);
-    if (!userId) {
+    if (!profileId) {
       setError("Bitte Schulbegleiter wählen.");
       return;
     }
@@ -52,7 +52,7 @@ export function EventFormAssignment({
     try {
       await createAssignmentAction({
         childId,
-        userId,
+        profileId,
         weekday,
         startTime: start,
         endTime: end,
@@ -96,8 +96,8 @@ export function EventFormAssignment({
         <SchoolAssistantCombobox
           id="ev-sb"
           options={schoolAssistantOptions}
-          value={userId || null}
-          onChange={(id) => setUserId(id ?? "")}
+          value={profileId || null}
+          onChange={(id) => setProfileId(id ?? "")}
         />
       </Field>
       <label className="flex cursor-pointer items-start gap-2">

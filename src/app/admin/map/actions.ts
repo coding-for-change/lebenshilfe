@@ -41,7 +41,7 @@ export async function getMapDataForDate(date: string): Promise<MapPayload> {
       firstName: child.firstName,
       lastName: child.lastName,
       assistants: dayAssignments.map((a) => ({
-        userId: a.userId,
+        profileId: a.profileId,
         name: a.userName,
         tandem: a.tandem,
         startTime: a.startTime,

@@ -20,9 +20,11 @@ async function run() {
     process.exit(1);
   }
 
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) {
-    console.error(`No user found with email ${email}`);
+  const profile = await prisma.schoolAssistantProfile.findUnique({
+    where: { email },
+  });
+  if (!profile) {
+    console.error(`No Schulbegleiter profile found with email ${email}`);
     process.exit(1);
   }
 
@@ -45,15 +47,15 @@ async function run() {
     });
 
     const existingAssignment = await prisma.childAssignment.findFirst({
-      where: { childId: child.id, userId: user.id },
+      where: { childId: child.id, profileId: profile.id },
     });
     if (!existingAssignment) {
       await prisma.childAssignment.create({
-        data: { childId: child.id, userId: user.id },
+        data: { childId: child.id, profileId: profile.id },
       });
     }
     console.log(
-      `  assigned ${child.firstName} ${child.lastName} → ${user.email}`,
+      `  assigned ${child.firstName} ${child.lastName} → ${profile.email}`,
     );
 
     if (withSchedules) {

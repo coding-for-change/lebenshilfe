@@ -168,7 +168,7 @@ export const ChildrenFacade = {
     const parsed = AssignmentSchema.parse(input);
     logBusinessEvent("CHILD_ASSIGNED", {
       childId: parsed.childId,
-      userId: parsed.userId,
+      profileId: parsed.profileId,
     });
     return createAssignment(parsed);
   },

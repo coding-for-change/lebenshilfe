@@ -19,14 +19,18 @@ export async function findSickEventsInRange(from: Date, to: Date) {
 
 export async function findAssignmentsByUserIds(userIds: string[]) {
   if (userIds.length === 0) return [];
-  return prisma.childAssignment.findMany({
-    where: { userId: { in: userIds } },
+  const rows = await prisma.childAssignment.findMany({
+    where: { profile: { userId: { in: userIds } } },
     select: {
-      userId: true,
       weekday: true,
       child: { select: { id: true, firstName: true, lastName: true } },
+      profile: { select: { userId: true } },
     },
   });
+  return rows.map(({ profile, ...rest }) => ({
+    ...rest,
+    userId: profile.userId as string,
+  }));
 }
 
 export async function findVertretungenInRange(from: Date, to: Date) {
@@ -107,10 +111,10 @@ export async function findAllSchedulesWithHolidayPlan() {
   });
 }
 
-/** All child→user assignments (weekday-based). Used for unassigned-block detection. */
+/** All child assignments (weekday-based). Used for unassigned-block detection. */
 export async function findAllAssignments() {
   return prisma.childAssignment.findMany({
-    select: { childId: true, weekday: true, userId: true },
+    select: { childId: true, weekday: true },
   });
 }
 

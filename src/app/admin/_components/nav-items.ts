@@ -2,6 +2,7 @@ import {
   Baby,
   BookOpen,
   Home,
+  MapPinned,
   Palmtree,
   School,
   ShieldCheck,
@@ -69,6 +70,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: "Handlungsbedarf",
     description: "Offene Vertretungs-Anträge zuordnen.",
     icon: TriangleAlert,
+  },
+  {
+    href: "/admin/map",
+    label: "Karte",
+    description: "Einsätze eines Tages auf der Karte anzeigen.",
+    icon: MapPinned,
   },
 ];
 

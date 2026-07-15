@@ -7,6 +7,17 @@ on:
 permissions:
   contents: read
 
+# Serialize deploys. Without this, two merges in quick succession spawn two
+# concurrent deploy runs; whichever finishes its `docker compose up` LAST wins,
+# so a slower-building older commit can clobber a newer one (this happened with
+# PRs #142/#143). The group forces runs to queue instead of racing, and
+# cancel-in-progress:false keeps the running deploy alive while collapsing the
+# queue to the newest pending run — which, on linear main history, contains all
+# prior commits. Net effect: prod always converges on the latest commit.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -90,6 +101,7 @@ jobs:
 
           # Write .env from decrypted secrets and copy to VPS
           printf '%s\n' \
+            "IMAGE_TAG=${{ github.sha }}" \
             "DATABASE_URL=$(jq -r '.DATABASE_URL // empty' decrypted.json)" \
             "BETTER_AUTH_SECRET=$(jq -r '.BETTER_AUTH_SECRET // empty' decrypted.json)" \
             "RESEND_API_KEY=$(jq -r '.RESEND_API_KEY // empty' decrypted.json)" \

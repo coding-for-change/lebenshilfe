@@ -1,6 +1,9 @@
 services:
   app:
-    image: localhost:5000/lebenshilfe:latest
+    # Pinned to the exact commit that was deployed (see deploy.yml, which writes
+    # IMAGE_TAG=<git sha> into .env). Falls back to :latest for manual `docker
+    # compose up` on the VPS.
+    image: localhost:5000/lebenshilfe:${IMAGE_TAG:-latest}
     labels:
       alloy-logging: true
     restart: unless-stopped

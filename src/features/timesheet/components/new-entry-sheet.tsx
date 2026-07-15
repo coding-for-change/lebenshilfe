@@ -207,6 +207,14 @@ export function NewEntrySheet({
 
   const dateIsWeekend = isWeekend(date);
 
+  const allowFutureDate = type === EventType.SICK && sickTarget === "self";
+
+  useEffect(() => {
+    if (allowFutureDate) return;
+    const today = formatIsoDateUtc(new Date());
+    setDate((cur) => (cur > today ? today : cur));
+  }, [allowFutureDate]);
+
   const canProceed = useMemo(() => {
     if (type === EventType.SICK) {
       // A child sick report submits via its own button, not the form.
@@ -494,7 +502,7 @@ export function NewEntrySheet({
                 id="date"
                 type="date"
                 value={date}
-                max={formatIsoDateUtc(new Date())}
+                max={allowFutureDate ? undefined : formatIsoDateUtc(new Date())}
                 onChange={(e) => setDate(e.target.value)}
               />
             </div>

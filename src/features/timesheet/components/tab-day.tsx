@@ -648,7 +648,7 @@ export function TabDay({
               >
                 <div className="flex items-center gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{title}</p>
+                    <p className="font-medium break-words">{title}</p>
                     <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted-foreground">
                       <Badge
                         variant="secondary"

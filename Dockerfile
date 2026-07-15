@@ -1,11 +1,20 @@
+# Base images are pinned by digest for supply-chain integrity (audit finding F-18).
+# The sha256 below is the multi-arch index digest of node:22-alpine, so the build
+# still resolves the correct per-architecture image while the tag stays immutable.
+#
+# Update cadence: Dependabot (docker ecosystem, see .github/dependabot.yml) opens a
+# PR weekly to bump these digests. To update manually, run:
+#   docker buildx imagetools inspect node:22-alpine --format '{{.Manifest.Digest}}'
+# and replace the sha256 on all three FROM lines below.
+
 # ---- Dependencies ----
-FROM node:22-alpine AS deps
+FROM node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2 AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
 # ---- Builder ----
-FROM node:22-alpine AS builder
+FROM node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2 AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -20,7 +29,7 @@ ENV NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 RUN npm run build
 
 # ---- Runner ----
-FROM node:22-alpine AS runner
+FROM node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2 AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production

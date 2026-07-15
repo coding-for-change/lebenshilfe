@@ -1,6 +1,7 @@
 services:
   db:
-    image: mysql:8.0
+    # Pinned by digest for supply-chain integrity (F-18); Dependabot bumps it weekly.
+    image: mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: lebenshilfe
@@ -26,7 +27,7 @@ services:
       start_period: 10s
 
   mailpit:
-    image: axllent/mailpit
+    image: axllent/mailpit:latest@sha256:5a49a77c5bdbe7c5474450b4f46348d09949df3695257729c93a30369382d4f6
     container_name: mailpit
     ports:
       - "8025:8025"
@@ -37,7 +38,7 @@ services:
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
   minio:
-    image: minio/minio:latest
+    image: minio/minio:latest@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     container_name: minio
     ports:
       - "9000:9000"
@@ -48,7 +49,7 @@ services:
     command: server /data --console-address ":9001"
 
   minio-init:
-    image: minio/mc:latest
+    image: minio/mc:latest@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
     depends_on:
       - minio
     entrypoint: >

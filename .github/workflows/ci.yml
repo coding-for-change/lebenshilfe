@@ -10,6 +10,26 @@ env:
   LOG_PRETTY: "true"
 
 jobs:
+  dependency-audit:
+    name: Dependency Vulnerability Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Fails the build on any high/critical advisory in the committed lockfile.
+      # Reads package-lock.json directly, so no install step is required.
+      # Dependabot (see .github/dependabot.yml) opens patch PRs weekly to keep
+      # dependencies ahead of this gate.
+      - name: Audit dependencies (fail on high/critical)
+        run: npm audit --audit-level=high
+
   lint-and-format:
     name: Lint, Format, and Build
     runs-on: ubuntu-latest

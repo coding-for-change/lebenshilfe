@@ -18,7 +18,8 @@ services:
              node server.js"
 
   db:
-    image: mysql:8.0
+    # Pinned by digest for supply-chain integrity (F-18); Dependabot bumps it weekly.
+    image: mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-secret}

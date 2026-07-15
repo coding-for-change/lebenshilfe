@@ -19,6 +19,15 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Lebenshilfe München",
   description: "Lebenshilfe München Portal",
+  applicationName: "Lebenshilfe München",
+  // Makes the site launch full-screen (no Safari chrome) when added to the iOS
+  // home screen, and sets the label shown under the icon. The home-screen icon
+  // itself is supplied by src/app/apple-icon.png (apple-touch-icon).
+  appleWebApp: {
+    capable: true,
+    title: "Lebenshilfe",
+    statusBarStyle: "default",
+  },
 };
 
 export const viewport: Viewport = {

@@ -646,10 +646,15 @@ export function TabDay({
                 key={ev.id}
                 className="p-4"
               >
-                <div className="flex items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium break-words">{title}</p>
-                    <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted-foreground">
+                <div>
+                  {/* Title owns the full top line so long names never wrap
+                      into the time/action; the meta row sits below it. */}
+                  <p className="font-medium break-words">{title}</p>
+                  <div className="mt-2 flex items-center gap-3">
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span className="font-mono tabular-nums">
+                        {ev.startTime}–{ev.endTime}
+                      </span>
                       <Badge
                         variant="secondary"
                         className="font-mono"
@@ -681,29 +686,27 @@ export function TabDay({
                           <Badge variant="outline">Mehrere Kinder</Badge>
                         )}
                     </div>
-                    {hint && (
-                      <p className="mt-1 text-xs font-medium text-amber-700">
-                        inkl. {hint.label} · {hint.billed}
-                      </p>
-                    )}
-                    {ev.note && (
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {ev.note}
-                      </p>
+                    {canDelete(ev) && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleDelete(ev.id)}
+                        disabled={busyId === ev.id}
+                        className="shrink-0"
+                      >
+                        Löschen
+                      </Button>
                     )}
                   </div>
-                  <span className="font-mono text-sm tabular-nums text-muted-foreground">
-                    {ev.startTime}–{ev.endTime}
-                  </span>
-                  {canDelete(ev) && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleDelete(ev.id)}
-                      disabled={busyId === ev.id}
-                    >
-                      Löschen
-                    </Button>
+                  {hint && (
+                    <p className="mt-1 text-xs font-medium text-amber-700">
+                      inkl. {hint.label} · {hint.billed}
+                    </p>
+                  )}
+                  {ev.note && (
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {ev.note}
+                    </p>
                   )}
                 </div>
               </Card>

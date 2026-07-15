@@ -25,6 +25,13 @@ RUN npx prisma generate
 ARG NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 ENV NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
+# Encrypts Server Action references. Must be the SAME value at build and runtime
+# and stable across deploys, otherwise a tab from a previous build can no longer
+# invoke actions (its encrypted args fail to decrypt). If unset, Next generates
+# a fresh key per build — which is what breaks open tabs on every deploy.
+ARG NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+ENV NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=$NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+
 # Build Next.js (standalone output)
 RUN npm run build
 

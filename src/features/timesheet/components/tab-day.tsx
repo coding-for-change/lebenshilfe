@@ -646,7 +646,7 @@ export function TabDay({
                 key={ev.id}
                 className="p-4"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-start gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium break-words">{title}</p>
                     <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted-foreground">

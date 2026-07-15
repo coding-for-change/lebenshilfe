@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { MapsConsentProvider } from "@/lib/maps/maps-consent";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { DeploymentUpdateNotice } from "@/components/deployment-update-notice";
 import { getSession } from "@/lib/auth-guards";
 import { ConsentFacade } from "@/features/consent";
 import { setMapsConsentAction } from "@/features/consent/actions";
@@ -63,6 +64,9 @@ export default async function RootLayout({
             iOS home-screen app, which has no reload UI and freezes on
             background. */}
         <AutoRefresh />
+        {/* Prompts a reload when a Server Action fails because the tab was
+            built by a previous deployment (stale action IDs). */}
+        <DeploymentUpdateNotice />
         <MapsConsentProvider
           initialConsent={initialConsent}
           authenticated={!!session}

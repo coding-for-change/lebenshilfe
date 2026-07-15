@@ -298,9 +298,18 @@ export const HandlungsbedarfFacade = {
 
     // Sum booked WORK minutes per (childId, date). Events without explicit
     // times can't contribute to a duration comparison, so they're skipped.
+    // Also backfill child names from WORK events: a child can have booked hours
+    // without any Schedule row (scheduled = 0), and would otherwise fall back to
+    // the raw childId when flagged below.
     const bookedMinutesByPair = new Map<string, number>();
     for (const w of workEvents) {
       if (!w.childId || !w.startTime || !w.endTime) continue;
+      if (w.child && !childNameById.has(w.childId)) {
+        childNameById.set(
+          w.childId,
+          `${w.child.firstName} ${w.child.lastName}`,
+        );
+      }
       const key = `${w.childId}|${isoDate(w.date)}`;
       const min =
         (bookedMinutesByPair.get(key) ?? 0) +

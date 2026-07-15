@@ -30,6 +30,21 @@ jobs:
       - name: Audit dependencies (fail on high/critical)
         run: npm audit --audit-level=high
 
+  docker-build:
+    name: Docker Image Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Builds the image end-to-end so the digest-pinned base images (and any
+      # Dockerfile change) are validated before merge — in particular this
+      # exercises Dependabot's weekly digest bumps. The image is built but never
+      # pushed or deployed.
+      - name: Build Docker image
+        run: docker build -t lebenshilfe:ci .
+
   lint-and-format:
     name: Lint, Format, and Build
     runs-on: ubuntu-latest

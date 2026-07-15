@@ -121,7 +121,8 @@ export async function findAllAssignments() {
 /**
  * All WORK events touching a child in the range. Returned with startTime/endTime
  * so the facade can sum daily minutes per (child, date) and compare against
- * Schedule minutes.
+ * Schedule minutes. The child's name is included so the facade can label a
+ * flagged child even when they have no Schedule row (scheduled = 0).
  */
 export async function findChildWorkEventsInRange(from: Date, to: Date) {
   return prisma.event.findMany({
@@ -136,6 +137,7 @@ export async function findChildWorkEventsInRange(from: Date, to: Date) {
       date: true,
       startTime: true,
       endTime: true,
+      child: { select: { firstName: true, lastName: true } },
     },
   });
 }

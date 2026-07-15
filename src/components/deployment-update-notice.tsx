@@ -5,35 +5,46 @@ import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isServerActionNotFoundError } from "@/lib/deployment-skew";
 
+// Response header Next sets when a Server Action ID no longer exists on the
+// server (i.e. the tab was built by a previous deployment).
+const ACTION_NOT_FOUND_HEADER = "x-nextjs-action-not-found";
+
 /**
- * Mounted once in the root layout. When a Server Action fails because the tab
- * was built by a previous deployment (see lib/deployment-skew), we show a
- * persistent banner asking the user to reload, rather than reloading for them.
- *
- * Why a prompt and not an automatic reload: on this path the error surfaces as
- * an unhandled rejection from an event handler (e.g. a form submit), so the
- * form is still mounted and holds the user's input. Reloading automatically
- * would discard that input. The banner lets the user finish or copy their work
- * and reload when ready. The error-boundary case (app/error.tsx), where the
- * form has already been unmounted and there is nothing left to lose, reloads
- * automatically instead.
+ * Prompts a reload when a Server Action fails because the tab is from an older
+ * deployment. Detection wraps fetch to read the response header rather than
+ * relying on thrown errors, which call sites usually catch and swallow. We
+ * prompt instead of reloading so in-progress form input isn't lost.
  */
 export function DeploymentUpdateNotice() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
 
   useEffect(() => {
-    function handle(error: unknown) {
-      if (isServerActionNotFoundError(error)) setUpdateAvailable(true);
-    }
+    const nativeFetch = window.fetch;
+    const wrappedFetch: typeof window.fetch = async (...args) => {
+      const response = await nativeFetch.apply(window, args);
+      try {
+        if (response.headers.get(ACTION_NOT_FOUND_HEADER) === "1") {
+          setUpdateAvailable(true);
+        }
+      } catch {
+        // Detection must never break the request.
+      }
+      return response;
+    };
+    window.fetch = wrappedFetch;
+
+    // Backup for the call sites that re-throw instead of catching.
     function onRejection(event: PromiseRejectionEvent) {
-      handle(event.reason);
+      if (isServerActionNotFoundError(event.reason)) setUpdateAvailable(true);
     }
     function onError(event: ErrorEvent) {
-      handle(event.error);
+      if (isServerActionNotFoundError(event.error)) setUpdateAvailable(true);
     }
     window.addEventListener("unhandledrejection", onRejection);
     window.addEventListener("error", onError);
+
     return () => {
+      if (window.fetch === wrappedFetch) window.fetch = nativeFetch;
       window.removeEventListener("unhandledrejection", onRejection);
       window.removeEventListener("error", onError);
     };
@@ -45,7 +56,7 @@ export function DeploymentUpdateNotice() {
     <div
       role="alert"
       aria-live="assertive"
-      className="fixed inset-x-0 bottom-0 z-50 flex justify-center p-4"
+      className="fixed inset-x-0 bottom-0 z-[100] flex justify-center p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
     >
       <div className="flex w-full max-w-2xl flex-col gap-3 rounded-lg border border-border/60 bg-background/95 p-4 shadow-xl backdrop-blur sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
@@ -62,7 +73,8 @@ export function DeploymentUpdateNotice() {
         </div>
         <Button
           onClick={() => window.location.reload()}
-          className="shrink-0"
+          size="lg"
+          className="w-full shrink-0 sm:w-auto"
         >
           Neu laden
         </Button>

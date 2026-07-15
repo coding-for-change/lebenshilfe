@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { MapsConsentProvider } from "@/lib/maps/maps-consent";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { getSession } from "@/lib/auth-guards";
 import { ConsentFacade } from "@/features/consent";
 import { setMapsConsentAction } from "@/features/consent/actions";
@@ -58,6 +59,10 @@ export default async function RootLayout({
       className={`${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
+        {/* Keeps content fresh on resume/poll — critical for the standalone
+            iOS home-screen app, which has no reload UI and freezes on
+            background. */}
+        <AutoRefresh />
         <MapsConsentProvider
           initialConsent={initialConsent}
           authenticated={!!session}

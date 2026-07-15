@@ -9,11 +9,39 @@ import { isServerActionNotFoundError } from "@/lib/deployment-skew";
 // server (i.e. the tab was built by a previous deployment).
 const ACTION_NOT_FOUND_HEADER = "x-nextjs-action-not-found";
 
+// Request header present on every Server Action dispatch.
+const ACTION_REQUEST_HEADER = "next-action";
+
+// A Server Action POST that returns non-OK after a deploy is version skew: the
+// action ID rotated (404) or its encrypted closure args can't be decrypted by
+// the new build (500). Either way the tab must reload to get the new build.
+function isServerActionRequest(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): boolean {
+  try {
+    if (input instanceof Request && input.headers.has(ACTION_REQUEST_HEADER)) {
+      return true;
+    }
+  } catch {
+    // ignore malformed input
+  }
+  const headers = init?.headers;
+  if (!headers) return false;
+  if (headers instanceof Headers) return headers.has(ACTION_REQUEST_HEADER);
+  if (Array.isArray(headers)) {
+    return headers.some(([key]) => key.toLowerCase() === ACTION_REQUEST_HEADER);
+  }
+  return Object.keys(headers).some(
+    (key) => key.toLowerCase() === ACTION_REQUEST_HEADER,
+  );
+}
+
 /**
  * Prompts a reload when a Server Action fails because the tab is from an older
- * deployment. Detection wraps fetch to read the response header rather than
- * relying on thrown errors, which call sites usually catch and swallow. We
- * prompt instead of reloading so in-progress form input isn't lost.
+ * deployment. Detection wraps fetch to inspect the response (status + header)
+ * rather than relying on thrown errors, which call sites usually catch and
+ * swallow. We prompt instead of reloading so in-progress form input isn't lost.
  */
 export function DeploymentUpdateNotice() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -23,9 +51,10 @@ export function DeploymentUpdateNotice() {
     const wrappedFetch: typeof window.fetch = async (...args) => {
       const response = await nativeFetch.apply(window, args);
       try {
-        if (response.headers.get(ACTION_NOT_FOUND_HEADER) === "1") {
-          setUpdateAvailable(true);
-        }
+        const notFound = response.headers.get(ACTION_NOT_FOUND_HEADER) === "1";
+        const actionFailed =
+          !response.ok && isServerActionRequest(args[0], args[1]);
+        if (notFound || actionFailed) setUpdateAvailable(true);
       } catch {
         // Detection must never break the request.
       }

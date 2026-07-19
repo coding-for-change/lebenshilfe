@@ -114,6 +114,22 @@ export async function listRequestsForUser(
   });
 }
 
+export async function listIndirectRequestsForUser(
+  substituteUserId: string,
+  from: Date,
+  to: Date,
+) {
+  return prisma.pendingVertretungRequest.findMany({
+    where: {
+      substituteUserId,
+      kind: PendingRequestKind.INDIRECT,
+      status: PendingVertretungStatus.PENDING,
+      date: { gte: from, lt: to },
+    },
+    orderBy: { date: "asc" },
+  });
+}
+
 export async function deleteOwnRequest(id: string, substituteUserId: string) {
   const request = await prisma.pendingVertretungRequest.findUnique({
     where: { id },

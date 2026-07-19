@@ -87,7 +87,11 @@ export function DeploymentUpdateNotice() {
       aria-live="assertive"
       className="fixed inset-x-0 bottom-0 z-[100] flex justify-center p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
     >
-      <div className="flex w-full max-w-2xl flex-col gap-3 rounded-lg border border-border/60 bg-background/95 p-4 shadow-xl backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+      {/* pointer-events-auto: a modal Radix dialog (e.g. an open detail Sheet)
+          sets pointer-events:none on <body>, which this banner inherits — it
+          would show above the dialog but the reload button wouldn't be
+          clickable. Re-enabling it on the card restores the click. */}
+      <div className="pointer-events-auto flex w-full max-w-2xl flex-col gap-3 rounded-lg border border-border/60 bg-background/95 p-4 shadow-xl backdrop-blur sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
             <RefreshCw className="size-4" />

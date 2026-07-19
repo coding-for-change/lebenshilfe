@@ -9,6 +9,17 @@ import { ResetPasswordEmail } from "./email/templates/reset-password-email";
 import { logger } from "@/lib/logger";
 import { haveIBeenPwned, twoFactor } from "better-auth/plugins";
 
+// Rate limiting protects the auth endpoints (brute force / credential stuffing)
+// in production. Outside production it is off by default so local scripts that
+// fire many auth requests in a row aren't throttled — e.g. `npm run db:seed`,
+// which signs up every seed user in a loop through auth.handler. Set
+// RATE_LIMIT_ENABLED to override in either direction (RATE_LIMIT_ENABLED=true to
+// exercise the limits locally, =false to disable them anywhere).
+const rateLimitEnabled =
+  process.env.RATE_LIMIT_ENABLED !== undefined
+    ? process.env.RATE_LIMIT_ENABLED === "true"
+    : process.env.NODE_ENV === "production";
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "mysql",
@@ -28,7 +39,7 @@ export const auth = betterAuth({
     }),
   ],
   rateLimit: {
-    enabled: true,
+    enabled: rateLimitEnabled,
     storage: "database",
     // Tightened per-IP limits on top of better-auth's defaults. Uses the
     // RateLimit table (prisma/schema.prisma) so counters survive restarts and

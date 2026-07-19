@@ -27,6 +27,10 @@ export type SerializedAbsence = {
 export type SerializedVertretung = {
   id: string;
   substituteProfileId: string;
+  // Linked account of the substitute, null while the profile is still
+  // invitation-pending. Used to correlate signed WORK Events (keyed by User)
+  // with the Vertretung; the picker uses substituteProfileId instead.
+  substituteUserId: string | null;
   substituteUserName: string;
   date: string; // YYYY-MM-DD
   startTime: string;
@@ -154,6 +158,7 @@ export function serializeChild(c: ChildWithRelations): SerializedChild {
     vertretungen: c.vertretungen.map((v) => ({
       id: v.id,
       substituteProfileId: v.substituteProfileId,
+      substituteUserId: v.substituteProfile.userId,
       substituteUserName: v.substituteProfile.name,
       date: formatIsoDateUtc(v.date),
       startTime: v.startTime,

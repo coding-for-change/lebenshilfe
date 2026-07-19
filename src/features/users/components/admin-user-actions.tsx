@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowUpCircle, MoreVertical, ShieldOff, Trash2 } from "lucide-react";
+import {
+  ArrowUpCircle,
+  LockOpen,
+  MoreVertical,
+  ShieldOff,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,11 +23,13 @@ import {
   canPromoteToOwner,
   canRemoveTarget,
   canResetTwoFactor,
+  canUnlockTwoFactor,
 } from "@/lib/roles";
 import {
   promoteUserToOwnerAction,
   removeAdminUserAction,
   resetUserTwoFactorAction,
+  unlockUserTwoFactorAction,
 } from "../actions";
 
 type Props = {
@@ -40,6 +48,7 @@ export function AdminUserActions({ user, currentUser, ownerCount }: Props) {
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [confirmPromote, setConfirmPromote] = useState(false);
   const [confirmResetTwoFactor, setConfirmResetTwoFactor] = useState(false);
+  const [confirmUnlockTwoFactor, setConfirmUnlockTwoFactor] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const isSelf = user.id === currentUser.id;
@@ -52,8 +61,17 @@ export function AdminUserActions({ user, currentUser, ownerCount }: Props) {
     canResetTwoFactor(currentUser.role, user.role) &&
     user.twoFactorEnabled &&
     !isSelf;
+  const showUnlockTwoFactor =
+    canUnlockTwoFactor(currentUser.role, user.role) &&
+    user.twoFactorEnabled &&
+    !isSelf;
 
-  if (!showPromote && !showRemove && !showResetTwoFactor) {
+  if (
+    !showPromote &&
+    !showRemove &&
+    !showResetTwoFactor &&
+    !showUnlockTwoFactor
+  ) {
     return null;
   }
 
@@ -98,6 +116,20 @@ export function AdminUserActions({ user, currentUser, ownerCount }: Props) {
     }
   }
 
+  async function handleUnlockTwoFactor() {
+    try {
+      await unlockUserTwoFactorAction(user.id);
+      toast.success(`2FA-Sperre für ${user.name} aufgehoben.`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Aufheben der Sperre fehlgeschlagen.",
+      );
+      throw error;
+    }
+  }
+
   return (
     <>
       <DropdownMenu>
@@ -123,7 +155,20 @@ export function AdminUserActions({ user, currentUser, ownerCount }: Props) {
               Zum Owner befördern
             </DropdownMenuItem>
           ) : null}
-          {showPromote && showResetTwoFactor ? <DropdownMenuSeparator /> : null}
+          {showPromote && (showUnlockTwoFactor || showResetTwoFactor) ? (
+            <DropdownMenuSeparator />
+          ) : null}
+          {showUnlockTwoFactor ? (
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                setConfirmUnlockTwoFactor(true);
+              }}
+            >
+              <LockOpen />
+              2FA-Sperre aufheben
+            </DropdownMenuItem>
+          ) : null}
           {showResetTwoFactor ? (
             <DropdownMenuItem
               onSelect={(e) => {
@@ -135,7 +180,8 @@ export function AdminUserActions({ user, currentUser, ownerCount }: Props) {
               2FA zurücksetzen
             </DropdownMenuItem>
           ) : null}
-          {(showPromote || showResetTwoFactor) && showRemove ? (
+          {(showPromote || showUnlockTwoFactor || showResetTwoFactor) &&
+          showRemove ? (
             <DropdownMenuSeparator />
           ) : null}
           {showRemove ? (
@@ -198,6 +244,23 @@ export function AdminUserActions({ user, currentUser, ownerCount }: Props) {
         }
         confirmLabel="Zurücksetzen"
         onConfirm={handleResetTwoFactor}
+      />
+
+      <ConfirmDialog
+        open={confirmUnlockTwoFactor}
+        onOpenChange={setConfirmUnlockTwoFactor}
+        title="2FA-Sperre aufheben?"
+        description={
+          <>
+            Nach zu vielen falschen Codes wird die Zwei-Faktor-Anmeldung von{" "}
+            <strong>{user.name}</strong> vorübergehend gesperrt. Das Aufheben
+            setzt die Sperre sofort zurück, damit die Person wieder einen
+            gültigen Code eingeben kann. Die bestehende
+            Authenticator-Einrichtung bleibt erhalten.
+          </>
+        }
+        confirmLabel="Sperre aufheben"
+        onConfirm={handleUnlockTwoFactor}
       />
     </>
   );

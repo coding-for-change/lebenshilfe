@@ -119,11 +119,17 @@ model Account {
 }
 
 model TwoFactor {
-  id          String @id
-  secret      String @db.Text
-  backupCodes String @db.Text
-  userId      String
-  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                      String    @id
+  secret                  String    @db.Text
+  backupCodes             String    @db.Text
+  userId                  String
+  // Added for better-auth 1.6.x (the twoFactor plugin requires these fields).
+  // `verified` defaults to true so pre-existing enrolled rows stay valid on
+  // upgrade; failedVerificationCount/lockedUntil back the new 2FA lockout.
+  verified                Boolean   @default(true)
+  failedVerificationCount Int       @default(0)
+  lockedUntil             DateTime?
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("two_factor")

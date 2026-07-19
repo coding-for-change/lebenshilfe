@@ -144,6 +144,7 @@ export function TabMonat({
         year={year}
         month={month}
         events={monthEvents}
+        substituteOn={monthSubstituteOn}
       />
     </div>
   );

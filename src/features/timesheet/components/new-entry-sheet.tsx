@@ -105,6 +105,9 @@ export function NewEntrySheet({
   } | null>(null);
   // Guards the debounce lookup from overwriting a quick-pick's exact block times.
   const pickedTimesRef = useRef(false);
+  // Last value we auto-filled into the indirect name field, so a re-fill never
+  // overwrites a name the user typed themselves.
+  const indirectAutoFilledRef = useRef("");
 
   // Child IDs that already have a work Event for this date — used to hide
   // Vertretungen the SB has already submitted an Eintrag for. Filtering by
@@ -181,6 +184,7 @@ export function NewEntrySheet({
       setIndirectChildName("");
       setVertretungQuarter(null);
       pickedTimesRef.current = false;
+      indirectAutoFilledRef.current = "";
     }
     // Start/End are owned by the Stundenplan effect below, not reset here.
   }, [open, defaultDate]);
@@ -198,6 +202,23 @@ export function NewEntrySheet({
       return filtered;
     });
   }, [dayAssignedChildren]);
+
+  // For an indirect service, pre-fill the free-text name with the day's
+  // assigned child so the SB usually only has to confirm it. Only a value we
+  // auto-filled ourselves is replaced — a name the user typed stays untouched.
+  useEffect(() => {
+    if (!open) return;
+    if (type !== EventType.WORK || workVariant !== "INDIRECT") return;
+    const suggestion =
+      dayAssignedChildren.length === 1
+        ? `${dayAssignedChildren[0].firstName} ${dayAssignedChildren[0].lastName}`
+        : "";
+    setIndirectChildName((prev) => {
+      if (prev !== "" && prev !== indirectAutoFilledRef.current) return prev;
+      indirectAutoFilledRef.current = suggestion;
+      return suggestion;
+    });
+  }, [open, type, workVariant, dayAssignedChildren]);
 
   const duration = useMemo(() => {
     if (!startTime || !endTime) return null;

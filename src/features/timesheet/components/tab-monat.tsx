@@ -17,7 +17,12 @@ type Props = {
   onViewDateChange: (d: Date) => void;
   onSelectDay: (d: Date) => void;
   events: Array<
-    Pick<Event, "id" | "date" | "type" | "startTime" | "endTime" | "childId">
+    Pick<
+      Event,
+      "id" | "date" | "type" | "startTime" | "endTime" | "childId"
+    > & {
+      child: { firstName: string; lastName: string } | null;
+    }
   >;
   lockedMonths: Set<string>;
   childSchoolHolidays?: ChildSchoolHolidayItem[];
@@ -132,10 +137,10 @@ export function TabMonat({
       >
         <ShieldCheck className="size-5" />
         {locked
-          ? "Bereits an Vorgesetzten übergeben"
+          ? "Bereits an Lehrkraft übergeben"
           : !monthCompleted
             ? "Monat noch nicht abgeschlossen"
-            : "An Vorgesetzten übergeben"}
+            : "An Lehrkraft übergeben"}
       </Button>
 
       <HandoverDialog
@@ -144,6 +149,7 @@ export function TabMonat({
         year={year}
         month={month}
         events={monthEvents}
+        substituteOn={monthSubstituteOn}
       />
     </div>
   );

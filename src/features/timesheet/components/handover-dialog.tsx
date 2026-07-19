@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Check, ShieldCheck } from "lucide-react";
 import {
   Dialog,
@@ -19,11 +19,11 @@ import { submitMonthlyReportAction } from "../actions";
 import {
   MONTHS_LONG,
   WEEKDAYS_SHORT,
-  formatDuration,
   timeToMinutes,
   weekdayIndex,
 } from "@/lib/dates";
 import type { Event } from "@/generated/prisma";
+import type { VertretungDay } from "./timesheet-shell";
 
 type Props = {
   open: boolean;
@@ -31,8 +31,15 @@ type Props = {
   year: number;
   month: number;
   events: Array<
-    Pick<Event, "id" | "date" | "type" | "startTime" | "endTime" | "childId">
+    Pick<
+      Event,
+      "id" | "date" | "type" | "startTime" | "endTime" | "childId"
+    > & {
+      child: { firstName: string; lastName: string } | null;
+    }
   >;
+  /** Days this user steps in as substitute — used to flag Vertretung entries. */
+  substituteOn?: VertretungDay[];
 };
 
 type Stage = "intro" | "sign" | "done";
@@ -43,6 +50,7 @@ export function HandoverDialog({
   year,
   month,
   events,
+  substituteOn = [],
 }: Props) {
   const [stage, setStage] = useState<Stage>("intro");
   const [supervisorName, setSupervisorName] = useState("");
@@ -62,23 +70,47 @@ export function HandoverDialog({
     return map;
   }, [events]);
 
+  // Vertretung is stored as a plain WORK Event; it is recognised by a matching
+  // Vertretung block (same child + day) among the days this user substitutes.
+  const vertretungKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const v of substituteOn) keys.add(`${v.childId}|${v.date}`);
+    return keys;
+  }, [substituteOn]);
+
+  const isVertretung = useCallback(
+    (ev: Pick<Event, "type" | "date" | "childId">) =>
+      ev.type === "WORK" &&
+      ev.childId != null &&
+      vertretungKeys.has(`${ev.childId}|${ev.date.toISOString().slice(0, 10)}`),
+    [vertretungKeys],
+  );
+
   const totals = useMemo(() => {
-    let workMinutes = 0;
+    let directMin = 0;
+    let indirectMin = 0;
+    let vertretungMin = 0;
     let sickDays = 0;
     for (const ev of events) {
-      if (ev.type === "SICK") sickDays++;
-      else if (ev.startTime && ev.endTime) {
-        workMinutes += timeToMinutes(ev.endTime) - timeToMinutes(ev.startTime);
+      if (ev.type === "SICK") {
+        sickDays++;
+        continue;
       }
+      if (!ev.startTime || !ev.endTime) continue;
+      const mins = timeToMinutes(ev.endTime) - timeToMinutes(ev.startTime);
+      if (ev.type === "INDIRECT") indirectMin += mins;
+      else if (isVertretung(ev)) vertretungMin += mins;
+      else directMin += mins;
     }
     return {
-      hours: `${Math.floor(workMinutes / 60)}h${
-        workMinutes % 60 ? ` ${workMinutes % 60}m` : ""
-      }`,
+      direct: fmtHm(directMin),
+      indirect: fmtHm(indirectMin),
+      vertretung: fmtHm(vertretungMin),
+      hours: fmtHm(directMin + indirectMin + vertretungMin),
       sickDays,
       count: events.length,
     };
-  }, [events]);
+  }, [events, isVertretung]);
 
   const reset = () => {
     setStage("intro");
@@ -134,28 +166,34 @@ export function HandoverDialog({
             <div className="space-y-4">
               <div className="rounded-xl border border-border bg-muted/40 p-4">
                 <p className="text-sm">
-                  Bitte geben Sie Ihr Telefon nun an Ihre/n Vorgesetzte/n, damit
-                  diese/r den Monat prüfen und unterschreiben kann.
+                  Bitte geben Sie Ihr Telefon nun an Ihre Lehrkraft, damit diese
+                  den Monat prüfen und unterschreiben kann.
                 </p>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
                 <Stat
-                  label="Stunden"
-                  value={totals.hours}
+                  label="Direkt"
+                  value={totals.direct}
+                />
+                <Stat
+                  label="Indirekt"
+                  value={totals.indirect}
+                />
+                <Stat
+                  label="Vertretung"
+                  value={totals.vertretung}
                 />
                 <Stat
                   label="Krank"
-                  value={String(totals.sickDays)}
-                />
-                <Stat
-                  label="Einträge"
-                  value={String(totals.count)}
+                  value={
+                    totals.sickDays === 1 ? "1 Tag" : `${totals.sickDays} Tage`
+                  }
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="supervisor">Name Vorgesetzte/r</Label>
+                <Label htmlFor="supervisor">Name Lehrkraft</Label>
                 <Input
                   id="supervisor"
                   value={supervisorName}
@@ -181,57 +219,45 @@ export function HandoverDialog({
                           e.startTime &&
                           e.endTime,
                       );
-                      const workMins = workEvents.reduce(
-                        (sum, e) =>
-                          sum +
-                          timeToMinutes(e.endTime!) -
-                          timeToMinutes(e.startTime!),
-                        0,
-                      );
-                      const earliestStart = workEvents.reduce<string | null>(
-                        (acc, e) =>
-                          !acc ||
-                          timeToMinutes(e.startTime!) < timeToMinutes(acc)
-                            ? e.startTime!
-                            : acc,
-                        null,
-                      );
-                      const latestEnd = workEvents.reduce<string | null>(
-                        (acc, e) =>
-                          !acc || timeToMinutes(e.endTime!) > timeToMinutes(acc)
-                            ? e.endTime!
-                            : acc,
-                        null,
-                      );
-                      const hoursLabel =
-                        workMins > 0
-                          ? formatDuration(
-                              "00:00",
-                              `${String(Math.floor(workMins / 60)).padStart(
-                                2,
-                                "0",
-                              )}:${String(workMins % 60).padStart(2, "0")}`,
-                            )
-                          : null;
                       return (
                         <li
                           key={day}
-                          className="flex items-center justify-between gap-2 px-3 py-2 text-sm"
+                          className="flex items-start justify-between gap-2 px-3 py-2 text-sm"
                         >
-                          <span className="font-mono tabular-nums text-muted-foreground">
+                          <span className="pt-0.5 font-mono tabular-nums text-muted-foreground">
                             {wd} {String(day).padStart(2, "0")}.
                           </span>
                           {sick ? (
                             <Badge className="bg-rose-500/15 text-rose-700 border-rose-200">
                               Krank
                             </Badge>
-                          ) : hoursLabel ? (
-                            <span className="flex items-baseline gap-2 font-mono tabular-nums">
-                              <span className="text-muted-foreground">
-                                {earliestStart}–{latestEnd}
-                              </span>
-                              <span>{hoursLabel}</span>
-                            </span>
+                          ) : workEvents.length > 0 ? (
+                            <div className="flex flex-col items-end gap-1">
+                              {workEvents.map((e) => (
+                                <span
+                                  key={e.id}
+                                  className="flex flex-wrap items-center justify-end gap-x-2 gap-y-0.5 text-right"
+                                >
+                                  {e.child && (
+                                    <span className="font-medium">
+                                      {e.child.firstName} {e.child.lastName}
+                                    </span>
+                                  )}
+                                  <span className="font-mono tabular-nums text-muted-foreground">
+                                    {e.startTime}–{e.endTime}
+                                  </span>
+                                  {e.type === "INDIRECT" ? (
+                                    <Badge className="bg-violet-500/15 text-violet-700 border-violet-200">
+                                      Indirekt
+                                    </Badge>
+                                  ) : isVertretung(e) ? (
+                                    <Badge className="bg-amber-500/15 text-amber-700 border-amber-200">
+                                      Vertretung
+                                    </Badge>
+                                  ) : null}
+                                </span>
+                              ))}
+                            </div>
                           ) : (
                             <span className="text-muted-foreground">—</span>
                           )}
@@ -282,12 +308,16 @@ export function HandoverDialog({
         onOpenChange={setSigOpen}
         title={`${MONTHS_LONG[month - 1]} ${year}`}
         subtitle={`${totals.count} Einträge · ${totals.hours} Arbeit · ${totals.sickDays} Krankentage`}
-        signerLabel={`${supervisorName || "Vorgesetzte/r"} (Vorgesetzte/r)`}
+        signerLabel={`${supervisorName || "Lehrkraft"} (Lehrkraft)`}
         onConfirm={submit}
         submitting={submitting}
       />
     </>
   );
+}
+
+function fmtHm(mins: number) {
+  return `${Math.floor(mins / 60)}h${mins % 60 ? ` ${mins % 60}m` : ""}`;
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

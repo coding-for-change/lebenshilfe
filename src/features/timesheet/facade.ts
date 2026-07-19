@@ -41,7 +41,7 @@ function assertMonthNotLocked(
 ) {
   if (report) {
     throw new Error(
-      "Der Monat wurde bereits an den Vorgesetzten übergeben und ist gesperrt.",
+      "Der Monat wurde bereits an die Lehrkraft übergeben und ist gesperrt.",
     );
   }
 }

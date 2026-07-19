@@ -25,7 +25,11 @@ export const CreateIndirectPendingRequestSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Ungültiges Datum."),
   startTime: z.string().regex(/^\d{2}:\d{2}$/, "Ungültige Startzeit."),
   endTime: z.string().regex(/^\d{2}:\d{2}$/, "Ungültige Endzeit."),
-  note: z.string().min(3, "Notiz ist Pflicht (mind. 3 Zeichen).").max(2000),
+  note: z
+    .string()
+    .trim()
+    .min(1, "Notiz ist Pflicht (mind. 1 Zeichen).")
+    .max(2000),
   signaturePngBase64: z.string().min(1, "Unterschrift fehlt."),
 });
 

@@ -32,6 +32,7 @@ export default async function UserManagementPage() {
         role: u.role,
         createdAt: u.createdAt.toISOString(),
         twoFactorEnabled: u.twoFactorEnabled,
+        hasTwoFactorRow: u.hasTwoFactorRow,
       }))}
       invitations={pendingInvitations}
       ownerCount={ownerCount}

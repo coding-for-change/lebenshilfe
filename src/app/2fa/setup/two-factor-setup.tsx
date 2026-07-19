@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 
 import { authClient } from "@/lib/auth-client";
+import { prepareTwoFactorSetupAction } from "./actions";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -35,6 +36,17 @@ export function TwoFactorSetup() {
     e.preventDefault();
     setStatus("loading");
     setErrorMsg("");
+
+    // Clear any stale enrollment row from an interrupted setup before enabling,
+    // so better-auth generates a fresh, unverified secret instead of inheriting
+    // the old row's `verified` flag (which makes every code read as invalid).
+    try {
+      await prepareTwoFactorSetupAction();
+    } catch {
+      setErrorMsg("Die Einrichtung konnte nicht vorbereitet werden.");
+      setStatus("error");
+      return;
+    }
 
     const result = await authClient.twoFactor.enable({ password });
     if (result.error || !result.data) {

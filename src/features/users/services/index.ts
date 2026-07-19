@@ -26,7 +26,7 @@ export async function getAllSchoolAssistants() {
 }
 
 export async function listAdminUsers() {
-  return prisma.user.findMany({
+  const users = await prisma.user.findMany({
     where: { role: { in: [Role.ADMIN, Role.OWNER] } },
     orderBy: [{ role: "asc" }, { createdAt: "asc" }],
     select: {
@@ -36,8 +36,17 @@ export async function listAdminUsers() {
       role: true,
       createdAt: true,
       twoFactorEnabled: true,
+      // Surface whether a two_factor row exists at all — a stale/partially
+      // enrolled row can linger with twoFactorEnabled=false and block a fresh
+      // setup (better-auth's enable() inherits its `verified` flag), so admins
+      // need to be able to reset it even when 2FA reads as disabled.
+      _count: { select: { twoFactors: true } },
     },
   });
+  return users.map(({ _count, ...user }) => ({
+    ...user,
+    hasTwoFactorRow: _count.twoFactors > 0,
+  }));
 }
 
 export async function countOwners() {
@@ -64,6 +73,21 @@ export async function resetUserTwoFactor(id: string) {
     await tx.user.update({ where: { id }, data: { twoFactorEnabled: false } });
     return user;
   });
+}
+
+// Drops any leftover two_factor row for a user who has NOT completed 2FA setup
+// (twoFactorEnabled=false). An interrupted enrollment leaves a stale row behind;
+// better-auth's enable() then inherits that row's `verified` flag onto the fresh
+// secret, so every code the user enters reads as invalid. Clearing it first lets
+// a new setup start clean. Deliberately a no-op when 2FA is actually enabled, so
+// it can never wipe a working enrollment.
+export async function clearUnverifiedTwoFactor(id: string) {
+  const user = await prisma.user.findUnique({
+    where: { id },
+    select: { twoFactorEnabled: true },
+  });
+  if (!user || user.twoFactorEnabled) return;
+  await prisma.twoFactor.deleteMany({ where: { userId: id } });
 }
 
 // Lifts a temporary 2FA lockout (better-auth's accountLockout) without deleting

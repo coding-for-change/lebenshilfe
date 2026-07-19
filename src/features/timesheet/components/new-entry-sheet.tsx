@@ -232,7 +232,7 @@ export function NewEntrySheet({
     // INDIRECT
     return (
       indirectChildName.trim().length >= 2 &&
-      note.trim().length >= 3 &&
+      note.trim().length >= 1 &&
       Boolean(duration)
     );
   }, [

@@ -76,11 +76,11 @@ export const CreateEventSchema = z
           path: ["childIds"],
           message: "Für eine indirekte Leistung genau ein Kind auswählen.",
         });
-      if (!val.note || val.note.trim().length < 3)
+      if (!val.note || val.note.trim().length < 1)
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["note"],
-          message: "Notiz ist Pflicht (mind. 3 Zeichen).",
+          message: "Notiz ist Pflicht (mind. 1 Zeichen).",
         });
       requireTimes();
     }
@@ -145,7 +145,11 @@ export const CreateIndirectByNameSchema = z
     date: dateStringSchema,
     startTime: timeStringSchema,
     endTime: timeStringSchema,
-    note: z.string().min(3, "Notiz ist Pflicht (mind. 3 Zeichen).").max(2000),
+    note: z
+      .string()
+      .trim()
+      .min(1, "Notiz ist Pflicht (mind. 1 Zeichen).")
+      .max(2000),
     signaturePngBase64: signatureSchema,
   })
   .refine((v) => v.endTime > v.startTime, {

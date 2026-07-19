@@ -55,6 +55,7 @@ jobs:
           echo "::add-mask::$(jq -r '.S3_ACCESS_KEY_ID // empty' decrypted.json)"
           echo "::add-mask::$(jq -r '.S3_SECRET_ACCESS_KEY // empty' decrypted.json)"
           echo "::add-mask::$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY // empty' decrypted.json)"
+          echo "::add-mask::$(jq -r '.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY // empty' decrypted.json)"
       # 2. Build Docker image
       - name: Build Docker image
         run: |
@@ -62,6 +63,7 @@ jobs:
             -t registry.infra.codingforchange.com/lebenshilfe:${{ github.sha }} \
             -t registry.infra.codingforchange.com/lebenshilfe:latest \
             --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY // empty' decrypted.json)" \
+            --build-arg NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="$(jq -r '.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY // empty' decrypted.json)" \
             .
 
       # 3. Push to private registry
@@ -104,6 +106,7 @@ jobs:
             "IMAGE_TAG=${{ github.sha }}" \
             "DATABASE_URL=$(jq -r '.DATABASE_URL // empty' decrypted.json)" \
             "BETTER_AUTH_SECRET=$(jq -r '.BETTER_AUTH_SECRET // empty' decrypted.json)" \
+            "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=$(jq -r '.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY // empty' decrypted.json)" \
             "RESEND_API_KEY=$(jq -r '.RESEND_API_KEY // empty' decrypted.json)" \
             "S3_ENDPOINT=$(jq -r '.S3_ENDPOINT // empty' decrypted.json)" \
             "S3_REGION=$(jq -r '.S3_REGION // empty' decrypted.json)" \

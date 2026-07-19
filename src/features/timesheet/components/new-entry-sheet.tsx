@@ -108,6 +108,9 @@ export function NewEntrySheet({
   // Last value we auto-filled into the indirect name field, so a re-fill never
   // overwrites a name the user typed themselves.
   const indirectAutoFilledRef = useRef("");
+  // The day/child context we last auto-filled the Vertretung fields for, so the
+  // fill happens once per context and never fights the SB's own edits.
+  const vertretungFilledKeyRef = useRef<string | null>(null);
 
   // Child IDs that already have a work Event for this date — used to hide
   // Vertretungen the SB has already submitted an Eintrag for. Filtering by
@@ -185,6 +188,7 @@ export function NewEntrySheet({
       setVertretungQuarter(null);
       pickedTimesRef.current = false;
       indirectAutoFilledRef.current = "";
+      vertretungFilledKeyRef.current = null;
     }
     // Start/End are owned by the Stundenplan effect below, not reset here.
   }, [open, defaultDate]);
@@ -219,6 +223,32 @@ export function NewEntrySheet({
       return suggestion;
     });
   }, [open, type, workVariant, dayAssignedChildren]);
+
+  // When the admin (or a prior submission) has set up exactly one Vertretung for
+  // the day, pre-fill its name, times and ±15 flags so the SB usually only has
+  // to confirm — mirroring the indirect prefill and the Vertretung quick-picks.
+  // Filling once per (date, child) context means we never fight an edit the SB
+  // makes afterwards, and `pickedTimesRef` keeps the debounce lookup from
+  // clobbering the exact block times.
+  useEffect(() => {
+    if (!open) return;
+    if (type !== EventType.WORK || workVariant !== "VERTRETUNG") return;
+    if (availableVertretungen.length !== 1) return;
+    const v = availableVertretungen[0];
+    const block = v.timeBlocks[0];
+    if (!block) return;
+    const key = `${date}·${v.childId}`;
+    if (vertretungFilledKeyRef.current === key) return;
+    vertretungFilledKeyRef.current = key;
+    pickedTimesRef.current = true;
+    setVertretungChildName(v.childName);
+    setStartTime(block.startTime);
+    setEndTime(block.endTime);
+    setVertretungQuarter({
+      before: v.vorviertelstunde,
+      after: v.nachviertelstunde,
+    });
+  }, [open, type, workVariant, availableVertretungen, date]);
 
   const duration = useMemo(() => {
     if (!startTime || !endTime) return null;

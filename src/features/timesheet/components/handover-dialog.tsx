@@ -31,7 +31,12 @@ type Props = {
   year: number;
   month: number;
   events: Array<
-    Pick<Event, "id" | "date" | "type" | "startTime" | "endTime" | "childId">
+    Pick<
+      Event,
+      "id" | "date" | "type" | "startTime" | "endTime" | "childId"
+    > & {
+      child: { firstName: string; lastName: string } | null;
+    }
   >;
   /** Days this user steps in as substitute — used to flag Vertretung entries. */
   substituteOn?: VertretungDay[];
@@ -231,9 +236,14 @@ export function HandoverDialog({
                               {workEvents.map((e) => (
                                 <span
                                   key={e.id}
-                                  className="flex items-center gap-2 font-mono tabular-nums"
+                                  className="flex flex-wrap items-center justify-end gap-x-2 gap-y-0.5 text-right"
                                 >
-                                  <span className="text-muted-foreground">
+                                  {e.child && (
+                                    <span className="font-medium">
+                                      {e.child.firstName} {e.child.lastName}
+                                    </span>
+                                  )}
+                                  <span className="font-mono tabular-nums text-muted-foreground">
                                     {e.startTime}–{e.endTime}
                                   </span>
                                   {e.type === "INDIRECT" ? (

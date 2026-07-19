@@ -28,6 +28,7 @@ export type AdminUserRow = {
   role: Role;
   createdAt: string; // ISO
   twoFactorEnabled: boolean;
+  hasTwoFactorRow: boolean;
 };
 
 export type AdminInvitationRow = {

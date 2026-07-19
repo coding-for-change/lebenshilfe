@@ -9,6 +9,7 @@ import {
   countOwners,
   updateUserRole,
   resetUserTwoFactor,
+  clearUnverifiedTwoFactor,
   unlockUserTwoFactor,
 } from "./services";
 import { Role } from "@/generated/prisma";
@@ -69,6 +70,12 @@ export const UserFacade = {
 
   async resetTwoFactor(userId: string) {
     return resetUserTwoFactor(userId);
+  },
+
+  // Self-service cleanup before a fresh 2FA enrollment: removes a stale row left
+  // by an interrupted setup so better-auth's enable() starts from a clean slate.
+  async clearUnverifiedTwoFactor(userId: string) {
+    return clearUnverifiedTwoFactor(userId);
   },
 
   async unlockTwoFactor(userId: string) {

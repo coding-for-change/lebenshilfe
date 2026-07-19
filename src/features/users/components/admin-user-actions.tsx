@@ -39,6 +39,7 @@ type Props = {
     email: string;
     role: Role;
     twoFactorEnabled: boolean;
+    hasTwoFactorRow: boolean;
   };
   currentUser: { id: string; role: Role };
   ownerCount: number;
@@ -57,9 +58,13 @@ export function AdminUserActions({ user, currentUser, ownerCount }: Props) {
   const showPromote =
     canPromoteToOwner(currentUser.role) && user.role === Role.ADMIN && !isSelf;
   const showRemove = canRemoveTarget(currentUser.role, user.role) && !isSelf;
+  // Show reset when 2FA is enabled OR a two_factor row merely exists: a stale
+  // row (e.g. an interrupted enrollment) can linger with twoFactorEnabled=false
+  // and blocks the user from setting up 2FA again ("Der Code ist ungültig"),
+  // so an admin must be able to clear it in that state too.
   const showResetTwoFactor =
     canResetTwoFactor(currentUser.role, user.role) &&
-    user.twoFactorEnabled &&
+    (user.twoFactorEnabled || user.hasTwoFactorRow) &&
     !isSelf;
   const showUnlockTwoFactor =
     canUnlockTwoFactor(currentUser.role, user.role) &&

@@ -132,10 +132,10 @@ export function TabMonat({
       >
         <ShieldCheck className="size-5" />
         {locked
-          ? "Bereits an Vorgesetzten übergeben"
+          ? "Bereits an Lehrkraft übergeben"
           : !monthCompleted
             ? "Monat noch nicht abgeschlossen"
-            : "An Vorgesetzten übergeben"}
+            : "An Lehrkraft übergeben"}
       </Button>
 
       <HandoverDialog

@@ -145,7 +145,7 @@ export type AbsenceInput = z.infer<typeof AbsenceSchema>;
 
 export const VertretungSchema = z.object({
   childId: z.string().min(1),
-  substituteUserId: z.string().min(1),
+  substituteProfileId: z.string().min(1),
   date: dateString,
   // startTime / endTime are NOT provided by the caller — they are copied
   // directly from the ChildAssignment rows for that child+weekday.
@@ -154,7 +154,7 @@ export type VertretungInput = z.infer<typeof VertretungSchema>;
 
 export const UpdateVertretungSchema = z.object({
   // Only the substitute can be changed; times always mirror the Zuweisung.
-  substituteUserId: z.string().min(1),
+  substituteProfileId: z.string().min(1),
 });
 export type UpdateVertretungInput = z.infer<typeof UpdateVertretungSchema>;
 

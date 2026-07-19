@@ -137,11 +137,13 @@ export async function findExistingVertretungForSubstitute(args: {
   date: Date;
   substituteUserId: string;
 }) {
+  // ChildVertretung is keyed by SchoolAssistantProfile; the caller passes the
+  // logged-in Schulbegleiter's User id, which we reach via the profile relation.
   return prisma.childVertretung.findFirst({
     where: {
       childId: args.childId,
       date: args.date,
-      substituteUserId: args.substituteUserId,
+      substituteProfile: { userId: args.substituteUserId },
     },
     select: { id: true },
   });
@@ -160,15 +162,23 @@ export async function insertChildVertretungBlocks(args: {
   date: Date;
   blocks: { startTime: string; endTime: string }[];
 }) {
-  return prisma.childVertretung.createMany({
-    data: args.blocks.map((b) => ({
-      childId: args.childId,
-      substituteUserId: args.substituteUserId,
-      date: args.date,
-      startTime: b.startTime,
-      endTime: b.endTime,
-    })),
-  });
+  // ChildVertretung is keyed by SchoolAssistantProfile. The submitter is a
+  // logged-in Schulbegleiter (a real User), so connect to their profile via the
+  // unique userId. createMany cannot use a relation connect, so create the
+  // blocks individually within one transaction.
+  return prisma.$transaction(
+    args.blocks.map((b) =>
+      prisma.childVertretung.create({
+        data: {
+          child: { connect: { id: args.childId } },
+          substituteProfile: { connect: { userId: args.substituteUserId } },
+          date: args.date,
+          startTime: b.startTime,
+          endTime: b.endTime,
+        },
+      }),
+    ),
+  );
 }
 
 export async function deleteChildVertretungForSubstitute(args: {
@@ -179,7 +189,7 @@ export async function deleteChildVertretungForSubstitute(args: {
   return prisma.childVertretung.deleteMany({
     where: {
       childId: args.childId,
-      substituteUserId: args.substituteUserId,
+      substituteProfile: { userId: args.substituteUserId },
       date: args.date,
     },
   });

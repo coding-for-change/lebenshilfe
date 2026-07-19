@@ -242,17 +242,19 @@ function VertretungQuickAction({
   schoolAssistantOptions: SchoolAssistantOption[];
 }) {
   const [open, setOpen] = useState(false);
-  const [substituteUserId, setSubstituteUserId] = useState<string | null>(null);
+  const [substituteProfileId, setSubstituteProfileId] = useState<string | null>(
+    null,
+  );
   const [pending, startTransition] = useTransition();
 
   const handleSave = () => {
-    if (!substituteUserId) return;
+    if (!substituteProfileId) return;
     startTransition(async () => {
       try {
-        await createVertretungAction({ childId, substituteUserId, date });
+        await createVertretungAction({ childId, substituteProfileId, date });
         toast.success("Vertretung eingetragen.");
         setOpen(false);
-        setSubstituteUserId(null);
+        setSubstituteProfileId(null);
       } catch (err) {
         toast.error(
           err instanceof Error ? err.message : "Speichern fehlgeschlagen.",
@@ -266,7 +268,7 @@ function VertretungQuickAction({
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (!next) setSubstituteUserId(null);
+        if (!next) setSubstituteProfileId(null);
       }}
     >
       <PopoverTrigger asChild>
@@ -287,8 +289,8 @@ function VertretungQuickAction({
             <Label className="text-xs text-muted-foreground">Vertreter</Label>
             <SchoolAssistantCombobox
               options={schoolAssistantOptions}
-              value={substituteUserId}
-              onChange={setSubstituteUserId}
+              value={substituteProfileId}
+              onChange={setSubstituteProfileId}
               placeholder="Wer vertritt?"
             />
           </div>
@@ -300,7 +302,7 @@ function VertretungQuickAction({
               type="button"
               size="sm"
               onClick={handleSave}
-              disabled={!substituteUserId || pending}
+              disabled={!substituteProfileId || pending}
             >
               {pending ? "Speichert…" : "Anlegen"}
             </Button>

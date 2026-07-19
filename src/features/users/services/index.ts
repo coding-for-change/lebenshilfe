@@ -66,6 +66,16 @@ export async function resetUserTwoFactor(id: string) {
   });
 }
 
+// Lifts a temporary 2FA lockout (better-auth's accountLockout) without deleting
+// the enrollment: resets the failed-attempt counter and clears lockedUntil, so
+// the user can enter a valid code again immediately instead of waiting it out.
+export async function unlockUserTwoFactor(id: string) {
+  return prisma.twoFactor.updateMany({
+    where: { userId: id },
+    data: { failedVerificationCount: 0, lockedUntil: null },
+  });
+}
+
 // Atomically delete a user, refusing to remove the final OWNER.
 export async function deleteUserWithLastOwnerGuard(id: string) {
   return prisma.$transaction(async (tx) => {

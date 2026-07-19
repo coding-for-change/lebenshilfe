@@ -9,6 +9,7 @@ import {
   countOwners,
   updateUserRole,
   resetUserTwoFactor,
+  unlockUserTwoFactor,
 } from "./services";
 import { Role } from "@/generated/prisma";
 
@@ -68,5 +69,9 @@ export const UserFacade = {
 
   async resetTwoFactor(userId: string) {
     return resetUserTwoFactor(userId);
+  },
+
+  async unlockTwoFactor(userId: string) {
+    return unlockUserTwoFactor(userId);
   },
 };

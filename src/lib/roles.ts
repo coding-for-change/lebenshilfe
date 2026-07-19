@@ -36,6 +36,13 @@ export function canResetTwoFactor(actor: RoleLike, target: RoleLike): boolean {
   return isAdmin(actor);
 }
 
+// Lifting a temporary 2FA lockout is less drastic than a reset (the enrollment
+// stays), but it follows the same authority rule: only an owner may unlock an owner.
+export function canUnlockTwoFactor(actor: RoleLike, target: RoleLike): boolean {
+  if (target === Role.OWNER) return isOwner(actor);
+  return isAdmin(actor);
+}
+
 export function canPromoteToOwner(actor: RoleLike): boolean {
   return isOwner(actor);
 }

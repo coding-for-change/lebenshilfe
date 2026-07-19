@@ -45,6 +45,7 @@ export default async function LandingPage() {
     vertretungenAsSubstitute,
     allChildren,
     pendingVertretungRequests,
+    pendingIndirectRequests,
   ] = await Promise.all([
     TimesheetFacade.getEventsInRange(user.id, rangeStart, rangeEnd),
     TimesheetFacade.getSchedulesForChildren(childIds),
@@ -63,6 +64,7 @@ export default async function LandingPage() {
     ),
     ChildrenFacade.list(),
     VertretungRequestsFacade.listForUser(user.id, rangeStart, rangeEnd),
+    VertretungRequestsFacade.listIndirectForUser(user.id, rangeStart, rangeEnd),
   ]);
 
   // Resolve each assigned child's school holiday-plan ranges so the day view can
@@ -132,6 +134,14 @@ export default async function LandingPage() {
         startTime: r.startTime,
         endTime: r.endTime,
         status: r.status as "PENDING" | "RESOLVED",
+      }))}
+      pendingIndirectRequests={pendingIndirectRequests.map((r) => ({
+        id: r.id,
+        date: r.date.toISOString().slice(0, 10),
+        childNameText: r.childNameText,
+        startTime: r.startTime,
+        endTime: r.endTime,
+        note: r.note,
       }))}
     />
   );

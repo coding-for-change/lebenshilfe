@@ -200,6 +200,9 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
   const vertretungKeys = useMemo(() => {
     const keys = new Set<string>();
     for (const v of child.vertretungen) {
+      // Skip invitation-pending substitutes (no linked User) — they cannot have
+      // signed WORK Events to correlate with.
+      if (!v.substituteUserId) continue;
       keys.add(`${v.substituteUserId}|${v.date}`);
     }
     return keys;

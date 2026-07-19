@@ -85,6 +85,17 @@ export type PendingVertretungRequestItem = {
   status: "PENDING" | "RESOLVED";
 };
 
+// A free-text INDIRECT entry whose name did not match a child: it lives only as
+// a pending request (no Event yet) until an admin assigns the child.
+export type PendingIndirectRequestItem = {
+  id: string;
+  date: string; // YYYY-MM-DD
+  childNameText: string;
+  startTime: string;
+  endTime: string;
+  note: string | null;
+};
+
 type Props = {
   currentUser: { id: string; name: string; email: string };
   assignedChildren: ChildOption[];
@@ -98,6 +109,8 @@ type Props = {
   substituteOn?: VertretungDay[];
   /** Own pending Vertretung requests (submitted but not yet resolved by admin). */
   pendingVertretungRequests?: PendingVertretungRequestItem[];
+  /** Own pending Indirekt requests (name unmatched, awaiting admin assignment). */
+  pendingIndirectRequests?: PendingIndirectRequestItem[];
   /** When true, the SB belongs to a pool: simplified entry form, no child selection. */
   inPool?: boolean;
 };
@@ -133,6 +146,7 @@ export function SchoolAssistantApp({
   childSchoolHolidays,
   substituteOn = [],
   pendingVertretungRequests = [],
+  pendingIndirectRequests = [],
   inPool = false,
 }: Props) {
   const today = useMemo(() => startOfDayUtc(new Date()), []);
@@ -200,6 +214,7 @@ export function SchoolAssistantApp({
             assignmentsByWeekday={assignmentsByWeekday}
             substituteOn={substituteOn}
             pendingVertretungRequests={pendingVertretungRequests}
+            pendingIndirectRequests={pendingIndirectRequests}
           />
         );
       case "woche":

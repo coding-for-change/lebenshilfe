@@ -28,6 +28,7 @@ import {
   insertChildVertretungBlocks,
   insertIndirectWorkEvent,
   insertVertretungWorkEvent,
+  listIndirectRequestsForUser,
   listPendingRequests,
   listRequestsForUser,
   rejectRequest,
@@ -225,6 +226,10 @@ export const VertretungRequestsFacade = {
 
   async listForUser(userId: string, from: Date, to: Date) {
     return listRequestsForUser(userId, from, to);
+  },
+
+  async listIndirectForUser(userId: string, from: Date, to: Date) {
+    return listIndirectRequestsForUser(userId, from, to);
   },
 
   async deleteOwn(id: string, userId: string) {

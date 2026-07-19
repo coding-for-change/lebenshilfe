@@ -8,6 +8,7 @@ import {
   Palmtree,
   Plus,
   Stethoscope,
+  TriangleAlert,
   UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ import type { ChildOption } from "./children-filter";
 import type {
   ChildAbsenceItem,
   ChildSchoolHolidayItem,
+  PendingIndirectRequestItem,
   PendingVertretungRequestItem,
   VertretungDay,
 } from "./timesheet-shell";
@@ -60,9 +62,28 @@ type Props = {
   assignmentsByWeekday: AssignmentsByWeekday;
   substituteOn?: VertretungDay[];
   pendingVertretungRequests?: PendingVertretungRequestItem[];
+  pendingIndirectRequests?: PendingIndirectRequestItem[];
 };
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+// Shown on free-text entries whose name has not yet been matched to a child.
+function UnassignedNotice() {
+  return (
+    <div className="mt-3 flex gap-2 rounded-md border border-amber-300 bg-amber-100/60 p-2.5 text-xs text-amber-900">
+      <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+      <div>
+        <p className="font-medium">Noch keinem Kind zugeordnet</p>
+        <p className="mt-0.5">
+          Der eingegebene Name konnte keinem Kind zugeordnet werden. Bitte
+          erstellen Sie den Eintrag mit dem korrekten Namen neu oder warten Sie,
+          bis ein Admin ihn zuordnet. Bis dahin wird er nicht im Monatsabschluss
+          berücksichtigt.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export function TabDay({
   currentUserId,
@@ -79,6 +100,7 @@ export function TabDay({
   assignmentsByWeekday,
   substituteOn = [],
   pendingVertretungRequests = [],
+  pendingIndirectRequests = [],
 }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -216,6 +238,11 @@ export function TabDay({
   const dayPendingRequests = useMemo(
     () => pendingVertretungRequests.filter((r) => r.date === selectedDateIso),
     [pendingVertretungRequests, selectedDateIso],
+  );
+
+  const dayPendingIndirectRequests = useMemo(
+    () => pendingIndirectRequests.filter((r) => r.date === selectedDateIso),
+    [pendingIndirectRequests, selectedDateIso],
   );
 
   const handleDeleteRequest = async (id: string) => {
@@ -571,8 +598,42 @@ export function TabDay({
                 Löschen
               </Button>
             </div>
+            <UnassignedNotice />
           </Card>
         ))}
+
+      {dayPendingIndirectRequests.map((req) => (
+        <Card
+          key={req.id}
+          className="border-amber-200 bg-amber-500/5 p-4"
+        >
+          <div className="flex items-start gap-3">
+            <div className="grid place-items-center size-10 shrink-0 rounded-full bg-amber-500/15 text-amber-700">
+              <Clock className="size-5" />
+            </div>
+            <div className="flex-1 space-y-0.5">
+              <p className="font-semibold text-amber-900">Indirekte Leistung</p>
+              <p className="text-sm text-amber-900/80">{req.childNameText}</p>
+              <p className="font-mono text-xs text-amber-700">
+                {req.startTime}–{req.endTime}
+              </p>
+              {req.note && (
+                <p className="text-sm text-amber-900/70">{req.note}</p>
+              )}
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => handleDeleteRequest(req.id)}
+              disabled={busyId === req.id}
+              className="text-muted-foreground"
+            >
+              Löschen
+            </Button>
+          </div>
+          <UnassignedNotice />
+        </Card>
+      ))}
 
       {sickEvent && (
         <Card className="border-rose-200 bg-rose-500/10 p-4">
@@ -715,16 +776,19 @@ export function TabDay({
         </div>
       )}
 
-      {dayEvents.length === 0 && (
-        <Card className="flex flex-col items-center gap-3 border-dashed py-10 text-center">
-          <p className="text-sm text-muted-foreground">Keine Einträge</p>
-          {!locked && (
-            <Button onClick={onRequestNewEntry}>
-              <Plus className="size-4" /> Eintrag hinzufügen
-            </Button>
-          )}
-        </Card>
-      )}
+      {dayEvents.length === 0 &&
+        dayVertretungenGrouped.length === 0 &&
+        !dayPendingRequests.some((r) => r.status === "PENDING") &&
+        dayPendingIndirectRequests.length === 0 && (
+          <Card className="flex flex-col items-center gap-3 border-dashed py-10 text-center">
+            <p className="text-sm text-muted-foreground">Keine Einträge</p>
+            {!locked && (
+              <Button onClick={onRequestNewEntry}>
+                <Plus className="size-4" /> Eintrag hinzufügen
+              </Button>
+            )}
+          </Card>
+        )}
 
       {!locked && (
         <Button

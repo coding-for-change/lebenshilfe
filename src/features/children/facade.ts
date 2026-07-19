@@ -278,7 +278,7 @@ export const ChildrenFacade = {
 
     await createVertretungBlocks({
       childId: parsed.childId,
-      substituteUserId: parsed.substituteUserId,
+      substituteProfileId: parsed.substituteProfileId,
       date,
       timeBlocks,
     });
@@ -293,7 +293,7 @@ export const ChildrenFacade = {
     await updateVertretungSubstituteForDate(
       childId,
       new Date(`${date}T00:00:00.000Z`),
-      parsed.substituteUserId,
+      parsed.substituteProfileId,
     );
   },
 

@@ -134,8 +134,8 @@ export function HandoverDialog({
             <div className="space-y-4">
               <div className="rounded-xl border border-border bg-muted/40 p-4">
                 <p className="text-sm">
-                  Bitte geben Sie Ihr Telefon nun an Ihre/n Vorgesetzte/n, damit
-                  diese/r den Monat prüfen und unterschreiben kann.
+                  Bitte geben Sie Ihr Telefon nun an Ihre Lehrkraft, damit diese
+                  den Monat prüfen und unterschreiben kann.
                 </p>
               </div>
 
@@ -155,7 +155,7 @@ export function HandoverDialog({
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="supervisor">Name Vorgesetzte/r</Label>
+                <Label htmlFor="supervisor">Name Lehrkraft</Label>
                 <Input
                   id="supervisor"
                   value={supervisorName}
@@ -282,7 +282,7 @@ export function HandoverDialog({
         onOpenChange={setSigOpen}
         title={`${MONTHS_LONG[month - 1]} ${year}`}
         subtitle={`${totals.count} Einträge · ${totals.hours} Arbeit · ${totals.sickDays} Krankentage`}
-        signerLabel={`${supervisorName || "Vorgesetzte/r"} (Vorgesetzte/r)`}
+        signerLabel={`${supervisorName || "Lehrkraft"} (Lehrkraft)`}
         onConfirm={submit}
         submitting={submitting}
       />

@@ -34,16 +34,23 @@ export async function findAssignmentsByUserIds(userIds: string[]) {
 }
 
 export async function findVertretungenInRange(from: Date, to: Date) {
-  return prisma.childVertretung.findMany({
+  const rows = await prisma.childVertretung.findMany({
     where: { date: { gte: from, lte: to } },
     select: {
       childId: true,
       date: true,
-      substituteUserId: true,
       child: { select: { firstName: true, lastName: true } },
-      substituteUser: { select: { name: true } },
+      substituteProfile: { select: { userId: true, name: true } },
     },
   });
+  // Reach the substitute's account through the profile relation. A pending
+  // profile has no linked User (userId null); it can never be "also sick" (no
+  // User → no sick Event), so the empty id simply never matches a sick key.
+  return rows.map(({ substituteProfile, ...rest }) => ({
+    ...rest,
+    substituteUserId: substituteProfile.userId ?? "",
+    substituteUser: { name: substituteProfile.name },
+  }));
 }
 
 export async function findChildAbsencesInRange(from: Date, to: Date) {

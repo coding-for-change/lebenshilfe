@@ -55,7 +55,6 @@ model User {
   events                     Event[]
   monthlyReports             MonthlyReport[]
   profile                    SchoolAssistantProfile?
-  vertretungenAsSubstitute   ChildVertretung[]          @relation("SubstituteVertretung")
   createdChildAbsences       ChildAbsence[]             @relation("ChildAbsenceCreator")
   pendingVertretungRequests  PendingVertretungRequest[] @relation("PendingVertretungSubstitute")
   resolvedVertretungRequests PendingVertretungRequest[] @relation("PendingVertretungResolver")
@@ -261,20 +260,20 @@ model ChildAssignment {
 }
 
 model ChildVertretung {
-  id               String   @id @default(cuid())
-  childId          String
-  substituteUserId String
-  date             DateTime @db.Date
-  startTime        String
-  endTime          String
-  createdAt        DateTime @default(now())
-  child            Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
-  substituteUser   User     @relation("SubstituteVertretung", fields: [substituteUserId], references: [id], onDelete: Cascade)
+  id                  String                 @id @default(cuid())
+  childId             String
+  substituteProfileId String
+  date                DateTime               @db.Date
+  startTime           String
+  endTime             String
+  createdAt           DateTime               @default(now())
+  child               Child                  @relation(fields: [childId], references: [id], onDelete: Cascade)
+  substituteProfile   SchoolAssistantProfile @relation(fields: [substituteProfileId], references: [id], onDelete: Cascade)
 
   /// Multiple rows per (childId, date) are intentional — one per time block,
   /// mirroring how ChildAssignment models multiple blocks per (childId, weekday).
   @@index([childId, date])
-  @@index([substituteUserId, date])
+  @@index([substituteProfileId, date])
   @@map("child_vertretung")
 }
 
@@ -401,6 +400,7 @@ model SchoolAssistantProfile {
   pool              Pool?                @relation(fields: [poolId], references: [id], onDelete: SetNull)
   attendances       WorkshopAttendance[]
   assignments       ChildAssignment[]
+  substituteVertretungen ChildVertretung[]
 
   @@index([status])
   @@index([poolId])

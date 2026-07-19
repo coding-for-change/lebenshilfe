@@ -26,7 +26,7 @@ export type SerializedAbsence = {
 
 export type SerializedVertretung = {
   id: string;
-  substituteUserId: string;
+  substituteProfileId: string;
   substituteUserName: string;
   date: string; // YYYY-MM-DD
   startTime: string;
@@ -153,8 +153,8 @@ export function serializeChild(c: ChildWithRelations): SerializedChild {
     })),
     vertretungen: c.vertretungen.map((v) => ({
       id: v.id,
-      substituteUserId: v.substituteUserId,
-      substituteUserName: v.substituteUser.name,
+      substituteProfileId: v.substituteProfileId,
+      substituteUserName: v.substituteProfile.name,
       date: formatIsoDateUtc(v.date),
       startTime: v.startTime,
       endTime: v.endTime,

@@ -1,10 +1,26 @@
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "./auth";
 import { isAdmin, isOwner } from "./roles";
 
 export async function getSession() {
   return auth.api.getSession({ headers: await headers() });
+}
+
+// True while a 2FA challenge is in flight. When a user with 2FA enabled signs in
+// with the correct password, better-auth deletes the full session cookie and sets
+// a short-lived signed `two_factor` cookie instead (see the twoFactor plugin), so
+// `getSession()` returns null even though the user is mid-login. The verify page
+// (/2fa) uses this to tell a legitimate pending challenge apart from someone who
+// is simply not signed in. We derive the exact cookie name (incl. the __Secure-
+// prefix in production) from better-auth's own cookie helper rather than
+// hardcoding it. Mere presence is enough for a UI-level redirect; the verify
+// endpoint still validates the signed cookie and its DB verification value.
+export async function hasPendingTwoFactor() {
+  const ctx = await auth.$context;
+  const { name } = ctx.createAuthCookie("two_factor");
+  const cookieStore = await cookies();
+  return cookieStore.has(name);
 }
 
 // Admin/owner accounts guard special-category data, so a second factor is

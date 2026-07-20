@@ -133,7 +133,7 @@ export function DayQuickAddSection({
         <VertretungChip
           childId={childId}
           date={formatIsoDateLocal(date)}
-          substituteUserId={vertretungen[0].substituteUserId}
+          substituteProfileId={vertretungen[0].substituteProfileId}
           substituteUserName={vertretungen[0].substituteUserName}
           timeBlocks={vertretungen.map((v) => ({
             startTime: v.startTime,
@@ -300,7 +300,7 @@ function DayChip({
 function VertretungChip({
   childId,
   date,
-  substituteUserId: initialSubstituteUserId,
+  substituteProfileId: initialSubstituteProfileId,
   substituteUserName,
   timeBlocks,
   schoolAssistantOptions,
@@ -309,7 +309,7 @@ function VertretungChip({
 }: {
   childId: string;
   date: string;
-  substituteUserId: string;
+  substituteProfileId: string;
   substituteUserName: string;
   timeBlocks: { startTime: string; endTime: string }[];
   schoolAssistantOptions: SchoolAssistantOption[];
@@ -317,24 +317,24 @@ function VertretungChip({
   onChanged: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [substituteUserId, setSubstituteUserId] = useState(
-    initialSubstituteUserId,
+  const [substituteProfileId, setSubstituteProfileId] = useState(
+    initialSubstituteProfileId,
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
-      setSubstituteUserId(initialSubstituteUserId);
+      setSubstituteProfileId(initialSubstituteProfileId);
       setError(null);
     }
-  }, [open, initialSubstituteUserId]);
+  }, [open, initialSubstituteProfileId]);
 
   async function handleSave() {
     setBusy(true);
     setError(null);
     try {
-      await updateVertretungAction(childId, date, { substituteUserId });
+      await updateVertretungAction(childId, date, { substituteProfileId });
       toast.success("Vertretung aktualisiert.");
       setOpen(false);
       onChanged();
@@ -395,8 +395,8 @@ function VertretungChip({
             <Label className="text-xs text-muted-foreground">Vertreter</Label>
             <SchoolAssistantCombobox
               options={schoolAssistantOptions}
-              value={substituteUserId}
-              onChange={(id) => setSubstituteUserId(id ?? "")}
+              value={substituteProfileId}
+              onChange={(id) => setSubstituteProfileId(id ?? "")}
               placeholder="Wer vertritt?"
             />
           </div>
@@ -547,14 +547,14 @@ function DayVertretungForm({
           .join(", ")
       : "00:00–23:59";
 
-  const [substituteUserId, setSubstituteUserId] = useState(
+  const [substituteProfileId, setSubstituteProfileId] = useState(
     schoolAssistantOptions[0]?.id ?? "",
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSave() {
-    if (!substituteUserId) {
+    if (!substituteProfileId) {
       setError("Bitte den Vertreter wählen.");
       return;
     }
@@ -563,7 +563,7 @@ function DayVertretungForm({
     try {
       await createVertretungAction({
         childId,
-        substituteUserId,
+        substituteProfileId,
         date: formatIsoDateLocal(date),
       });
       toast.success("Vertretung gespeichert.");
@@ -585,8 +585,8 @@ function DayVertretungForm({
         <Label className="text-xs text-muted-foreground">Vertreter</Label>
         <SchoolAssistantCombobox
           options={schoolAssistantOptions}
-          value={substituteUserId || null}
-          onChange={(id) => setSubstituteUserId(id ?? "")}
+          value={substituteProfileId || null}
+          onChange={(id) => setSubstituteProfileId(id ?? "")}
           placeholder="Wer vertritt?"
         />
       </div>

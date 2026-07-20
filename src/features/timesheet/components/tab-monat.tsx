@@ -17,7 +17,12 @@ type Props = {
   onViewDateChange: (d: Date) => void;
   onSelectDay: (d: Date) => void;
   events: Array<
-    Pick<Event, "id" | "date" | "type" | "startTime" | "endTime" | "childId">
+    Pick<
+      Event,
+      "id" | "date" | "type" | "startTime" | "endTime" | "childId"
+    > & {
+      child: { firstName: string; lastName: string } | null;
+    }
   >;
   lockedMonths: Set<string>;
   childSchoolHolidays?: ChildSchoolHolidayItem[];
@@ -144,6 +149,7 @@ export function TabMonat({
         year={year}
         month={month}
         events={monthEvents}
+        substituteOn={monthSubstituteOn}
       />
     </div>
   );

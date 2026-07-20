@@ -689,10 +689,21 @@ async function assignChildren() {
   }
 }
 
-async function seedVertretungen(usersByEmail: Record<string, string>) {
+async function seedVertretungen() {
   console.log("Seeding Vertretungen (substitute coverage)…");
-  const annaId = usersByEmail["anna.schmidt@lebenshilfe.de"];
-  const claraId = usersByEmail["clara.becker@lebenshilfe.de"];
+  // ChildVertretung is keyed by SchoolAssistantProfile, so resolve profile ids
+  // (mirroring assignChildren) rather than User ids.
+  const profiles = await prisma.schoolAssistantProfile.findMany({
+    where: {
+      email: {
+        in: ["anna.schmidt@lebenshilfe.de", "clara.becker@lebenshilfe.de"],
+      },
+    },
+    select: { id: true, email: true },
+  });
+  const byEmail = Object.fromEntries(profiles.map((p) => [p.email, p.id]));
+  const annaId = byEmail["anna.schmidt@lebenshilfe.de"];
+  const claraId = byEmail["clara.becker@lebenshilfe.de"];
 
   // Illustrative substitute coverage so the Vertretung UI (homepage cards,
   // week calendar, admin views) has data to render. Each record copies the
@@ -701,19 +712,19 @@ async function seedVertretungen(usersByEmail: Record<string, string>) {
   // Vertretung lands in the future.
   const vertretungen: Array<{
     childId: string;
-    substituteUserId: string;
+    substituteProfileId: string;
     date: Date;
   }> = [
     // Anna steps in for Paul (normally Clara's) — populates Anna's homepage.
     {
       childId: "seed-paul-koch",
-      substituteUserId: annaId,
+      substituteProfileId: annaId,
       date: nthWeekdayBefore(4),
     },
     // Clara steps in for Max (normally Anna's).
     {
       childId: "seed-max-huber",
-      substituteUserId: claraId,
+      substituteProfileId: claraId,
       date: nthWeekdayBefore(6),
     },
   ];
@@ -730,7 +741,7 @@ async function seedVertretungen(usersByEmail: Record<string, string>) {
     await prisma.childVertretung.createMany({
       data: timeBlocks.map((b) => ({
         childId: v.childId,
-        substituteUserId: v.substituteUserId,
+        substituteProfileId: v.substituteProfileId,
         date: v.date,
         startTime: b.startTime,
         endTime: b.endTime,
@@ -1030,7 +1041,7 @@ async function main() {
   await seedSchools();
   await seedChildrenAndSchedules();
   await assignChildren();
-  await seedVertretungen(usersByEmail);
+  await seedVertretungen();
   await seedChildAbsences();
   await enrichProfiles();
   await seedEvents(usersByEmail);

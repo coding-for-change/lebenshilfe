@@ -61,9 +61,12 @@ export default async function HandlungsbedarfPage() {
     lastName: c.lastName,
   }));
 
-  const schoolAssistantOptions = schoolAssistants
-    .filter((p) => !!p.userId)
-    .map((p) => ({ id: p.userId as string, name: p.name }));
+  // Vertretung is keyed by SchoolAssistantProfile, so the substitute picker
+  // offers profile ids (every assistant, incl. not-yet-accepted ones).
+  const schoolAssistantOptions = schoolAssistants.map((p) => ({
+    id: p.id,
+    name: p.name,
+  }));
 
   // Narrow the facade's ProblemFlag[] back to each list's expected subset.
   // The facade promises only krankheit kinds in listKrankheitFlags and only

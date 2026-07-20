@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useReducer, useState, useTransition } from "react";
+import { useEffect, useMemo, useReducer, useState, useTransition } from "react";
 import {
   FileDown,
   Loader2,
@@ -193,6 +193,20 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
   });
   const [isPending, startTransition] = useTransition();
   const [exportOpen, setExportOpen] = useState(false);
+
+  // A WORK entry is a Vertretung when this child has a Vertretung block for the
+  // same substitute (the entry's user) on the same day. Vertretung is not a flag
+  // on the Event, so it is derived from the child's serialized Vertretungen.
+  const vertretungKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const v of child.vertretungen) {
+      // Skip invitation-pending substitutes (no linked User) — they cannot have
+      // signed WORK Events to correlate with.
+      if (!v.substituteUserId) continue;
+      keys.add(`${v.substituteUserId}|${v.date}`);
+    }
+    return keys;
+  }, [child.vertretungen]);
 
   // null mid-switch (state still belongs to the previous child) → picker hidden.
   const active = state.childId === child.id ? state.period : null;
@@ -469,6 +483,16 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
                         <span className="text-muted-foreground flex flex-col gap-0.5">
                           <span className="flex items-center gap-2">
                             {r.userName}
+                            {r.type === "INDIRECT" && (
+                              <span className="rounded bg-violet-500/10 px-1 py-0.5 text-[10px] text-violet-600">
+                                Indirekt
+                              </span>
+                            )}
+                            {vertretungKeys.has(`${r.userId}|${r.date}`) && (
+                              <span className="rounded bg-amber-500/15 px-1 py-0.5 text-[10px] text-amber-700">
+                                Vertretung
+                              </span>
+                            )}
                             {r.signed ? (
                               <>
                                 <span className="rounded bg-emerald-500/10 px-1 py-0.5 text-[10px] text-emerald-600">

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 export async function listVertretungenForChild(childId: string) {
   return prisma.childVertretung.findMany({
     where: { childId },
-    include: { substituteUser: true },
+    include: { substituteProfile: true },
     orderBy: { date: "asc" },
   });
 }
@@ -14,7 +14,7 @@ export async function listVertretungenForUserAsSubstitute(
   to: Date,
 ) {
   return prisma.childVertretung.findMany({
-    where: { substituteUserId: userId, date: { gte: from, lt: to } },
+    where: { substituteProfile: { userId }, date: { gte: from, lt: to } },
     include: { child: true },
     orderBy: { date: "asc" },
   });
@@ -22,14 +22,14 @@ export async function listVertretungenForUserAsSubstitute(
 
 export async function createVertretungBlocks(data: {
   childId: string;
-  substituteUserId: string;
+  substituteProfileId: string;
   date: Date;
   timeBlocks: { startTime: string; endTime: string }[];
 }) {
   await prisma.childVertretung.createMany({
     data: data.timeBlocks.map((block) => ({
       childId: data.childId,
-      substituteUserId: data.substituteUserId,
+      substituteProfileId: data.substituteProfileId,
       date: data.date,
       startTime: block.startTime,
       endTime: block.endTime,
@@ -40,11 +40,11 @@ export async function createVertretungBlocks(data: {
 export async function updateVertretungSubstituteForDate(
   childId: string,
   date: Date,
-  substituteUserId: string,
+  substituteProfileId: string,
 ) {
   await prisma.childVertretung.updateMany({
     where: { childId, date },
-    data: { substituteUserId },
+    data: { substituteProfileId },
   });
 }
 
@@ -69,10 +69,10 @@ export async function syncVertretungBlocksForChildWeekday(
 
   const allRows = await prisma.childVertretung.findMany({
     where: { childId },
-    select: { date: true, substituteUserId: true },
+    select: { date: true, substituteProfileId: true },
   });
 
-  const byDate = new Map<string, { date: Date; substituteUserId: string }>();
+  const byDate = new Map<string, { date: Date; substituteProfileId: string }>();
   for (const row of allRows) {
     const wd = (row.date.getUTCDay() + 6) % 7;
     if (wd !== weekday) continue;
@@ -80,7 +80,7 @@ export async function syncVertretungBlocksForChildWeekday(
     if (!byDate.has(key)) {
       byDate.set(key, {
         date: row.date,
-        substituteUserId: row.substituteUserId,
+        substituteProfileId: row.substituteProfileId,
       });
     }
   }
@@ -98,7 +98,7 @@ export async function syncVertretungBlocksForChildWeekday(
     data: entries.flatMap((entry) =>
       schedules.map((s) => ({
         childId,
-        substituteUserId: entry.substituteUserId,
+        substituteProfileId: entry.substituteProfileId,
         date: entry.date,
         startTime: s.startTime,
         endTime: s.endTime,
@@ -108,13 +108,13 @@ export async function syncVertretungBlocksForChildWeekday(
 }
 
 export async function getVertretungCoverage(
-  substituteUserId: string,
+  userId: string,
   childIds: string[],
   date: Date,
 ): Promise<Set<string>> {
   if (childIds.length === 0) return new Set();
   const rows = await prisma.childVertretung.findMany({
-    where: { substituteUserId, childId: { in: childIds }, date },
+    where: { substituteProfile: { userId }, childId: { in: childIds }, date },
     select: { childId: true },
   });
   return new Set(rows.map((r) => r.childId));

@@ -62,8 +62,6 @@ type Props = {
   pendingVertretungRequests?: PendingVertretungRequestItem[];
 };
 
-const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
-
 export function TabDay({
   currentUserId,
   selectedDate,
@@ -284,9 +282,6 @@ export function TabDay({
           totalMinutes % 60 ? ` ${totalMinutes % 60}m` : ""
         }`
       : null;
-
-  const canDelete = (ev: EventWithChild) =>
-    !locked && Date.now() - ev.createdAt.getTime() <= EDIT_WINDOW_MS;
 
   const handleDelete = async (id: string) => {
     setBusyId(id);
@@ -586,7 +581,7 @@ export function TabDay({
                 <p className="text-sm text-rose-900/80">{sickEvent.note}</p>
               )}
             </div>
-            {canDelete(sickEvent) && (
+            {!locked && (
               <Button
                 size="sm"
                 variant="ghost"
@@ -686,7 +681,7 @@ export function TabDay({
                           <Badge variant="outline">Mehrere Kinder</Badge>
                         )}
                     </div>
-                    {canDelete(ev) && (
+                    {!locked && (
                       <Button
                         size="sm"
                         variant="ghost"

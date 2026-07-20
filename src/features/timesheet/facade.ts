@@ -34,8 +34,6 @@ import {
 } from "./services";
 import { parseIsoDate } from "@/lib/dates";
 
-const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
-
 function assertMonthNotLocked(
   report: Awaited<ReturnType<typeof findMonthlyReport>>,
 ) {
@@ -190,11 +188,6 @@ export const TimesheetFacade = {
     if (!event || event.userId !== userId) {
       throw new Error("Eintrag nicht gefunden.");
     }
-    if (Date.now() - event.createdAt.getTime() > EDIT_WINDOW_MS) {
-      throw new Error(
-        "Einträge können nur innerhalb von 24 Stunden bearbeitet werden.",
-      );
-    }
     const report = await findMonthlyReport(
       userId,
       event.date.getUTCFullYear(),
@@ -217,11 +210,6 @@ export const TimesheetFacade = {
     const event = await findEventById(eventId);
     if (!event || event.userId !== userId) {
       throw new Error("Eintrag nicht gefunden.");
-    }
-    if (Date.now() - event.createdAt.getTime() > EDIT_WINDOW_MS) {
-      throw new Error(
-        "Einträge können nur innerhalb von 24 Stunden gelöscht werden.",
-      );
     }
     const report = await findMonthlyReport(
       userId,

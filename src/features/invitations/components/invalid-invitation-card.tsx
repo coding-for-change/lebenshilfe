@@ -38,10 +38,6 @@ const MESSAGES: Record<
   },
 };
 
-// Shown on /onboard when the invitation cannot be used and the visitor is not
-// logged in (logged-in visitors are redirected to their start page instead).
-// "Zurück zur Startseite" points at the root route, which dispatches by session:
-// a logged-out visitor lands on /login, a logged-in one on their dashboard.
 export function InvalidInvitationCard({
   reason,
 }: {

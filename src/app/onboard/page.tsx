@@ -11,11 +11,6 @@ export default async function OnboardPage({
 }: {
   searchParams: Promise<{ token?: string }>;
 }) {
-  // A logged-in visitor has no use for the sign-up flow — the invitation
-  // (whether valid or already accepted) is irrelevant once you have an account.
-  // Send them straight to their start page; the root route dispatches by role
-  // (Schulbegleiter → home, Admin/Owner → /admin). This is the common case
-  // behind "I already accepted my invite but reopened the link".
   const session = await getSession();
   if (session) {
     redirect("/");

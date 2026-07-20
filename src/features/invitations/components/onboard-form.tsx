@@ -52,9 +52,6 @@ export function OnboardForm({
         password,
         name: name.trim(),
       });
-      // better-auth returns errors as a plain { message, code } object (not an
-      // Error), e.g. the haveIBeenPwned "Passwort taucht in Datenlecks auf"
-      // message. Surface that message instead of a generic fallback.
       if (result.error) {
         setStatus("error");
         setErrorMessage(result.error.message || "Fehler beim Registrieren.");
@@ -69,8 +66,6 @@ export function OnboardForm({
         router.refresh();
       }, 2000);
     } catch (err: unknown) {
-      // Reached only on an unexpected throw (e.g. network failure or
-      // consumeUsedToken); better-auth field errors are handled above.
       logger.error(err);
       setStatus("error");
       setErrorMessage(

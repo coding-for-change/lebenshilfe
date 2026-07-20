@@ -37,6 +37,17 @@ export const InvitationFacade = {
     return invite;
   },
 
+  // Non-throwing counterpart of verifyToken: returns a discriminated status so
+  // callers can tell an already-accepted invite apart from an invalid/expired
+  // one (verifyToken collapses all of these into a single thrown error).
+  async getTokenState(token: string) {
+    const invite = await findInvitationByToken(token);
+    if (!invite) return { state: "notfound" as const };
+    if (invite.isUsed) return { state: "used" as const };
+    if (invite.expiresAt < new Date()) return { state: "expired" as const };
+    return { state: "valid" as const, invite };
+  },
+
   async consumeToken(id: string) {
     await markInvitationUsed(id);
   },

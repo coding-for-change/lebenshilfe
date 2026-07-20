@@ -1,103 +1,30 @@
-"use client";
-
-import { useState, use, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { CheckIcon } from "lucide-react";
+import { redirect } from "next/navigation";
 
-import {
-  fetchInviteDetails,
-  consumeUsedToken,
-} from "@/features/invitations/actions";
-import { authClient } from "@/lib/auth-client";
-import { logger } from "@/lib/logger";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { getSession } from "@/lib/auth-guards";
+import { getOnboardingStateUseCase } from "@/use-cases/get-onboarding-state";
+import { OnboardForm } from "@/features/invitations/components/onboard-form";
+import { InvalidInvitationCard } from "@/features/invitations/components/invalid-invitation-card";
 
-export default function OnboardPage({
+export default async function OnboardPage({
   searchParams,
 }: {
   searchParams: Promise<{ token?: string }>;
 }) {
-  const router = useRouter();
-  const params = use(searchParams);
-  const token = params.token;
-
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
-  const [hasPrefilledName, setHasPrefilledName] = useState(false);
-  const [password, setPassword] = useState("");
-  const [status, setStatus] = useState<
-    "idle" | "loading" | "success" | "error" | "verifying"
-  >("verifying");
-  const [errorMessage, setErrorMessage] = useState("");
-
-  useEffect(() => {
-    if (token) {
-      fetchInviteDetails(token)
-        .then(({ email: resEmail, name: resName }) => {
-          setEmail(resEmail);
-          if (resName) {
-            setName(resName);
-            setHasPrefilledName(true);
-          }
-          setStatus("idle");
-        })
-        .catch(() => {
-          setStatus("error");
-          setErrorMessage("Der Link ist ungültig oder abgelaufen.");
-        });
-    } else {
-      setStatus("error");
-      setErrorMessage("Kein Einladungstoken gefunden.");
-    }
-  }, [token]);
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!name.trim()) return;
-    if (password.length < 12) {
-      setStatus("error");
-      setErrorMessage("Das Passwort muss mindestens 12 Zeichen lang sein.");
-      return;
-    }
-
-    setStatus("loading");
-    try {
-      const result = await authClient.signUp.email({
-        email,
-        password,
-        name: name.trim(),
-      });
-      if (result.error) throw result.error;
-
-      await consumeUsedToken(token as string);
-
-      setStatus("success");
-      setTimeout(() => {
-        router.push("/");
-        router.refresh();
-      }, 2000);
-    } catch (err: unknown) {
-      logger.error(err);
-      setStatus("error");
-      setErrorMessage(
-        err instanceof Error ? err.message : "Fehler beim Registrieren.",
-      );
-    }
+  // A logged-in visitor has no use for the sign-up flow — the invitation
+  // (whether valid or already accepted) is irrelevant once you have an account.
+  // Send them straight to their start page; the root route dispatches by role
+  // (Schulbegleiter → home, Admin/Owner → /admin). This is the common case
+  // behind "I already accepted my invite but reopened the link".
+  const session = await getSession();
+  if (session) {
+    redirect("/");
   }
 
-  const linkInvalid =
-    status === "error" &&
-    (errorMessage.includes("abgelaufen") || errorMessage.includes("Kein"));
+  const { token } = await searchParams;
+  const state = token
+    ? await getOnboardingStateUseCase(token)
+    : { valid: false as const, reason: "missing" as const };
 
   return (
     <div className="relative flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
@@ -123,105 +50,14 @@ export default function OnboardPage({
           />
         </div>
 
-        {status === "verifying" ? (
-          <Card className="border-border/60 shadow-xl">
-            <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              Lade Einladung…
-            </CardContent>
-          </Card>
-        ) : linkInvalid ? (
-          <Card className="border-border/60 shadow-xl">
-            <CardHeader className="gap-2 text-center">
-              <CardTitle className="text-xl font-semibold text-destructive">
-                Einladung ungültig
-              </CardTitle>
-              <CardDescription>{errorMessage}</CardDescription>
-            </CardHeader>
-          </Card>
-        ) : status === "success" ? (
-          <Card className="border-border/60 shadow-xl">
-            <CardContent className="flex flex-col items-center gap-4 py-10 text-center">
-              <div className="flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                <CheckIcon className="size-6" />
-              </div>
-              <div className="space-y-1">
-                <h1 className="text-xl font-semibold">Profil erstellt</h1>
-                <p className="text-sm text-muted-foreground">
-                  Du wirst ins Dashboard weitergeleitet…
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+        {state.valid ? (
+          <OnboardForm
+            token={token!}
+            email={state.email}
+            name={state.name}
+          />
         ) : (
-          <Card className="border-border/60 shadow-xl">
-            <CardHeader className="gap-2 text-center">
-              <CardTitle className="text-2xl font-semibold tracking-tight">
-                Willkommen
-              </CardTitle>
-              <CardDescription className="text-sm">
-                Schließe deine Registrierung ab.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit}>
-                <FieldGroup className="gap-6">
-                  <Field>
-                    <FieldLabel htmlFor="email">
-                      E-Mail (verifiziert)
-                    </FieldLabel>
-                    <Input
-                      id="email"
-                      disabled
-                      value={email}
-                      className="h-11 bg-muted/60"
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="name">Name</FieldLabel>
-                    <Input
-                      id="name"
-                      required
-                      autoComplete="name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      disabled={hasPrefilledName || status === "loading"}
-                      className={hasPrefilledName ? "h-11 bg-muted/60" : "h-11"}
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="password">Passwort</FieldLabel>
-                    <Input
-                      id="password"
-                      type="password"
-                      required
-                      minLength={12}
-                      autoComplete="new-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      disabled={status === "loading"}
-                      className="h-11"
-                    />
-                  </Field>
-                  {status === "error" && !linkInvalid && (
-                    <p className="-mt-2 text-center text-sm text-destructive">
-                      {errorMessage}
-                    </p>
-                  )}
-                  <Field>
-                    <Button
-                      type="submit"
-                      className="h-11 w-full text-base font-medium"
-                      disabled={status === "loading"}
-                    >
-                      {status === "loading"
-                        ? "Wird verarbeitet…"
-                        : "Profil aktivieren"}
-                    </Button>
-                  </Field>
-                </FieldGroup>
-              </form>
-            </CardContent>
-          </Card>
+          <InvalidInvitationCard reason={state.reason} />
         )}
       </div>
     </div>

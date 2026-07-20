@@ -37,6 +37,14 @@ export const InvitationFacade = {
     return invite;
   },
 
+  async getTokenState(token: string) {
+    const invite = await findInvitationByToken(token);
+    if (!invite) return { state: "notfound" as const };
+    if (invite.isUsed) return { state: "used" as const };
+    if (invite.expiresAt < new Date()) return { state: "expired" as const };
+    return { state: "valid" as const, invite };
+  },
+
   async consumeToken(id: string) {
     await markInvitationUsed(id);
   },

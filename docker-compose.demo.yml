@@ -1,0 +1,59 @@
+# Public demo instance (demo-lebenshilfe.codingforchange.com).
+#
+# Self-contained: its own MySQL, its own image, its own volume. It shares nothing
+# with production — not the database, not the auth secret, not the object store —
+# so a wipe here cannot reach real data and a leak here cannot forge a production
+# session.
+services:
+  app:
+    image: localhost:5000/lebenshilfe-demo:${IMAGE_TAG:-latest}
+    labels:
+      alloy-logging: true
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - LOG_PRETTY=false
+    # Bound to loopback so the only way in is through Caddy (and therefore TLS).
+    # Note this differs from docker-compose.feature.yml, which publishes on
+    # 0.0.0.0 and is reachable directly on its port.
+    ports:
+      - "127.0.0.1:${APP_PORT:-3100}:3000"
+    # Reseeded on every start: a demo that has been clicked through for a week
+    # should come back clean. The seed replaces only its own rows, so anyone
+    # invited into the demo keeps their account (see scripts/seed/engine.ts).
+    command: >
+      sh -c "npx prisma migrate deploy &&
+             ALLOW_DEMO_SEED=true npx -y tsx scripts/seed-demo.ts &&
+             node server.js"
+
+  db:
+    # Pinned by digest for supply-chain integrity (F-18); Dependabot bumps it weekly.
+    image: mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      MYSQL_DATABASE: lebenshilfe_demo
+    volumes:
+      - demo_db:/var/lib/mysql
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-uroot",
+          "-p${DB_PASSWORD}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 20s
+
+volumes:
+  demo_db:

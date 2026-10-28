@@ -3,6 +3,7 @@ import Image from "next/image";
 
 import { requireAuth } from "@/lib/auth-guards";
 import { TwoFactorSetup } from "./two-factor-setup";
+import { branding } from "@/lib/branding";
 
 export default async function TwoFactorSetupPage() {
   const user = await requireAuth();
@@ -25,10 +26,10 @@ export default async function TwoFactorSetupPage() {
       <div className="flex w-full max-w-md flex-col gap-8">
         <div className="flex justify-center">
           <Image
-            src="/lebenshilfe-muenchen-logo_2026.svg"
-            alt="Lebenshilfe München"
-            width={220}
-            height={64}
+            src={branding.logo.src}
+            alt={branding.name}
+            width={branding.logo.width}
+            height={branding.logo.height}
             priority
             className="h-14 w-auto drop-shadow-lg"
           />

@@ -41,6 +41,7 @@ import { startOfDayUtc } from "@/lib/dates";
 import type { ChildOption } from "./children-filter";
 import type { ChildAbsence, Event, Schedule } from "@/generated/prisma";
 import type { AssignmentsByWeekday } from "../weekday";
+import { branding } from "@/lib/branding";
 
 type EventWithChild = Event & {
   child: { firstName: string; lastName: string } | null;
@@ -274,10 +275,10 @@ export function SchoolAssistantApp({
           <SidebarHeader>
             <div className="flex items-center justify-center px-2 py-3 group-data-[collapsible=icon]:p-0">
               <Image
-                src="/lebenshilfe-muenchen-logo_2026.svg"
-                alt="Lebenshilfe München"
-                width={160}
-                height={160}
+                src={branding.logo.src}
+                alt={branding.name}
+                width={branding.logo.width}
+                height={branding.logo.height}
                 priority
                 className="h-20 w-auto object-contain transition-all group-data-[collapsible=icon]:h-8"
               />
@@ -328,7 +329,7 @@ export function SchoolAssistantApp({
                       tooltip="Support"
                     >
                       <a
-                        href="mailto:support@lebenshilfe-muenchen.de"
+                        href={`mailto:${branding.supportEmail}`}
                         className="text-muted-foreground"
                       >
                         <LifeBuoy />
@@ -342,7 +343,7 @@ export function SchoolAssistantApp({
                       tooltip="Feedback"
                     >
                       <a
-                        href="mailto:feedback@lebenshilfe-muenchen.de"
+                        href={`mailto:${branding.feedbackEmail}`}
                         className="text-muted-foreground"
                       >
                         <Send />

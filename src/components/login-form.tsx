@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
+import { branding } from "@/lib/branding";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -79,7 +80,7 @@ export function LoginForm({
                 <Input
                   id="email"
                   type="email"
-                  placeholder="name@lebenshilfe.de"
+                  placeholder={branding.loginEmailPlaceholder}
                   required
                   autoComplete="email"
                   value={email}
@@ -128,7 +129,7 @@ export function LoginForm({
         </CardContent>
       </Card>
       <p className="px-6 text-center text-xs text-white">
-        Zugang nur für eingeladene Mitglieder der Lebenshilfe München.
+        Zugang nur für eingeladene Mitglieder der {branding.name}.
       </p>
     </div>
   );

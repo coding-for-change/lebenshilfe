@@ -1,6 +1,7 @@
 import { Heading, Section, Text } from "@react-email/components";
 import { BrandButton } from "@/lib/email/components/button";
 import { BrandLayout } from "@/lib/email/components/layout";
+import { branding } from "@/lib/branding";
 import {
   emailCtaWrap,
   emailHeading,
@@ -15,14 +16,14 @@ type Props = {
 
 export function InvitationEmail({ inviteUrl }: Props) {
   return (
-    <BrandLayout preview="Willkommen bei der Lebenshilfe München – richten Sie Ihr Profil ein">
-      <Heading style={emailHeading}>
-        Willkommen bei der Lebenshilfe München
-      </Heading>
+    <BrandLayout
+      preview={`Willkommen bei der ${branding.name} – richten Sie Ihr Profil ein`}
+    >
+      <Heading style={emailHeading}>Willkommen bei der {branding.name}</Heading>
       <Text style={emailParagraph}>
-        Sie wurden als Schulbegleiter eingeladen, dem Portal der Lebenshilfe
-        München beizutreten. Über Ihren persönlichen Zugang verwalten Sie
-        zukünftig Ihre Stundennachweise und alle organisatorischen Abläufe.
+        Sie wurden als Schulbegleiter eingeladen, dem Portal der {branding.name}{" "}
+        beizutreten. Über Ihren persönlichen Zugang verwalten Sie zukünftig Ihre
+        Stundennachweise und alle organisatorischen Abläufe.
       </Text>
       <Text style={emailParagraph}>
         Klicken Sie auf den folgenden Button, um Ihr Profil einzurichten und Ihr

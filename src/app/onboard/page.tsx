@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { branding } from "@/lib/branding";
 
 export default function OnboardPage({
   searchParams,
@@ -114,10 +115,10 @@ export default function OnboardPage({
       <div className="flex w-full max-w-md flex-col gap-8">
         <div className="flex justify-center">
           <Image
-            src="/lebenshilfe-muenchen-logo_2026.svg"
-            alt="Lebenshilfe München"
-            width={220}
-            height={64}
+            src={branding.logo.src}
+            alt={branding.name}
+            width={branding.logo.width}
+            height={branding.logo.height}
             priority
             className="h-14 w-auto drop-shadow-lg"
           />

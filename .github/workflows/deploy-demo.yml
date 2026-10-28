@@ -1,0 +1,150 @@
+name: Deploy Demo
+
+# The public demo at demo-lebenshilfe.codingforchange.com. Manual by default —
+# the demo is something we show to people, so it should move when we decide it
+# moves, not on every merge. Uncomment the `push` trigger to track main.
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-demo
+  cancel-in-progress: false
+
+env:
+  DEMO_HOST: demo-lebenshilfe.codingforchange.com
+  DEMO_DIR: /var/www/lebenshilfe-demo
+  # Loopback-bound (see docker-compose.demo.yml), so this never collides with the
+  # 8000–8999 range the feature deploys hash themselves into.
+  APP_PORT: "3100"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Decrypt Secrets
+        run: |
+          if ! command -v ansible-playbook &> /dev/null; then
+            pipx install ansible-core
+          fi
+          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault_pass
+
+          cat << 'EOF' > dump.yml
+          - hosts: localhost
+            gather_facts: false
+            vars_files:
+              - .config/secrets.yml
+            tasks:
+              - copy:
+                  content: "{{ vars | to_nice_json }}"
+                  dest: decrypted.json
+          EOF
+          ansible-playbook dump.yml --vault-password-file .vault_pass
+
+          echo "::add-mask::$(jq -r '.REGISTRY_USERNAME // empty' decrypted.json)"
+          echo "::add-mask::$(jq -r '.REGISTRY_PASSWORD // empty' decrypted.json)"
+          echo "::add-mask::$(jq -r '.RESEND_API_KEY // empty' decrypted.json)"
+          echo "::add-mask::$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY // empty' decrypted.json)"
+          echo "::add-mask::$(jq -r '.DEMO_BETTER_AUTH_SECRET // empty' decrypted.json)"
+          echo "::add-mask::$(jq -r '.DEMO_SERVER_ACTIONS_ENCRYPTION_KEY // empty' decrypted.json)"
+          echo "::add-mask::$(jq -r '.DEMO_DB_PASSWORD // empty' decrypted.json)"
+          # VPS_DEPLOY_KEY is deliberately NOT masked here — see deploy-feature.yml
+          # for why echoing a multiline key into add-mask leaks it instead.
+
+      # The demo must not share production's signing keys: a session cookie or a
+      # TOTP secret minted here would otherwise be valid against the real app.
+      # Fail loudly rather than silently falling back to the production values.
+      - name: Check demo secrets are present
+        run: |
+          missing=""
+          for key in DEMO_BETTER_AUTH_SECRET DEMO_SERVER_ACTIONS_ENCRYPTION_KEY DEMO_DB_PASSWORD; do
+            if [ -z "$(jq -r --arg k "$key" '.[$k] // empty' decrypted.json)" ]; then
+              missing="$missing $key"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing in .config/secrets.yml:$missing"
+            echo "Add each with:  ansible-vault encrypt_string --vault-password-file <file> '<value>' --name '<KEY>'"
+            echo "Generate values with:  openssl rand -base64 32"
+            exit 1
+          fi
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t registry.infra.codingforchange.com/lebenshilfe-demo:${{ github.sha }} \
+            -t registry.infra.codingforchange.com/lebenshilfe-demo:latest \
+            --build-arg NEXT_PUBLIC_ORG=hamburg-demo \
+            --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY // empty' decrypted.json)" \
+            --build-arg NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="$(jq -r '.DEMO_SERVER_ACTIONS_ENCRYPTION_KEY // empty' decrypted.json)" \
+            .
+
+      - name: Login to registry
+        run: |
+          jq -r '.REGISTRY_PASSWORD // empty' decrypted.json | docker login registry.infra.codingforchange.com \
+            -u "$(jq -r '.REGISTRY_USERNAME // empty' decrypted.json)" \
+            --password-stdin
+
+      - name: Push Docker image
+        run: |
+          docker push registry.infra.codingforchange.com/lebenshilfe-demo:${{ github.sha }}
+          docker push registry.infra.codingforchange.com/lebenshilfe-demo:latest
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          jq -r '.VPS_DEPLOY_KEY // empty' decrypted.json > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H codingforchange.com >> ~/.ssh/known_hosts
+
+      - name: Generate configs
+        run: |
+          cat << EOF > Caddyfile.demo
+          ${{ env.DEMO_HOST }} {
+              reverse_proxy localhost:${{ env.APP_PORT }}
+          }
+          EOF
+
+          DB_PASSWORD="$(jq -r '.DEMO_DB_PASSWORD // empty' decrypted.json)"
+          printf '%s\n' \
+            "IMAGE_TAG=${{ github.sha }}" \
+            "APP_PORT=${{ env.APP_PORT }}" \
+            "DB_PASSWORD=${DB_PASSWORD}" \
+            "DATABASE_URL=mysql://root:${DB_PASSWORD}@db:3306/lebenshilfe_demo" \
+            "BETTER_AUTH_SECRET=$(jq -r '.DEMO_BETTER_AUTH_SECRET // empty' decrypted.json)" \
+            "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=$(jq -r '.DEMO_SERVER_ACTIONS_ENCRYPTION_KEY // empty' decrypted.json)" \
+            "RESEND_API_KEY=$(jq -r '.RESEND_API_KEY // empty' decrypted.json)" \
+            "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY // empty' decrypted.json)" \
+            "NEXT_PUBLIC_ORG=hamburg-demo" \
+            "BETTER_AUTH_URL=https://${{ env.DEMO_HOST }}" \
+            "NEXT_PUBLIC_APP_URL=https://${{ env.DEMO_HOST }}" \
+            "EMAIL_FROM=info@codingforchange.com" \
+            > .env.demo
+
+      - name: Deploy to VPS
+        run: |
+          SSH="ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key"
+          SCP="scp -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key"
+          TARGET="deploy-lebenshilfe@codingforchange.com"
+
+          $SSH $TARGET "mkdir -p ${{ env.DEMO_DIR }}"
+          $SCP docker-compose.demo.yml ${TARGET}:${{ env.DEMO_DIR }}/docker-compose.yml
+          $SCP Caddyfile.demo ${TARGET}:${{ env.DEMO_DIR }}/Caddyfile
+          $SCP .env.demo ${TARGET}:${{ env.DEMO_DIR }}/.env
+
+          $SSH $TARGET "cd ${{ env.DEMO_DIR }} && \
+            docker compose pull && \
+            docker compose up -d"
+
+      - name: Clean up Secrets
+        if: always()
+        run: |
+          rm -f .vault_pass dump.yml decrypted.json .env.demo Caddyfile.demo

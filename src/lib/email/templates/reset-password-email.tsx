@@ -1,6 +1,7 @@
 import { Heading, Section, Text } from "@react-email/components";
 import { BrandButton } from "@/lib/email/components/button";
 import { BrandLayout } from "@/lib/email/components/layout";
+import { branding } from "@/lib/branding";
 import {
   emailCallout,
   emailCtaWrap,
@@ -16,10 +17,12 @@ type Props = {
 
 export function ResetPasswordEmail({ resetUrl }: Props) {
   return (
-    <BrandLayout preview="Setzen Sie Ihr Passwort für das Portal der Lebenshilfe München zurück">
+    <BrandLayout
+      preview={`Setzen Sie Ihr Passwort für das Portal der ${branding.name} zurück`}
+    >
       <Heading style={emailHeading}>Passwort zurücksetzen</Heading>
       <Text style={emailParagraph}>
-        Sie haben angefragt, Ihr Passwort für das Portal der Lebenshilfe München
+        Sie haben angefragt, Ihr Passwort für das Portal der {branding.name}{" "}
         zurückzusetzen. Klicken Sie auf den folgenden Button, um ein neues
         Passwort festzulegen.
       </Text>

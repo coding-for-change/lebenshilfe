@@ -73,7 +73,7 @@ jobs:
           if [ -n "$missing" ]; then
             echo "::error::Missing in .config/secrets.yml:$missing"
             echo "Add each with:  ansible-vault encrypt_string --vault-password-file <file> '<value>' --name '<KEY>'"
-            echo "Generate values with:  openssl rand -base64 32"
+            echo "Generate values with:  openssl rand -hex 32  (DEMO_DB_PASSWORD is embedded unescaped in DATABASE_URL, so avoid base64's + / =)"
             exit 1
           fi
 

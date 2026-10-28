@@ -1,0 +1,12 @@
+name: Deploy Demo
+
+# The public demo at demo-lebenshilfe.codingforchange.com. Manual by default —
+# the demo is something we show to people, so it should move when we decide it
+# moves, not on every merge. Uncomment the `push` trigger to track main.
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+
+permissions:
+  contents: read

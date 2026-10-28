@@ -87,7 +87,7 @@ export default function ForgotPasswordPage() {
                     <Input
                       id="email"
                       type="email"
-                      placeholder="name@lebenshilfe.de"
+                      placeholder={branding.loginEmailPlaceholder}
                       required
                       autoComplete="email"
                       value={email}

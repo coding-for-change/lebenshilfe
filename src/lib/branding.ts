@@ -25,6 +25,8 @@ export type OrgBranding = {
   emailLogo: string;
   supportEmail: string;
   feedbackEmail: string;
+  /** Example address in the login and password-reset fields. */
+  loginEmailPlaceholder: string;
   /**
    * Marks a showcase instance that holds invented data. Drives the demo banner
    * and the noindex headers; never true for an instance with real client data.
@@ -45,6 +47,7 @@ const ORGS = {
     emailLogo: "/lebenshilfe-muenchen-logo_2026.png",
     supportEmail: "support@lebenshilfe-muenchen.de",
     feedbackEmail: "feedback@lebenshilfe-muenchen.de",
+    loginEmailPlaceholder: "name@lebenshilfe.de",
     isDemo: false,
   },
   "hamburg-demo": {
@@ -57,6 +60,7 @@ const ORGS = {
     // Routed to us, not to the Verein — nobody there is expecting demo mail.
     supportEmail: "info@codingforchange.com",
     feedbackEmail: "info@codingforchange.com",
+    loginEmailPlaceholder: "name@lebenshilfe-hamburg.de",
     isDemo: true,
   },
 } satisfies Record<string, OrgBranding>;

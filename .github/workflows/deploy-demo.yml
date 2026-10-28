@@ -20,7 +20,7 @@ env:
   DEMO_DIR: /var/www/lebenshilfe-demo
   # Loopback-bound (see docker-compose.demo.yml), so this never collides with the
   # 8000–8999 range the feature deploys hash themselves into.
-  APP_PORT: "3100"
+  APP_PORT: "12135"
 
 jobs:
   deploy:

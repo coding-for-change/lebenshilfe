@@ -21,7 +21,7 @@ services:
     # Note this differs from docker-compose.feature.yml, which publishes on
     # 0.0.0.0 and is reachable directly on its port.
     ports:
-      - "127.0.0.1:${APP_PORT:-3100}:3000"
+      - "127.0.0.1:${APP_PORT:-12135}:3000"
     # Reseeded on every start: a demo that has been clicked through for a week
     # should come back clean. The seed replaces only its own rows, so anyone
     # invited into the demo keeps their account (see scripts/seed/engine.ts).

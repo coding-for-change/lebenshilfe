@@ -25,9 +25,12 @@ services:
     # Reseeded on every start: a demo that has been clicked through for a week
     # should come back clean. The seed replaces only its own rows, so anyone
     # invited into the demo keeps their account (see scripts/seed/engine.ts).
+    # The seed signs up every user through auth.handler in a loop, which trips
+    # Better Auth's sign-up rate limit in production mode. RATE_LIMIT_ENABLED=false
+    # is scoped to the seed process only; the server below keeps its limits.
     command: >
       sh -c "npx prisma migrate deploy &&
-             ALLOW_DEMO_SEED=true npx -y tsx scripts/seed-demo.ts &&
+             ALLOW_DEMO_SEED=true RATE_LIMIT_ENABLED=false npx -y tsx scripts/seed-demo.ts &&
              node server.js"
 
   db:

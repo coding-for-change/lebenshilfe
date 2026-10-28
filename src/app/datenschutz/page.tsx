@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { MapsConsentControl } from "./maps-consent-control";
+import { branding } from "@/lib/branding";
 
 export const metadata: Metadata = {
-  title: "Datenschutzerklärung – Lebenshilfe München",
+  title: `Datenschutzerklärung – ${branding.name}`,
 };
 
 // Public privacy notice (Art. 13 DSGVO). DRAFT — placeholders in [eckigen
@@ -26,7 +27,7 @@ export default function DatenschutzPage() {
         <section>
           <h2>1. Verantwortliche</h2>
           <p>
-            <strong>Lebenshilfe München e.V.</strong>, [Anschrift]
+            <strong>{branding.legalName}</strong>, [Anschrift]
             <br />
             Vertreten durch: [vertretungsberechtigte Person(en)]
             <br />

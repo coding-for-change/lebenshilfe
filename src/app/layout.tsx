@@ -5,6 +5,7 @@ import { MapsConsentProvider } from "@/lib/maps/maps-consent";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { DeploymentUpdateNotice } from "@/components/deployment-update-notice";
 import { getSession } from "@/lib/auth-guards";
+import { branding } from "@/lib/branding";
 import { ConsentFacade } from "@/features/consent";
 import { setMapsConsentAction } from "@/features/consent/actions";
 
@@ -19,15 +20,15 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Lebenshilfe München",
-  description: "Lebenshilfe München Portal",
-  applicationName: "Lebenshilfe München",
+  title: branding.name,
+  description: `${branding.name} Portal`,
+  applicationName: branding.name,
   // Makes the site launch full-screen (no Safari chrome) when added to the iOS
   // home screen, and sets the label shown under the icon. The home-screen icon
   // itself is supplied by src/app/apple-icon.png (apple-touch-icon).
   appleWebApp: {
     capable: true,
-    title: "Lebenshilfe",
+    title: branding.shortName,
     statusBarStyle: "default",
   },
 };

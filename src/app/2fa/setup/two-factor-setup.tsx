@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 
 import { authClient } from "@/lib/auth-client";
+import { branding } from "@/lib/branding";
 import { prepareTwoFactorSetupAction } from "./actions";
 import { Button } from "@/components/ui/button";
 import {
@@ -91,7 +92,7 @@ export function TwoFactorSetup() {
   function downloadCodes() {
     const payload = JSON.stringify(
       {
-        service: "Lebenshilfe München",
+        service: branding.name,
         type: "2fa-backup-codes",
         codes: backupCodes,
       },

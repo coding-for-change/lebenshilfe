@@ -1,13 +1,14 @@
 import type { MetadataRoute } from "next";
+import { branding } from "@/lib/branding";
 
 // Web App Manifest — drives the "Add to Home screen" / installed-PWA experience
 // on Android (Chrome) and other browsers. iOS home-screen icons come from the
 // `apple-icon.png` file convention + the `appleWebApp` metadata in layout.tsx.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Lebenshilfe München",
-    short_name: "Lebenshilfe",
-    description: "Lebenshilfe München Portal",
+    name: branding.name,
+    short_name: branding.shortName,
+    description: `${branding.name} Portal`,
     lang: "de",
     start_url: "/",
     display: "standalone",

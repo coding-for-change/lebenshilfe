@@ -41,7 +41,7 @@ src/
 │       ├── index.ts      # PUBLIC API: Export ONLY the Facade and Components.
 │       └── schemas.ts    # Contracts: Zod schemas and TS types.
 ├── components/           # ATOMIC UI: Shared, stateless shadcn components.
-├── lib/                  # INFRA: DB clients, Auth config, Shared utils.
+├── lib/                  # INFRA: DB clients, Auth config, Branding presets, Shared utils.
 └── docs/                 # ARCHITECTURE: The system manifesto.
 ```
 

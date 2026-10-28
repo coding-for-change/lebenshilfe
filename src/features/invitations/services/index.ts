@@ -5,6 +5,7 @@ import { createElement } from "react";
 import { sendMail } from "@/lib/mail";
 import { renderEmail } from "@/lib/email/render";
 import { InvitationEmail } from "@/lib/email/templates/invitation-email";
+import { branding } from "@/lib/branding";
 
 export async function insertInvitation(
   email: string,
@@ -53,7 +54,7 @@ export async function processNewInvitation(email: string, role: Role) {
 
   await sendMail({
     to: email,
-    subject: "Einladung: Willkommen bei der Lebenshilfe München",
+    subject: `Einladung: Willkommen bei der ${branding.name}`,
     html,
     text,
   });

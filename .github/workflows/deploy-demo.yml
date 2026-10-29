@@ -56,7 +56,6 @@ jobs:
           echo "::add-mask::$(jq -r '.DEMO_BETTER_AUTH_SECRET // empty' decrypted.json)"
           echo "::add-mask::$(jq -r '.DEMO_SERVER_ACTIONS_ENCRYPTION_KEY // empty' decrypted.json)"
           echo "::add-mask::$(jq -r '.DEMO_DB_PASSWORD // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.DEMO_S3_SECRET_ACCESS_KEY // empty' decrypted.json)"
           # VPS_DEPLOY_KEY is deliberately NOT masked here — see deploy-feature.yml
           # for why echoing a multiline key into add-mask leaks it instead.
 
@@ -66,7 +65,7 @@ jobs:
       - name: Check demo secrets are present
         run: |
           missing=""
-          for key in DEMO_BETTER_AUTH_SECRET DEMO_SERVER_ACTIONS_ENCRYPTION_KEY DEMO_DB_PASSWORD DEMO_S3_SECRET_ACCESS_KEY; do
+          for key in DEMO_BETTER_AUTH_SECRET DEMO_SERVER_ACTIONS_ENCRYPTION_KEY DEMO_DB_PASSWORD; do
             if [ -z "$(jq -r --arg k "$key" '.[$k] // empty' decrypted.json)" ]; then
               missing="$missing $key"
             fi
@@ -116,9 +115,14 @@ jobs:
 
           DB_PASSWORD="$(jq -r '.DEMO_DB_PASSWORD // empty' decrypted.json)"
           # Signatures go to the RustFS container in docker-compose.demo.yml, not to
-          # production's Hetzner bucket. The endpoint is the compose service name;
-          # the same two credentials configure RustFS's root user and the app.
-          S3_SECRET_ACCESS_KEY="$(jq -r '.DEMO_S3_SECRET_ACCESS_KEY // empty' decrypted.json)"
+          # production's Hetzner bucket. Its root secret is derived from the demo DB
+          # password instead of being a vault entry of its own: both only guard
+          # containers on the demo's private compose network, and this way adding
+          # the store needed no further vault edit. The same two credentials
+          # configure RustFS's root user and the app; the endpoint is the compose
+          # service name.
+          S3_SECRET_ACCESS_KEY="$(printf '%s' "${DB_PASSWORD}" | sha256sum | cut -d' ' -f1)"
+          echo "::add-mask::${S3_SECRET_ACCESS_KEY}"
           printf '%s\n' \
             "IMAGE_TAG=${{ github.sha }}" \
             "APP_PORT=${{ env.APP_PORT }}" \

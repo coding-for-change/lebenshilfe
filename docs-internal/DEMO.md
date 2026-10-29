@@ -27,17 +27,19 @@ optional ein Datensatz, ein Workflow. Keine Codeänderung an der App selbst.
 
 Die Demo darf die Signaturschlüssel der Produktion nicht mitbenutzen — ein hier
 erzeugtes Session-Cookie oder TOTP-Secret wäre sonst auch gegen die echte App
-gültig. Dazu kommen die Passwörter der eigenen Datenbank und des eigenen
-S3-Containers (siehe unten). Deshalb vier eigene Werte in `.config/secrets.yml`:
+gültig. Dazu kommt das Passwort der eigenen Datenbank. Deshalb drei eigene
+Werte in `.config/secrets.yml`:
 
 ```bash
-for KEY in DEMO_BETTER_AUTH_SECRET DEMO_SERVER_ACTIONS_ENCRYPTION_KEY DEMO_DB_PASSWORD DEMO_S3_SECRET_ACCESS_KEY; do
+for KEY in DEMO_BETTER_AUTH_SECRET DEMO_SERVER_ACTIONS_ENCRYPTION_KEY DEMO_DB_PASSWORD; do
   ansible-vault encrypt_string "$(openssl rand -hex 32)" --name "$KEY" >> .config/secrets.yml
 done
 ```
 
 (`-hex` statt `-base64`: `DEMO_DB_PASSWORD` steht unmaskiert in der
-`DATABASE_URL`, dort stören `+`, `/` und `=`.)
+`DATABASE_URL`, dort stören `+`, `/` und `=`.) Das Secret des S3-Containers
+leitet der Workflow aus `DEMO_DB_PASSWORD` ab; es braucht keinen eigenen
+Vault-Eintrag.
 
 Fehlt einer davon, bricht der Workflow mit einer benannten Fehlermeldung ab,
 statt still auf die Produktionswerte zurückzufallen.

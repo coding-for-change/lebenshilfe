@@ -1,9 +1,9 @@
 # Public demo instance (demo-lebenshilfe.codingforchange.com).
 #
-# Self-contained: its own MySQL, its own image, its own volume. It shares nothing
-# with production — not the database, not the auth secret, not the object store —
-# so a wipe here cannot reach real data and a leak here cannot forge a production
-# session.
+# Self-contained: its own MySQL, its own S3 store for signature images, its own
+# image, its own volumes. It shares nothing with production — not the database,
+# not the auth secret, not the object store — so a wipe here cannot reach real
+# data and a leak here cannot forge a production session.
 services:
   app:
     image: localhost:5000/lebenshilfe-demo:${IMAGE_TAG:-latest}
@@ -13,6 +13,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      s3-init:
+        condition: service_completed_successfully
     env_file:
       - .env
     environment:
@@ -58,5 +60,49 @@ services:
       retries: 24
       start_period: 20s
 
+  # Signature PNGs (src/lib/storage.ts). Production writes them to a Hetzner
+  # bucket; the demo gets RustFS, an S3-compatible server (the MinIO images can
+  # no longer be pulled from Docker Hub). The app code is untouched:
+  # .env simply points S3_ENDPOINT at this container. No host port — only the
+  # app on the compose network can reach it, and the bucket stays private
+  # because the app reads signatures server-side with its own credentials.
+  s3:
+    # Pinned by digest for supply-chain integrity (F-18); Dependabot bumps it weekly.
+    image: rustfs/rustfs:1.0.4@sha256:ed9210d6411d77ffceb70d94b964a3cb7d225983368bc25bebe01e995293dcc2
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY_ID:?set S3_ACCESS_KEY_ID in .env}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_ACCESS_KEY:?set S3_SECRET_ACCESS_KEY in .env}
+    volumes:
+      - demo_s3:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  # One-shot: creates the bucket, then exits. The app waits for it to finish
+  # (service_completed_successfully). head-bucket runs first, so the re-run on
+  # every `docker compose up` is a no-op once the bucket exists.
+  s3-init:
+    image: amazon/aws-cli:2.39.1@sha256:3517c17b5f01637df3b6184a4280fbcc36e4ea38105954cade628ff17bb9a7b9
+    depends_on:
+      s3:
+        condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?set S3_ACCESS_KEY_ID in .env}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?set S3_SECRET_ACCESS_KEY in .env}
+      AWS_DEFAULT_REGION: ${S3_REGION:-eu-central-1}
+      S3_BUCKET: ${S3_BUCKET:?set S3_BUCKET in .env}
+    entrypoint: ["/bin/sh", "-c"]
+    # $$ defers expansion to the shell inside the container, so the bucket name
+    # is read from the environment above rather than inlined into the command.
+    command:
+      - |
+        aws --endpoint-url http://s3:9000 s3api head-bucket --bucket "$$S3_BUCKET" 2>/dev/null ||
+        aws --endpoint-url http://s3:9000 s3api create-bucket --bucket "$$S3_BUCKET"
+
 volumes:
   demo_db:
+  demo_s3:

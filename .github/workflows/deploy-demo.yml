@@ -56,6 +56,7 @@ jobs:
           echo "::add-mask::$(jq -r '.DEMO_BETTER_AUTH_SECRET // empty' decrypted.json)"
           echo "::add-mask::$(jq -r '.DEMO_SERVER_ACTIONS_ENCRYPTION_KEY // empty' decrypted.json)"
           echo "::add-mask::$(jq -r '.DEMO_DB_PASSWORD // empty' decrypted.json)"
+          echo "::add-mask::$(jq -r '.DEMO_S3_SECRET_ACCESS_KEY // empty' decrypted.json)"
           # VPS_DEPLOY_KEY is deliberately NOT masked here — see deploy-feature.yml
           # for why echoing a multiline key into add-mask leaks it instead.
 
@@ -65,7 +66,7 @@ jobs:
       - name: Check demo secrets are present
         run: |
           missing=""
-          for key in DEMO_BETTER_AUTH_SECRET DEMO_SERVER_ACTIONS_ENCRYPTION_KEY DEMO_DB_PASSWORD; do
+          for key in DEMO_BETTER_AUTH_SECRET DEMO_SERVER_ACTIONS_ENCRYPTION_KEY DEMO_DB_PASSWORD DEMO_S3_SECRET_ACCESS_KEY; do
             if [ -z "$(jq -r --arg k "$key" '.[$k] // empty' decrypted.json)" ]; then
               missing="$missing $key"
             fi
@@ -114,6 +115,10 @@ jobs:
           EOF
 
           DB_PASSWORD="$(jq -r '.DEMO_DB_PASSWORD // empty' decrypted.json)"
+          # Signatures go to the RustFS container in docker-compose.demo.yml, not to
+          # production's Hetzner bucket. The endpoint is the compose service name;
+          # the same two credentials configure RustFS's root user and the app.
+          S3_SECRET_ACCESS_KEY="$(jq -r '.DEMO_S3_SECRET_ACCESS_KEY // empty' decrypted.json)"
           printf '%s\n' \
             "IMAGE_TAG=${{ github.sha }}" \
             "APP_PORT=${{ env.APP_PORT }}" \
@@ -123,6 +128,11 @@ jobs:
             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=$(jq -r '.DEMO_SERVER_ACTIONS_ENCRYPTION_KEY // empty' decrypted.json)" \
             "RESEND_API_KEY=$(jq -r '.RESEND_API_KEY // empty' decrypted.json)" \
             "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY // empty' decrypted.json)" \
+            "S3_ENDPOINT=http://s3:9000" \
+            "S3_REGION=eu-central-1" \
+            "S3_BUCKET=lebenshilfe-demo" \
+            "S3_ACCESS_KEY_ID=lebenshilfe-demo" \
+            "S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}" \
             "NEXT_PUBLIC_ORG=hamburg-demo" \
             "BETTER_AUTH_URL=https://${{ env.DEMO_HOST }}" \
             "NEXT_PUBLIC_APP_URL=https://${{ env.DEMO_HOST }}" \

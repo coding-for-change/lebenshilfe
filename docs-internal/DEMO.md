@@ -27,13 +27,17 @@ optional ein Datensatz, ein Workflow. Keine Codeänderung an der App selbst.
 
 Die Demo darf die Signaturschlüssel der Produktion nicht mitbenutzen — ein hier
 erzeugtes Session-Cookie oder TOTP-Secret wäre sonst auch gegen die echte App
-gültig. Deshalb drei eigene Werte in `.config/secrets.yml`:
+gültig. Dazu kommen die Passwörter der eigenen Datenbank und des eigenen
+S3-Containers (siehe unten). Deshalb vier eigene Werte in `.config/secrets.yml`:
 
 ```bash
-for KEY in DEMO_BETTER_AUTH_SECRET DEMO_SERVER_ACTIONS_ENCRYPTION_KEY DEMO_DB_PASSWORD; do
-  ansible-vault encrypt_string "$(openssl rand -base64 32)" --name "$KEY" >> .config/secrets.yml
+for KEY in DEMO_BETTER_AUTH_SECRET DEMO_SERVER_ACTIONS_ENCRYPTION_KEY DEMO_DB_PASSWORD DEMO_S3_SECRET_ACCESS_KEY; do
+  ansible-vault encrypt_string "$(openssl rand -hex 32)" --name "$KEY" >> .config/secrets.yml
 done
 ```
+
+(`-hex` statt `-base64`: `DEMO_DB_PASSWORD` steht unmaskiert in der
+`DATABASE_URL`, dort stören `+`, `/` und `=`.)
 
 Fehlt einer davon, bricht der Workflow mit einer benannten Fehlermeldung ab,
 statt still auf die Produktionswerte zurückzufallen.
@@ -48,7 +52,12 @@ ist etwas, das wir herzeigen, sie soll sich bewegen wenn wir es entscheiden.
 Soll sie `main` folgen, den `push`-Trigger im Workflow einkommentieren.
 
 Auf dem VPS landet alles unter `/var/www/lebenshilfe-demo` — eigene Compose-
-Datei, eigener MySQL-Container, eigenes Volume, Port 3100 nur auf Loopback.
+Datei, eigener MySQL-Container, eigener S3-Container für die Unterschriften
+(Volumes `demo_db` und `demo_s3`), Port 12135 nur auf Loopback. Die Produktion
+schreibt Unterschriften in einen Hetzner-Bucket; die Demo bekommt stattdessen
+RustFS mit derselben S3-API, erreichbar nur über das Compose-Netz. (RustFS
+statt MinIO: die MinIO-Images lassen sich nicht mehr von Docker Hub ziehen —
+auch die in `docker-compose.yml` gepinnten Digests nicht.)
 
 ## Zugangsdaten
 

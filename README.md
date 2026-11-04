@@ -83,7 +83,14 @@ API routes for auth are served at `/api/auth/*`.
 
 ## Deployment
 
-The application is automatically deployed to the c4c VPS via a GitHub Actions workflow (`.github/workflows/deploy.yml`) on every push to the `main` branch.
+The application is automatically deployed to the c4c VPS on every push to the `main` branch
+(`.github/workflows/deploy.yml`). The deployment itself lives in the infra repo
+([`coding-for-change-infra`](https://github.com/coding-for-change/coding-for-change-infra),
+`docs/LEBENSHILFE_BLUE_GREEN.md`): the pipeline builds and pushes the image, commits the new image
+tag to `ansible/releases/lebenshilfe.yml` in the infra repo and runs its
+`playbooks/lebenshilfe-deploy.yml`. That starts the inactive blue/green slot, waits until it is
+healthy and then switches Caddy over. Runtime secrets, the Compose file and the Caddyfile are managed
+in the infra repo, not here.
 
 ### GitHub Repository Secrets
 
@@ -91,11 +98,12 @@ These **must** be set in GitHub → Settings → Secrets and Variables → Actio
 
 | Secret | Description |
 |--------|-------------|
-| `ANSIBLE_VAULT_PASSWORD` | Password to decrypt `.config/secrets.yml` which contains all deployment secrets |
+| `ANSIBLE_VAULT_PASSWORD` | Password to decrypt `.config/secrets.yml` (registry login, build args, deploy SSH key) and the infra repo's vault values |
+| `INFRA_REPO_TOKEN` | Token that can push to `main` of the infra repo (release commit) |
 
 ### Non-Secret Environment Variables
 
-These are **hardcoded** in the workflow and automatically written to `.env` on the VPS:
+These are set in the infra repo (`ansible/roles/lebenshilfe`, defaults and Compose template), not in this repo:
 
 | Variable | Value | Description |
 |----------|-------|-------------|

@@ -78,58 +78,62 @@ jobs:
           docker push registry.infra.codingforchange.com/lebenshilfe:${{ github.sha }}
           docker push registry.infra.codingforchange.com/lebenshilfe:latest
 
-      # 4. Deploy to VPS via SSH
-      - name: Setup SSH
+      # 4. Release: record the new image tag in the infra repo. The infra pipeline
+      # ignores ansible/releases/**, so this commit does not trigger a provisioning run.
+      - name: Checkout infra repo
+        uses: actions/checkout@v7
+        with:
+          repository: coding-for-change/coding-for-change-infra
+          ref: main
+          token: ${{ secrets.INFRA_REPO_TOKEN }}
+          path: infra
+
+      - name: Record the release in the infra repo
+        working-directory: infra
+        run: |
+          printf '%s\n' \
+            "# Written by the lebenshilfe pipeline (.github/workflows/deploy.yml) on every release." \
+            "# Do not edit by hand unless you are rolling forward/back deliberately." \
+            "lebenshilfe_image_tag: \"${GITHUB_SHA}\"" \
+            > ansible/releases/lebenshilfe.yml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ansible/releases/lebenshilfe.yml
+          if git diff --cached --quiet; then
+            echo "Release ${GITHUB_SHA} already recorded"
+            exit 0
+          fi
+          git commit -m "lebenshilfe: release ${GITHUB_SHA::7}" \
+            -m "https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+          for attempt in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep 3
+          done
+          echo "::error::Could not push the release commit to the infra repo"
+          exit 1
+
+      # 5. Deploy: blue/green via the infra repo's playbook, as the deploy-lebenshilfe user
+      - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
           jq -r '.VPS_DEPLOY_KEY // empty' decrypted.json > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H codingforchange.com >> ~/.ssh/known_hosts
 
-      - name: Copy files to VPS
+      - name: Install Ansible
         run: |
-          SSH="ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key"
-          SCP="scp -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key"
-          SSH_TARGET="deploy-lebenshilfe@codingforchange.com"
+          pipx install ansible-core
+          ansible-galaxy collection install community.docker
 
-          # Ensure target directory exists
-          $SSH $SSH_TARGET "mkdir -p /var/www/lebenshilfe"
-
-          # Copy docker-compose (prod → docker-compose.yml on VPS)
-          $SCP docker-compose.prod.yml ${SSH_TARGET}:/var/www/lebenshilfe/docker-compose.yml
-
-          # Copy Caddyfile
-          $SCP Caddyfile ${SSH_TARGET}:/var/www/lebenshilfe/Caddyfile
-
-          # Write .env from decrypted secrets and copy to VPS
-          printf '%s\n' \
-            "IMAGE_TAG=${{ github.sha }}" \
-            "DATABASE_URL=$(jq -r '.DATABASE_URL // empty' decrypted.json)" \
-            "BETTER_AUTH_SECRET=$(jq -r '.BETTER_AUTH_SECRET // empty' decrypted.json)" \
-            "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=$(jq -r '.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY // empty' decrypted.json)" \
-            "RESEND_API_KEY=$(jq -r '.RESEND_API_KEY // empty' decrypted.json)" \
-            "S3_ENDPOINT=$(jq -r '.S3_ENDPOINT // empty' decrypted.json)" \
-            "S3_REGION=$(jq -r '.S3_REGION // empty' decrypted.json)" \
-            "S3_ACCESS_KEY_ID=$(jq -r '.S3_ACCESS_KEY_ID // empty' decrypted.json)" \
-            "S3_SECRET_ACCESS_KEY=$(jq -r '.S3_SECRET_ACCESS_KEY // empty' decrypted.json)" \
-            "S3_BUCKET=$(jq -r '.S3_BUCKET // empty' decrypted.json)" \
-            "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY // empty' decrypted.json)" \
-            "BETTER_AUTH_URL=https://lebenshilfe.codingforchange.com" \
-            "NEXT_PUBLIC_APP_URL=https://lebenshilfe.codingforchange.com" \
-            "EMAIL_FROM=info@codingforchange.com" \
-            > /tmp/.env
-          $SCP /tmp/.env ${SSH_TARGET}:/var/www/lebenshilfe/.env
-          rm -f /tmp/.env
-
-      - name: Deploy on VPS
+      - name: Deploy with Ansible
+        working-directory: infra/ansible
         run: |
-          SSH="ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key deploy-lebenshilfe@codingforchange.com"
-
-          $SSH "cd /var/www/lebenshilfe && \
-            docker compose pull && \
-            docker compose up -d"
+          cp "$GITHUB_WORKSPACE/.vault_pass" .vault_pass
+          ansible-playbook playbooks/lebenshilfe-deploy.yml \
+            -e ansible_user=deploy-lebenshilfe \
+            -e ansible_ssh_private_key_file="$HOME/.ssh/deploy_key"
 
       - name: Clean up Secrets
         if: always()
         run: |
-          rm -f .vault_pass dump.yml decrypted.json
+          rm -f .vault_pass dump.yml decrypted.json infra/ansible/.vault_pass ~/.ssh/deploy_key

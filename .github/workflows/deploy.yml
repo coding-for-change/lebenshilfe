@@ -1,8 +1,7 @@
 name: Deploy
 
-# Build the image, push it to the registry of infra-v2, then call the reusable deploy
-# workflow of infra-v2 (starts the inactive blue/green slot, waits for the health check,
-# switches Caddy). The server side (compose file, secrets, Caddy) lives in infra-v2,
+# Build the image, push it to the registry of infra-v2, then start the deploy in infra-v2
+# (starts the inactive blue/green slot, waits for the health check, switches Caddy). The server side (compose file, secrets, Caddy) lives in infra-v2,
 # role `lebenshilfe`.
 #
 # Until DNS points at the new server, a deploy lands on the rehearsal address
@@ -12,12 +11,12 @@ name: Deploy
 # Secrets:
 #   - repo secrets NEXT_PUBLIC_GOOGLE_MAPS_API_KEY and NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
 #     (build arguments; the server-actions key must equal the one in infra-v2's vault)
-#   - org secrets REGISTRY_*, DEPLOY_SSH_KEY, INFRA_V2_VAULT_PASSWORD, DEPLOY_APP_ID,
-#     DEPLOY_APP_PRIVATE_KEY (this repo is in `github_secret_repos` of infra-v2)
+#   - org secrets REGISTRY_*, DEPLOY_APP_ID, DEPLOY_APP_PRIVATE_KEY (this repo is in
+#     `github_secret_repos` of infra-v2)
 #
-# The infra-v2 vault password comes from INFRA_V2_VAULT_PASSWORD, not from
-# ANSIBLE_VAULT_PASSWORD: this repo still has its own secret of that name (the password of
-# .config/secrets.yml, used by deploy-feature.yml), and a repo secret overrides the org secret.
+# This repo is public and may not call a workflow of the private infra-v2, so the deploy
+# job starts infra-v2's deploy-dispatch.yml through the API and waits for it. The deploy
+# logs stay in infra-v2.
 on:
   push:
     branches: [main]
@@ -72,14 +71,49 @@ jobs:
   deploy:
     name: Deploy
     needs: build
-    # Lives in infra-v2. This repo needs access to that private repo (set up by
-    # playbook-setup-github.yml).
-    uses: coding-for-change/infra-v2/.github/workflows/deploy-app.yml@main
-    with:
-      app: lebenshilfe
-      image_tag: ${{ github.sha }}
-    secrets:
-      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-      ANSIBLE_VAULT_PASSWORD: ${{ secrets.INFRA_V2_VAULT_PASSWORD }}
-      DEPLOY_APP_ID: ${{ secrets.DEPLOY_APP_ID }}
-      DEPLOY_APP_PRIVATE_KEY: ${{ secrets.DEPLOY_APP_PRIVATE_KEY }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # The deploy runs in the private repo infra-v2 (workflow deploy-dispatch.yml): this job
+    # starts it with a token of the GitHub App "c4c-infra-deploy" and waits for the result.
+    # Its logs stay in infra-v2; this repo needs only DEPLOY_APP_ID and DEPLOY_APP_PRIVATE_KEY.
+    steps:
+      - name: Get a token for infra-v2
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.DEPLOY_APP_ID }}
+          private-key: ${{ secrets.DEPLOY_APP_PRIVATE_KEY }}
+          owner: coding-for-change
+          repositories: infra-v2
+          permission-actions: write
+
+      - name: Start the deploy in infra-v2 and wait for it
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP: lebenshilfe
+          IMAGE_TAG: ${{ github.sha }}
+          CALLER: ${{ github.repository }}#${{ github.run_id }}-${{ github.run_attempt }}
+          INFRA_REPO: coding-for-change/infra-v2
+        run: |
+          gh workflow run deploy-dispatch.yml --repo "$INFRA_REPO" --ref main \
+            -f app="$APP" -f image_tag="$IMAGE_TAG" -f caller="$CALLER"
+
+          # The run name ends with "(<caller>)": find our run
+          RUN_ID=""
+          for _ in $(seq 1 30); do
+            RUN_ID=$(gh run list --repo "$INFRA_REPO" --workflow deploy-dispatch.yml \
+                --event workflow_dispatch --limit 30 --json databaseId,displayTitle \
+              | jq -r --arg c "($CALLER)" '[.[] | select(.displayTitle | endswith($c))][0].databaseId // empty')
+            [ -n "$RUN_ID" ] && break
+            sleep 5
+          done
+          [ -n "$RUN_ID" ] || { echo "::error::deploy run in infra-v2 not found"; exit 1; }
+          echo "Deploy run in infra-v2 (private): https://github.com/$INFRA_REPO/actions/runs/$RUN_ID" | tee -a "$GITHUB_STEP_SUMMARY"
+
+          while :; do
+            STATE=$(gh run view "$RUN_ID" --repo "$INFRA_REPO" --json status,conclusion --jq '.status + " " + .conclusion')
+            [ "${STATE%% *}" = completed ] && break
+            sleep 15
+          done
+          echo "Result: ${STATE#* }" | tee -a "$GITHUB_STEP_SUMMARY"
+          [ "${STATE#* }" = success ]

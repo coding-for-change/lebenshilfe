@@ -21,9 +21,9 @@ name: Build and deploy (infra-v2)
 #     DEPLOY_APP_PRIVATE_KEY: this repo is in `github_secret_repos` of infra-v2 and
 #     playbook-setup-github.yml has run
 #   - NO repo secret called ANSIBLE_VAULT_PASSWORD: a repo secret overrides the org secret
-#     and would hand infra-v2 the wrong password. The old pipeline reads
-#     LEGACY_ANSIBLE_VAULT_PASSWORD first (see deploy.yml), so create that one with the old
-#     value, then delete the repo's ANSIBLE_VAULT_PASSWORD.
+#     and would hand infra-v2 the wrong password. The old pipeline (deploy.yml) reads
+#     LEGACY_ANSIBLE_VAULT_PASSWORD, so create that one with the old value before merging
+#     the PR that introduced it, then delete the repo's ANSIBLE_VAULT_PASSWORD.
 on:
   workflow_dispatch:
 

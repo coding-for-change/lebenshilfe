@@ -102,4 +102,3 @@ Until the DNS switch, deploys land on `https://lebenshilfe-new.codingforchange.c
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | repo | Build argument |
 | `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` | repo | Build argument; must equal the value in infra-v2's vault and never change |
 | `REGISTRY_*`, `DEPLOY_APP_ID`, `DEPLOY_APP_PRIVATE_KEY` | org | Set by infra-v2 (`playbook-setup-github.yml`) |
-| `ANSIBLE_VAULT_PASSWORD` | repo | Only for `.config/secrets.yml`, still used by `deploy-feature.yml` |

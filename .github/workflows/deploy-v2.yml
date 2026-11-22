@@ -17,13 +17,13 @@ name: Build and deploy (infra-v2)
 # Needs, before the first run:
 #   - repo secrets NEXT_PUBLIC_GOOGLE_MAPS_API_KEY and NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
 #     (build arguments; the server-actions key must equal the one in infra-v2's vault)
-#   - the org secrets REGISTRY_*, DEPLOY_SSH_KEY, ANSIBLE_VAULT_PASSWORD, DEPLOY_APP_ID,
+#   - the org secrets REGISTRY_*, DEPLOY_SSH_KEY, INFRA_V2_VAULT_PASSWORD, DEPLOY_APP_ID,
 #     DEPLOY_APP_PRIVATE_KEY: this repo is in `github_secret_repos` of infra-v2 and
 #     playbook-setup-github.yml has run
-#   - NO repo secret called ANSIBLE_VAULT_PASSWORD: a repo secret overrides the org secret
-#     and would hand infra-v2 the wrong password. The old pipeline (deploy.yml) reads
-#     LEGACY_ANSIBLE_VAULT_PASSWORD, so create that one with the old value before merging
-#     the PR that introduced it, then delete the repo's ANSIBLE_VAULT_PASSWORD.
+#
+# The infra-v2 vault password comes from INFRA_V2_VAULT_PASSWORD, not from
+# ANSIBLE_VAULT_PASSWORD: this repo has its own secret of that name (the password of
+# .config/secrets.yml, used by deploy.yml), and a repo secret overrides the org secret.
 on:
   workflow_dispatch:
 
@@ -84,6 +84,6 @@ jobs:
       image_tag: ${{ github.sha }}
     secrets:
       DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-      ANSIBLE_VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
+      ANSIBLE_VAULT_PASSWORD: ${{ secrets.INFRA_V2_VAULT_PASSWORD }}
       DEPLOY_APP_ID: ${{ secrets.DEPLOY_APP_ID }}
       DEPLOY_APP_PRIVATE_KEY: ${{ secrets.DEPLOY_APP_PRIVATE_KEY }}

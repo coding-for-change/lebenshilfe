@@ -31,7 +31,7 @@ jobs:
           if ! command -v ansible-playbook &> /dev/null; then
             pipx install ansible-core
           fi
-          echo "${{ secrets.LEGACY_ANSIBLE_VAULT_PASSWORD }}" > .vault_pass
+          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault_pass
 
           # Since the file uses inline !vault tags rather than full-file encryption, we use a simple playbook to parse it.
           cat << 'EOF' > dump.yml

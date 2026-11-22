@@ -19,7 +19,7 @@ jobs:
           if ! command -v ansible-playbook &> /dev/null; then
             pipx install ansible-core
           fi
-          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault_pass
+          echo "${{ secrets.LEGACY_ANSIBLE_VAULT_PASSWORD || secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault_pass
 
           cat << 'EOF' > dump.yml
           - hosts: localhost

@@ -1,135 +1,85 @@
 name: Deploy
 
+# Build the image, push it to the registry of infra-v2, then call the reusable deploy
+# workflow of infra-v2 (starts the inactive blue/green slot, waits for the health check,
+# switches Caddy). The server side (compose file, secrets, Caddy) lives in infra-v2,
+# role `lebenshilfe`.
+#
+# Until DNS points at the new server, a deploy lands on the rehearsal address
+# lebenshilfe-new.codingforchange.com. The old VPS (lebenshilfe.codingforchange.com)
+# gets no new versions any more.
+#
+# Secrets:
+#   - repo secrets NEXT_PUBLIC_GOOGLE_MAPS_API_KEY and NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+#     (build arguments; the server-actions key must equal the one in infra-v2's vault)
+#   - org secrets REGISTRY_*, DEPLOY_SSH_KEY, INFRA_V2_VAULT_PASSWORD, DEPLOY_APP_ID,
+#     DEPLOY_APP_PRIVATE_KEY (this repo is in `github_secret_repos` of infra-v2)
+#
+# The infra-v2 vault password comes from INFRA_V2_VAULT_PASSWORD, not from
+# ANSIBLE_VAULT_PASSWORD: this repo still has its own secret of that name (the password of
+# .config/secrets.yml, used by deploy-feature.yml), and a repo secret overrides the org secret.
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
-permissions:
-  contents: read
+env:
+  # The Docker registry of the infrastructure, the same for every project
+  REGISTRY: docker-registry.codingforchange.com
 
-# Serialize deploys. Without this, two merges in quick succession spawn two
-# concurrent deploy runs; whichever finishes its `docker compose up` LAST wins,
-# so a slower-building older commit can clobber a newer one (this happened with
-# PRs #142/#143). The group forces runs to queue instead of racing, and
-# cancel-in-progress:false keeps the running deploy alive while collapsing the
-# queue to the newest pending run — which, on linear main history, contains all
-# prior commits. Net effect: prod always converges on the latest commit.
+# One run at a time, newer pushes wait instead of cancelling a deploy that is under way
 concurrency:
   group: deploy-production
   cancel-in-progress: false
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
+permissions:
+  contents: read
 
+jobs:
+  build:
+    name: Build and push the image
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Check out the code
         uses: actions/checkout@v7
 
-      - name: Decrypt Secrets
-        run: |
-          if ! command -v ansible-playbook &> /dev/null; then
-            pipx install ansible-core
-          fi
-          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault_pass
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-          # Since the file uses inline !vault tags rather than full-file encryption, we use a simple playbook to parse it.
-          cat << 'EOF' > dump.yml
-          - hosts: localhost
-            gather_facts: false
-            vars_files:
-              - .config/secrets.yml
-            tasks:
-              - copy:
-                  content: "{{ vars | to_nice_json }}"
-                  dest: decrypted.json
-          EOF
-          ansible-playbook dump.yml --vault-password-file .vault_pass
+      - name: Log in to the registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
 
-          # Register secrets with GitHub Actions to dynamically mask them in the logs
-          echo "::add-mask::$(jq -r '.REGISTRY_USERNAME // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.REGISTRY_PASSWORD // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.DATABASE_URL // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.BETTER_AUTH_SECRET // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.RESEND_API_KEY // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.S3_ACCESS_KEY_ID // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.S3_SECRET_ACCESS_KEY // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY // empty' decrypted.json)"
-      # 2. Build Docker image
-      - name: Build Docker image
-        run: |
-          docker build \
-            -t registry.infra.codingforchange.com/lebenshilfe:${{ github.sha }} \
-            -t registry.infra.codingforchange.com/lebenshilfe:latest \
-            --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY // empty' decrypted.json)" \
-            --build-arg NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="$(jq -r '.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY // empty' decrypted.json)" \
-            .
+      # Tag = commit sha only. No `latest`: the nightly prune deletes by digest and would
+      # take the running image's manifest with it. The image name must match what the
+      # infra-v2 role pulls: localhost:5000/lebenshilfe
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.REGISTRY }}/lebenshilfe:${{ github.sha }}
+          provenance: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+            NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=${{ secrets.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY }}
 
-      # 3. Push to private registry
-      - name: Login to registry
-        run: |
-          jq -r '.REGISTRY_PASSWORD // empty' decrypted.json | docker login registry.infra.codingforchange.com \
-            -u "$(jq -r '.REGISTRY_USERNAME // empty' decrypted.json)" \
-            --password-stdin
-
-      - name: Push Docker image
-        run: |
-          docker push registry.infra.codingforchange.com/lebenshilfe:${{ github.sha }}
-          docker push registry.infra.codingforchange.com/lebenshilfe:latest
-
-      # 4. Deploy to VPS via SSH
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          jq -r '.VPS_DEPLOY_KEY // empty' decrypted.json > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H codingforchange.com >> ~/.ssh/known_hosts
-
-      - name: Copy files to VPS
-        run: |
-          SSH="ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key"
-          SCP="scp -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key"
-          SSH_TARGET="deploy-lebenshilfe@codingforchange.com"
-
-          # Ensure target directory exists
-          $SSH $SSH_TARGET "mkdir -p /var/www/lebenshilfe"
-
-          # Copy docker-compose (prod → docker-compose.yml on VPS)
-          $SCP docker-compose.prod.yml ${SSH_TARGET}:/var/www/lebenshilfe/docker-compose.yml
-
-          # Copy Caddyfile
-          $SCP Caddyfile ${SSH_TARGET}:/var/www/lebenshilfe/Caddyfile
-
-          # Write .env from decrypted secrets and copy to VPS
-          printf '%s\n' \
-            "IMAGE_TAG=${{ github.sha }}" \
-            "DATABASE_URL=$(jq -r '.DATABASE_URL // empty' decrypted.json)" \
-            "BETTER_AUTH_SECRET=$(jq -r '.BETTER_AUTH_SECRET // empty' decrypted.json)" \
-            "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=$(jq -r '.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY // empty' decrypted.json)" \
-            "RESEND_API_KEY=$(jq -r '.RESEND_API_KEY // empty' decrypted.json)" \
-            "S3_ENDPOINT=$(jq -r '.S3_ENDPOINT // empty' decrypted.json)" \
-            "S3_REGION=$(jq -r '.S3_REGION // empty' decrypted.json)" \
-            "S3_ACCESS_KEY_ID=$(jq -r '.S3_ACCESS_KEY_ID // empty' decrypted.json)" \
-            "S3_SECRET_ACCESS_KEY=$(jq -r '.S3_SECRET_ACCESS_KEY // empty' decrypted.json)" \
-            "S3_BUCKET=$(jq -r '.S3_BUCKET // empty' decrypted.json)" \
-            "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY // empty' decrypted.json)" \
-            "BETTER_AUTH_URL=https://lebenshilfe.codingforchange.com" \
-            "NEXT_PUBLIC_APP_URL=https://lebenshilfe.codingforchange.com" \
-            "EMAIL_FROM=info@codingforchange.com" \
-            > /tmp/.env
-          $SCP /tmp/.env ${SSH_TARGET}:/var/www/lebenshilfe/.env
-          rm -f /tmp/.env
-
-      - name: Deploy on VPS
-        run: |
-          SSH="ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key deploy-lebenshilfe@codingforchange.com"
-
-          $SSH "cd /var/www/lebenshilfe && \
-            docker compose pull && \
-            docker compose up -d"
-
-      - name: Clean up Secrets
-        if: always()
-        run: |
-          rm -f .vault_pass dump.yml decrypted.json
+  deploy:
+    name: Deploy
+    needs: build
+    # Lives in infra-v2. This repo needs access to that private repo (set up by
+    # playbook-setup-github.yml).
+    uses: coding-for-change/infra-v2/.github/workflows/deploy-app.yml@main
+    with:
+      app: lebenshilfe
+      image_tag: ${{ github.sha }}
+    secrets:
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      ANSIBLE_VAULT_PASSWORD: ${{ secrets.INFRA_V2_VAULT_PASSWORD }}
+      DEPLOY_APP_ID: ${{ secrets.DEPLOY_APP_ID }}
+      DEPLOY_APP_PRIVATE_KEY: ${{ secrets.DEPLOY_APP_PRIVATE_KEY }}

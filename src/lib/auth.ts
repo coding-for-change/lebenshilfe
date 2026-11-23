@@ -24,6 +24,10 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "mysql",
   }),
+  // Better Auth endpoints this app never calls. Profiles are not self-service
+  // here (names and roles are managed by admins in the app), so the update
+  // endpoint stays off instead of exposing every client-settable user field.
+  disabledPaths: ["/update-user"],
   plugins: [
     // Reject breached passwords (HIBP k-anonymity: only a hashed SHA-1 prefix leaves the server).
     haveIBeenPwned({
@@ -55,6 +59,12 @@ export const auth = betterAuth({
       role: {
         type: "string",
         required: false,
+        // Never accepted from a request body. Without this, Better Auth's
+        // built-in /update-user (and /sign-up/email) take `role` from the
+        // client, so any signed-in user could set their own role. Roles are
+        // assigned only server-side: by the invitation in the create hook
+        // below, and by the users feature (promote to owner).
+        input: false,
       },
     },
   },

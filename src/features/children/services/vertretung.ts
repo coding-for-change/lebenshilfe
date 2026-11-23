@@ -15,7 +15,18 @@ export async function listVertretungenForUserAsSubstitute(
 ) {
   return prisma.childVertretung.findMany({
     where: { substituteProfile: { userId }, date: { gte: from, lt: to } },
-    include: { child: true },
+    // The substitute only sees the child's name and the Vertretung itself.
+    include: {
+      child: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          vorviertelstunde: true,
+          nachviertelstunde: true,
+        },
+      },
+    },
     orderBy: { date: "asc" },
   });
 }

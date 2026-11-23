@@ -10,6 +10,11 @@
  * The merge lives here because TimesheetFacade cannot call ChildrenFacade
  * (facades are single-domain) and the page should not contain merge logic.
  *
+ * Children the user only covers as substitute come back in
+ * `substituteOnlyDays` with the dates of their Vertretungen. For those
+ * children the Schulbegleiter gets nothing beyond what the Vertretung itself
+ * needs: no Stundenplan, and absences or holidays only on those dates.
+ *
  * NOTE: The time window for Vertretung children is a known limitation; a
  * Vertretung outside [substituteFrom, substituteTo] will not appear in the
  * returned list. This is tracked separately for improvement.
@@ -30,7 +35,7 @@ export async function getAssignedChildrenForUser(
   userId: string,
   substituteFrom: Date,
   substituteTo: Date,
-): Promise<AssignedChild[]> {
+) {
   const [regular, vertretungen] = await Promise.all([
     TimesheetFacade.listAssignedChildren(userId),
     ChildrenFacade.listVertretungenForUserAsSubstitute(
@@ -41,7 +46,7 @@ export async function getAssignedChildrenForUser(
   ]);
 
   const seen = new Set(regular.map((c) => c.id));
-  const result: AssignedChild[] = regular.map((c) => ({
+  const children: AssignedChild[] = regular.map((c) => ({
     id: c.id,
     firstName: c.firstName,
     lastName: c.lastName,
@@ -49,17 +54,25 @@ export async function getAssignedChildrenForUser(
     nachviertelstunde: c.nachviertelstunde,
   }));
 
+  // childId → ISO dates (YYYY-MM-DD) of the Vertretungen, for children the
+  // user has no regular assignment with.
+  const substituteOnlyDays = new Map<string, Set<string>>();
   for (const v of vertretungen) {
-    if (seen.has(v.childId)) continue;
-    seen.add(v.childId);
-    result.push({
-      id: v.child.id,
-      firstName: v.child.firstName,
-      lastName: v.child.lastName,
-      vorviertelstunde: v.child.vorviertelstunde,
-      nachviertelstunde: v.child.nachviertelstunde,
-    });
+    if (seen.has(v.childId) && !substituteOnlyDays.has(v.childId)) continue;
+    if (!seen.has(v.childId)) {
+      seen.add(v.childId);
+      children.push({
+        id: v.child.id,
+        firstName: v.child.firstName,
+        lastName: v.child.lastName,
+        vorviertelstunde: v.child.vorviertelstunde,
+        nachviertelstunde: v.child.nachviertelstunde,
+      });
+    }
+    const days = substituteOnlyDays.get(v.childId) ?? new Set<string>();
+    days.add(v.date.toISOString().slice(0, 10));
+    substituteOnlyDays.set(v.childId, days);
   }
 
-  return result;
+  return { children, vertretungen, substituteOnlyDays };
 }

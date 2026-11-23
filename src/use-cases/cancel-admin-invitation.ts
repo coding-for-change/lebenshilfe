@@ -1,5 +1,3 @@
-"use server";
-
 import { requireAdmin, requireOwner } from "@/lib/auth-guards";
 import { InvitationFacade } from "@/features/invitations/facade";
 import { Role } from "@/generated/prisma";

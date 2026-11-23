@@ -83,22 +83,22 @@ API routes for auth are served at `/api/auth/*`.
 
 ## Deployment
 
-The application is automatically deployed to the c4c VPS via a GitHub Actions workflow (`.github/workflows/deploy.yml`) on every push to the `main` branch.
+Every push to `main` builds the image and deploys it to infra-v2 (`.github/workflows/deploy.yml`):
+the image goes to `docker-registry.codingforchange.com/lebenshilfe:<git sha>`, then the deploy job starts
+the workflow `deploy-dispatch.yml` in `coding-for-change/infra-v2` and waits for it: it starts the
+inactive blue/green slot, waits for its health check and switches Caddy. The deploy logs are in
+infra-v2 (private). `prisma migrate deploy` runs when the container
+starts, so every migration must also work with the previous version (both slots share the database).
 
-### GitHub Repository Secrets
+The server side (compose file, runtime secrets, database, Caddy) lives in infra-v2, role
+`lebenshilfe`. Runtime configuration and secrets are changed there, not in this repo.
 
-These **must** be set in GitHub → Settings → Secrets and Variables → Actions:
+Until the DNS switch, deploys land on `https://lebenshilfe-new.codingforchange.com`.
 
-| Secret | Description |
-|--------|-------------|
-| `ANSIBLE_VAULT_PASSWORD` | Password to decrypt `.config/secrets.yml` which contains all deployment secrets |
+### GitHub secrets
 
-### Non-Secret Environment Variables
-
-These are **hardcoded** in the workflow and automatically written to `.env` on the VPS:
-
-| Variable | Value | Description |
-|----------|-------|-------------|
-| `BETTER_AUTH_URL` | `https://lebenshilfe.codingforchange.com` | Canonical URL used by Better Auth |
-| `NEXT_PUBLIC_APP_URL` | `https://lebenshilfe.codingforchange.com` | Base URL used in email links (invitations, password reset) |
-| `EMAIL_FROM` | `info@codingforchange.de` | "From" address for all outgoing emails |
+| Secret | Where | Description |
+|--------|-------|-------------|
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | repo | Build argument |
+| `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` | repo | Build argument; must equal the value in infra-v2's vault and never change |
+| `REGISTRY_*`, `DEPLOY_APP_ID`, `DEPLOY_APP_PRIVATE_KEY` | org | Set by infra-v2 (`playbook-setup-github.yml`) |

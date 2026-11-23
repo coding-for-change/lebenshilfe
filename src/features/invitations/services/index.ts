@@ -33,14 +33,17 @@ export async function expireInvitationById(id: string) {
   });
 }
 
-export async function markInvitationUsed(id: string) {
-  return prisma.invitation.update({
-    where: { id },
-    data: { isUsed: true },
-  });
-}
+const SUBJECTS: Record<Role, string> = {
+  SCHOOL_ASSISTANT: `Einladung: Willkommen bei der ${branding.name}`,
+  ADMIN: `Einladung als Admin – ${branding.name}`,
+  OWNER: `Einladung als Hauptadmin – ${branding.name}`,
+};
 
-export async function processNewInvitation(email: string, role: Role) {
+export async function processNewInvitation(
+  email: string,
+  role: Role,
+  { replacesEarlier }: { replacesEarlier: boolean },
+) {
   const token = randomBytes(64).toString("hex");
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
@@ -49,17 +52,37 @@ export async function processNewInvitation(email: string, role: Role) {
   const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/onboard?token=${token}`;
 
   const { html, text } = await renderEmail(
-    createElement(InvitationEmail, { inviteUrl }),
+    createElement(InvitationEmail, { inviteUrl, role, replacesEarlier }),
   );
 
   await sendMail({
     to: email,
-    subject: `Einladung: Willkommen bei der ${branding.name}`,
+    subject: SUBJECTS[role],
     html,
     text,
   });
 
   return invitation;
+}
+
+export async function findOpenInvitationsByEmail(email: string) {
+  return prisma.invitation.findMany({
+    where: { email, isUsed: false, expiresAt: { gt: new Date() } },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+// The most recent invitation for the same email created after `createdAt`, if
+// any. Tells "this link was replaced by a resend" apart from "withdrawn": both
+// set expiresAt to the epoch.
+export async function findNewerInvitationForEmail(
+  email: string,
+  createdAt: Date,
+) {
+  return prisma.invitation.findFirst({
+    where: { email, createdAt: { gt: createdAt } },
+    orderBy: { createdAt: "desc" },
+  });
 }
 
 export async function getAllInvitations() {
@@ -83,12 +106,5 @@ export async function expireUnusedInvitationsForEmail(email: string) {
   return prisma.invitation.updateMany({
     where: { email, isUsed: false },
     data: { expiresAt: new Date(0) },
-  });
-}
-
-export async function findLatestInvitationByEmail(email: string) {
-  return prisma.invitation.findFirst({
-    where: { email },
-    orderBy: { createdAt: "desc" },
   });
 }

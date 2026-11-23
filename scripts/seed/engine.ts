@@ -1,4 +1,5 @@
 import { auth } from "../../src/lib/auth";
+import { INVITE_TOKEN_HEADER } from "../../src/lib/invite-token";
 import { prisma } from "../../src/lib/prisma";
 import {
   EventType,
@@ -71,7 +72,10 @@ async function createUserViaAuth(user: SeedUser) {
 
   const req = new Request("http://localhost:3000/api/auth/sign-up/email", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      [INVITE_TOKEN_HEADER]: `seed-token-${user.email}`,
+    },
     body: JSON.stringify({
       email: user.email,
       password: user.password,

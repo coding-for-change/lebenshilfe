@@ -1,3 +1,4 @@
+import { Role } from "@/generated/prisma";
 import { requireAdmin } from "@/lib/auth-guards";
 import { InvitationFacade } from "@/features/invitations/facade";
 import { SchoolAssistantsFacade } from "@/features/school-assistants/facade";
@@ -7,6 +8,6 @@ export async function resendSchoolAssistantInvitationUseCase(
 ) {
   await requireAdmin();
   const email = await SchoolAssistantsFacade.getEmailForResend(profileId);
-  await InvitationFacade.regenerateAndSend(email);
+  await InvitationFacade.regenerateAndSend(email, Role.SCHOOL_ASSISTANT);
   return { success: true };
 }

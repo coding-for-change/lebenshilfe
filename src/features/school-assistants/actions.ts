@@ -9,6 +9,7 @@ import type {
 } from "./schemas";
 import { createSchoolAssistantUseCase } from "@/use-cases/create-school-assistant";
 import { resendSchoolAssistantInvitationUseCase } from "@/use-cases/resend-school-assistant-invitation";
+import { deleteSchoolAssistantUseCase } from "@/use-cases/delete-school-assistant";
 
 const ROUTE = "/admin/school-assistants";
 
@@ -34,8 +35,7 @@ export async function updateSchoolAssistantAction(
 }
 
 export async function deleteSchoolAssistantAction(profileId: string) {
-  await requireAdmin();
-  await SchoolAssistantsFacade.delete(profileId);
+  await deleteSchoolAssistantUseCase(profileId);
   revalidatePath(ROUTE);
   return { success: true };
 }

@@ -13,7 +13,6 @@ import type {
   CreateIndirectByNameInput,
   CreatePoolWorkEventInput,
   SubmitMonthlyReportInput,
-  UpdateEventInput,
 } from "./schemas";
 
 export const createEventAction = serverAction(
@@ -40,14 +39,6 @@ export const createIndirectEventByNameAction = serverAction(
     const result = await createIndirectEventByName(userId, input);
     revalidatePath("/");
     return result;
-  },
-);
-
-export const updateEventAction = serverAction(
-  async (eventId: string, input: UpdateEventInput) => {
-    const { id: userId } = await requireAuth();
-    await TimesheetFacade.updateEvent(userId, eventId, input);
-    revalidatePath("/");
   },
 );
 

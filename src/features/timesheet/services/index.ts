@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { uploadSignaturePng } from "@/lib/storage";
-import { EventType, Prisma } from "@/generated/prisma";
+import { EventType } from "@/generated/prisma";
 import {
   WEEKDAYS,
   emptyAssignmentsByWeekday,
@@ -211,13 +211,6 @@ export async function signWorkEvents(
     },
     data: { signatureKey },
   });
-}
-
-export async function updateEventFields(
-  id: string,
-  data: Prisma.EventUpdateInput,
-) {
-  return prisma.event.update({ where: { id }, data });
 }
 
 export async function deleteEventById(id: string) {

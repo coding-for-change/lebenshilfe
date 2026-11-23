@@ -1,12 +1,15 @@
 name: Deploy Demo
 
-# The public demo at demo-lebenshilfe.codingforchange.com. Manual by default —
-# the demo is something we show to people, so it should move when we decide it
-# moves, not on every merge. Uncomment the `push` trigger to track main.
+# The public demo at demo-lebenshilfe.codingforchange.com, on the old VPS.
+#
+# Deploys on every push to the demo branch. The demo lives on this branch only
+# (main deploys production to infra-v2), and GitHub only offers "Run workflow"
+# for workflows that exist on the default branch, so a manual start from the UI
+# is not possible. To ship fixes from main: merge main into this branch, push.
 on:
+  push:
+    branches: [claude/lebenshilfe-hamburg-demo-8f5538]
   workflow_dispatch:
-  # push:
-  #   branches: [main]
 
 permissions:
   contents: read

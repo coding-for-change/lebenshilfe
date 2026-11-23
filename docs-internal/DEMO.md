@@ -1,4 +1,4 @@
-# Demo-Instanz (Lebenshilfe Hamburg)
+# Demo-Instanz (Lebenshilfe Demo-Anwendung)
 
 Öffentliche Schau-Umgebung unter **https://demo-lebenshilfe.codingforchange.com**.
 Gleiche Codebasis wie die Produktion, anderes Branding, erfundene Daten.
@@ -49,9 +49,15 @@ das Zertifikat beim ersten Aufruf selbst.
 
 ## Deployen
 
-GitHub → Actions → **Deploy Demo** → *Run workflow*. Bewusst manuell: die Demo
-ist etwas, das wir herzeigen, sie soll sich bewegen wenn wir es entscheiden.
-Soll sie `main` folgen, den `push`-Trigger im Workflow einkommentieren.
+Jeder Push auf den Demo-Branch (`claude/lebenshilfe-hamburg-demo-8f5538`)
+deployt die Demo. Die Demo lebt nur auf diesem Branch — `main` deployt die
+Produktion nach infra-v2, und GitHub bietet *Run workflow* nur für Workflows an,
+die auf dem Default-Branch liegen. Fixes aus `main` kommen so in die Demo:
+`main` in den Demo-Branch mergen, pushen.
+
+Der Workflow braucht das Repo-Secret `ANSIBLE_VAULT_PASSWORD` (entschlüsselt
+`.config/secrets.yml`). Nicht löschen, solange die Demo auf dem alten VPS läuft
+— ein gleichnamiges Org-Secret von infra-v2 hat einen anderen Wert.
 
 Auf dem VPS landet alles unter `/var/www/lebenshilfe-demo` — eigene Compose-
 Datei, eigener MySQL-Container, eigener S3-Container für die Unterschriften

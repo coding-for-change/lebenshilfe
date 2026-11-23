@@ -28,12 +28,17 @@ export default async function LandingPage() {
     Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 2, 1),
   );
 
-  const assignedChildren = await getAssignedChildrenForUser(
-    user.id,
-    rangeStart,
-    rangeEnd,
-  );
+  const {
+    children: assignedChildren,
+    vertretungen: vertretungenAsSubstitute,
+    substituteOnlyDays,
+  } = await getAssignedChildrenForUser(user.id, rangeStart, rangeEnd);
   const childIds = assignedChildren.map((c) => c.id);
+  // A child the user only covers as substitute gets no Stundenplan; the
+  // Vertretung carries its own times.
+  const regularChildIds = childIds.filter((id) => !substituteOnlyDays.has(id));
+  const isVertretungDay = (childId: string, isoDate: string) =>
+    substituteOnlyDays.get(childId)?.has(isoDate) ?? true;
 
   const [
     events,
@@ -42,13 +47,12 @@ export default async function LandingPage() {
     profile,
     childAbsences,
     assignmentsByWeekday,
-    vertretungenAsSubstitute,
     allChildren,
     pendingVertretungRequests,
     pendingIndirectRequests,
   ] = await Promise.all([
     TimesheetFacade.getEventsInRange(user.id, rangeStart, rangeEnd),
-    TimesheetFacade.getSchedulesForChildren(childIds),
+    TimesheetFacade.getSchedulesForChildren(regularChildIds),
     TimesheetFacade.listLockedMonthKeys(user.id),
     SchoolAssistantsFacade.getByEmail(user.email),
     ChildrenFacade.listAbsencesForChildrenInRange(
@@ -57,11 +61,6 @@ export default async function LandingPage() {
       rangeEnd,
     ),
     TimesheetFacade.getAssignmentsByWeekday(user.id),
-    ChildrenFacade.listVertretungenForUserAsSubstitute(
-      user.id,
-      rangeStart,
-      rangeEnd,
-    ),
     ChildrenFacade.list(),
     VertretungRequestsFacade.listForUser(user.id, rangeStart, rangeEnd),
     VertretungRequestsFacade.listIndirectForUser(user.id, rangeStart, rangeEnd),
@@ -79,14 +78,25 @@ export default async function LandingPage() {
       holidaysByChildId.set(c.id, c.school.holidays);
     }
   }
-  const childSchoolHolidays = assignedChildren.flatMap((c) =>
-    (holidaysByChildId.get(c.id) ?? []).map((h) => ({
-      childId: c.id,
-      name: h.name,
-      startDate: h.startDate,
-      endDate: h.endDate,
-    })),
-  );
+  const childSchoolHolidays = assignedChildren.flatMap((c) => {
+    const vertretungDays = substituteOnlyDays.get(c.id);
+    return (holidaysByChildId.get(c.id) ?? [])
+      .filter(
+        (h) =>
+          !vertretungDays ||
+          [...vertretungDays].some((d) => d >= h.startDate && d <= h.endDate),
+      )
+      .map((h) => ({
+        childId: c.id,
+        name: h.name,
+        startDate: h.startDate,
+        endDate: h.endDate,
+      }));
+  });
+
+  const visibleAbsences = childAbsences
+    .map((a) => ({ ...a, isoDate: a.date.toISOString().slice(0, 10) }))
+    .filter((a) => isVertretungDay(a.childId, a.isoDate));
 
   return (
     <SchoolAssistantApp
@@ -100,11 +110,13 @@ export default async function LandingPage() {
       events={events}
       schedules={schedules}
       lockedMonthKeys={lockedMonthKeys}
-      childAbsences={childAbsences.map((a) => ({
+      childAbsences={visibleAbsences.map((a) => ({
         id: a.id,
         childId: a.childId,
-        date: a.date.toISOString().slice(0, 10),
-        note: a.note,
+        date: a.isoDate,
+        // The reason stays with the regular team; a substitute only needs to
+        // know the child is absent that day.
+        note: substituteOnlyDays.has(a.childId) ? null : a.note,
         createdByUserId: a.createdByUserId,
       }))}
       assignmentsByWeekday={assignmentsByWeekday}

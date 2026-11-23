@@ -8,8 +8,46 @@ import { renderEmail } from "./email/render";
 import { ResetPasswordEmail } from "./email/templates/reset-password-email";
 import { logger } from "@/lib/logger";
 import { haveIBeenPwned, twoFactor } from "better-auth/plugins";
-import { APIError } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { INVITE_TOKEN_HEADER } from "./invite-token";
+
+const INVALID_INVITATION_MESSAGE =
+  "Diese Einladung ist nicht mehr gültig. Bitte öffne den Link aus der neuesten Einladungs-E-Mail.";
+
+// The invitation a sign-up may use: the one whose link was opened (token),
+// unused, not expired or withdrawn, and for this email. Null otherwise.
+async function findUsableInvitation(token: string | null, email: string) {
+  if (!token) return null;
+  const invite = await prisma.invitation.findUnique({ where: { token } });
+  if (
+    !invite ||
+    invite.isUsed ||
+    invite.expiresAt <= new Date() ||
+    invite.email.toLowerCase() !== email.toLowerCase()
+  ) {
+    return null;
+  }
+  return invite;
+}
+
+// Rendering and sending are not awaited by the reset request (see
+// sendResetPassword below). The server is a long-running Node process, so the
+// mail still goes out; a failure is logged instead of reaching the caller.
+function sendResetPasswordMail(to: string, resetUrl: string) {
+  void (async () => {
+    const { html, text } = await renderEmail(
+      createElement(ResetPasswordEmail, { resetUrl }),
+    );
+    await sendMail({
+      to,
+      subject: "Passwort zurücksetzen – Lebenshilfe München",
+      html,
+      text,
+    });
+  })().catch((error) => {
+    logger.error({ err: error }, "[auth] could not send the reset mail");
+  });
+}
 
 // The invitation a sign-up request was made with, or null. Read from the
 // request header, never derived from the email: an email can have several
@@ -39,7 +77,26 @@ export const auth = betterAuth({
   // Better Auth endpoints this app never calls. Profiles are not self-service
   // here (names and roles are managed by admins in the app), so the update
   // endpoint stays off instead of exposing every client-settable user field.
-  disabledPaths: ["/update-user"],
+  // /verify-password checks a password for the signed-in user; nothing here
+  // uses it, and with a stolen session it would be a password-guessing oracle.
+  disabledPaths: ["/update-user", "/verify-password"],
+  hooks: {
+    // Runs before Better Auth looks the email up (user hooks run before the
+    // plugins', so also before the breach check). Without it, a sign-up
+    // without a valid invitation answered 422 "user already exists" for
+    // registered emails and 403 for all others, so anyone could test which
+    // addresses have an account. Now every such attempt gets the same 403.
+    // The user.create hook below checks the same again for its own path.
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-up/email") return;
+      const email = typeof ctx.body?.email === "string" ? ctx.body.email : "";
+      if (!(await findUsableInvitation(inviteTokenOf(ctx), email))) {
+        throw new APIError("FORBIDDEN", {
+          message: INVALID_INVITATION_MESSAGE,
+        });
+      }
+    }),
+  },
   plugins: [
     // Reject breached passwords (HIBP k-anonymity: only a hashed SHA-1 prefix leaves the server).
     haveIBeenPwned({
@@ -62,7 +119,9 @@ export const auth = betterAuth({
     // are shared across replicas — the default in-process Map does not.
     customRules: {
       "/sign-in/email": { window: 60, max: 10 },
-      "/forget-password": { window: 300, max: 3 },
+      // The reset request. (This rule was keyed "/forget-password", a path
+      // Better Auth no longer has, so only its looser default applied.)
+      "/request-password-reset": { window: 300, max: 3 },
       "/reset-password": { window: 300, max: 5 },
     },
   },
@@ -86,16 +145,12 @@ export const auth = betterAuth({
     // Invalidate all existing sessions on password reset, so resetting a
     // compromised account actually logs out an attacker holding a live session.
     revokeSessionsOnPasswordReset: true,
+    // Only called for registered emails. Awaiting the mail here made those
+    // requests ~20x slower than for unknown emails, so the response time
+    // revealed which addresses have an account. The mail is sent in the
+    // background instead.
     sendResetPassword: async ({ url, user }) => {
-      const { html, text } = await renderEmail(
-        createElement(ResetPasswordEmail, { resetUrl: url }),
-      );
-      await sendMail({
-        to: user.email,
-        subject: "Passwort zurücksetzen – Lebenshilfe München",
-        html,
-        text,
-      });
+      sendResetPasswordMail(user.email, url);
     },
   },
   session: {
@@ -110,6 +165,12 @@ export const auth = betterAuth({
     // protocol/URL. NODE_ENV=production is set in the Dockerfile; local dev runs
     // over http (incl. dev:local on a LAN IP), where a Secure cookie is rejected.
     useSecureCookies: process.env.NODE_ENV === "production",
+    // Rate limits are per client IP, read from X-Forwarded-For (Better Auth's
+    // default). That is trustworthy only because Caddy, our only ingress,
+    // replaces any client-sent X-Forwarded-For with the real peer address
+    // (verified: a forged header is ignored). If a CDN or load balancer is ever
+    // put in front, set advanced.ipAddress.trustedProxies to its ranges, or all
+    // clients end up in one shared "no-trusted-ip" bucket.
   },
   databaseHooks: {
     user: {
@@ -118,19 +179,13 @@ export const auth = betterAuth({
         // exist, be unused, not be expired or withdrawn, and belong to this
         // email. The role is taken from exactly that invitation.
         before: async (user, ctx) => {
-          const token = inviteTokenOf(ctx);
-          const invite = token
-            ? await prisma.invitation.findUnique({ where: { token } })
-            : null;
-          if (
-            !invite ||
-            invite.isUsed ||
-            invite.expiresAt <= new Date() ||
-            invite.email.toLowerCase() !== user.email.toLowerCase()
-          ) {
+          const invite = await findUsableInvitation(
+            inviteTokenOf(ctx),
+            user.email,
+          );
+          if (!invite) {
             throw new APIError("FORBIDDEN", {
-              message:
-                "Diese Einladung ist nicht mehr gültig. Bitte öffne den Link aus der neuesten Einladungs-E-Mail.",
+              message: INVALID_INVITATION_MESSAGE,
             });
           }
           return {

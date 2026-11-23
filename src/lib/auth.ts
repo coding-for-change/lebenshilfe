@@ -8,6 +8,18 @@ import { renderEmail } from "./email/render";
 import { ResetPasswordEmail } from "./email/templates/reset-password-email";
 import { logger } from "@/lib/logger";
 import { haveIBeenPwned, twoFactor } from "better-auth/plugins";
+import { APIError } from "better-auth/api";
+import { INVITE_TOKEN_HEADER } from "./invite-token";
+
+// The invitation a sign-up request was made with, or null. Read from the
+// request header, never derived from the email: an email can have several
+// invitations (an old Schulbegleiter one and a newer Admin one), and only the
+// link that was actually opened may decide the role.
+function inviteTokenOf(
+  ctx: { headers?: Headers } | null | undefined,
+): string | null {
+  return ctx?.headers?.get(INVITE_TOKEN_HEADER) ?? null;
+}
 
 // Rate limiting protects the auth endpoints (brute force / credential stuffing)
 // in production. Outside production it is off by default so local scripts that
@@ -92,14 +104,24 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
-        before: async (user) => {
-          const invite = await prisma.invitation.findFirst({
-            where: { email: user.email, isUsed: false },
-          });
-          if (!invite) {
-            throw new Error(
-              "Registration strictly requires an active invitation",
-            );
+        // Registration requires the invitation whose link was opened: it must
+        // exist, be unused, not be expired or withdrawn, and belong to this
+        // email. The role is taken from exactly that invitation.
+        before: async (user, ctx) => {
+          const token = inviteTokenOf(ctx);
+          const invite = token
+            ? await prisma.invitation.findUnique({ where: { token } })
+            : null;
+          if (
+            !invite ||
+            invite.isUsed ||
+            invite.expiresAt <= new Date() ||
+            invite.email.toLowerCase() !== user.email.toLowerCase()
+          ) {
+            throw new APIError("FORBIDDEN", {
+              message:
+                "Diese Einladung ist nicht mehr gültig. Bitte öffne den Link aus der neuesten Einladungs-E-Mail.",
+            });
           }
           return {
             data: {
@@ -108,7 +130,31 @@ export const auth = betterAuth({
             },
           };
         },
-        after: async (user) => {
+        after: async (user, ctx) => {
+          // Consume the invitation as part of the sign-up itself, and close any
+          // other open invitation for this email: the person has an account now,
+          // so no other link may create a second one or a different role.
+          const token = inviteTokenOf(ctx);
+          if (token) {
+            try {
+              const invite = await prisma.invitation.update({
+                where: { token },
+                data: { isUsed: true },
+              });
+              await prisma.invitation.updateMany({
+                where: { email: invite.email, isUsed: false },
+                data: { expiresAt: new Date(0) },
+              });
+            } catch (error) {
+              // The account exists at this point; failing the request now would
+              // only tell the person their sign-up failed when it did not.
+              logger.error(
+                { err: error, userId: user.id },
+                "[auth] could not consume the invitation after sign-up",
+              );
+            }
+          }
+
           if (user.role !== Role.SCHOOL_ASSISTANT) return;
           try {
             await prisma.schoolAssistantProfile.update({

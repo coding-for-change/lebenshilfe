@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckIcon } from "lucide-react";
 
-import { consumeUsedToken } from "@/features/invitations/actions";
 import { authClient } from "@/lib/auth-client";
+import { INVITE_TOKEN_HEADER } from "@/lib/invite-token";
 import { logger } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,18 +47,19 @@ export function OnboardForm({
 
     setStatus("loading");
     try {
+      // The token decides which invitation (and so which role) this sign-up
+      // is for; the server consumes it as part of the sign-up.
       const result = await authClient.signUp.email({
         email,
         password,
         name: name.trim(),
+        fetchOptions: { headers: { [INVITE_TOKEN_HEADER]: token } },
       });
       if (result.error) {
         setStatus("error");
         setErrorMessage(result.error.message || "Fehler beim Registrieren.");
         return;
       }
-
-      await consumeUsedToken(token);
 
       setStatus("success");
       setTimeout(() => {

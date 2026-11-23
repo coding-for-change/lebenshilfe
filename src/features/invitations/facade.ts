@@ -4,49 +4,71 @@ import {
   expireUnusedInvitationsForEmail,
   findInvitationById,
   findInvitationByToken,
-  findLatestInvitationByEmail,
+  findNewerInvitationForEmail,
+  findOpenInvitationsByEmail,
   listPendingInvitationsByRoles,
-  markInvitationUsed,
   processNewInvitation,
   getAllInvitations as fetchAllInvitations,
 } from "./services";
 import { Role } from "@/generated/prisma";
 
+type Invitation = NonNullable<
+  Awaited<ReturnType<typeof findInvitationByToken>>
+>;
+
+export type InvitationTokenState =
+  | { state: "valid"; invite: Invitation }
+  | { state: "used" | "replaced" | "revoked" | "expired"; email: string }
+  | { state: "notfound" };
+
 export const InvitationFacade = {
+  // Sends a new invitation. Any other open invitation for this email is closed
+  // first: one email has at most one working link, so an old link can never
+  // decide the role (e.g. an old Schulbegleiter link after an Admin invite).
   async generateAndSendInvite(
     email: string,
     role: Role = Role.SCHOOL_ASSISTANT,
   ) {
     CreateInvitationSchema.parse({ email, role });
-    // Token generation, database insertion, and email dispatch are delegated to the service boundary
-    return processNewInvitation(email, role);
+    const replaced = await expireUnusedInvitationsForEmail(email);
+    return processNewInvitation(email, role, {
+      replacesEarlier: replaced.count > 0,
+    });
   },
 
-  async regenerateAndSend(email: string) {
-    const latest = await findLatestInvitationByEmail(email);
-    const role = latest?.role ?? Role.SCHOOL_ASSISTANT;
+  // Resends with the role of the invitation being resent. (It used to take the
+  // role of the newest invitation for the email, so a resend from the
+  // Schulbegleiter list could go out as an Admin invite and vice versa.)
+  async regenerateAndSend(email: string, role: Role) {
+    CreateInvitationSchema.parse({ email, role });
     await expireUnusedInvitationsForEmail(email);
-    return processNewInvitation(email, role);
+    return processNewInvitation(email, role, { replacesEarlier: true });
   },
 
-  async verifyToken(token: string) {
+  // What the onboarding page should say about a link. Never throws.
+  async getTokenState(token: string): Promise<InvitationTokenState> {
     const invite = await findInvitationByToken(token);
-    if (!invite || invite.isUsed || invite.expiresAt < new Date()) {
-      throw new Error("Ungültiges oder abgelaufenes Einladungstoken.");
-    }
-    return invite;
+    if (!invite) return { state: "notfound" };
+    const { email } = invite;
+    if (invite.isUsed) return { state: "used", email };
+    if (invite.expiresAt > new Date()) return { state: "valid", invite };
+
+    // Closed links: a resend or a later invitation replaces them, a cancel or
+    // deleting the Schulbegleiter withdraws them, otherwise the 7 days ran out.
+    const newer = await findNewerInvitationForEmail(email, invite.createdAt);
+    if (newer?.isUsed) return { state: "used", email };
+    if (newer) return { state: "replaced", email };
+    if (invite.expiresAt.getTime() === 0) return { state: "revoked", email };
+    return { state: "expired", email };
   },
 
-  async getTokenState(token: string) {
-    const invite = await findInvitationByToken(token);
-    if (!invite) return { state: "notfound" as const };
-    if (invite.isUsed) return { state: "used" as const };
-    if (invite.expiresAt < new Date()) return { state: "expired" as const };
-    return { state: "valid" as const, invite };
+  async listOpenByEmail(email: string) {
+    return findOpenInvitationsByEmail(email);
   },
 
-  async consumeToken(id: string) {
-    await markInvitationUsed(id);
+  // Withdraws every open invitation for this email. Idempotent.
+  async cancelOpenForEmail(email: string) {
+    await expireUnusedInvitationsForEmail(email);
   },
 
   async getAllInvitations() {

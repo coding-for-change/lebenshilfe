@@ -15,6 +15,6 @@ export async function resendAdminInvitationUseCase(invitationId: string) {
     await requireOwner();
   }
 
-  await InvitationFacade.regenerateAndSend(invitation.email);
+  await InvitationFacade.regenerateAndSend(invitation.email, invitation.role);
   return { success: true };
 }

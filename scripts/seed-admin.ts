@@ -1,4 +1,5 @@
 import { auth } from "../src/lib/auth";
+import { INVITE_TOKEN_HEADER } from "../src/lib/invite-token";
 import { prisma } from "../src/lib/prisma";
 import { Role } from "../src/generated/prisma";
 
@@ -28,6 +29,7 @@ async function seed() {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      [INVITE_TOKEN_HEADER]: "admin-seed-token",
     },
     body: JSON.stringify({ email, password, name: "System Admin" }),
   });

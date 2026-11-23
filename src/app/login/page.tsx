@@ -1,6 +1,7 @@
 import Image from "next/image";
 
 import { LoginForm } from "@/components/login-form";
+import { loginNoticeText } from "@/lib/login-notices";
 
 type Props = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -10,6 +11,7 @@ export default async function LoginPage({ searchParams }: Props) {
   const params = await searchParams;
   const errorMessage =
     typeof params.error === "string" ? params.error : undefined;
+  const notice = loginNoticeText(params.notice);
 
   return (
     <div className="relative flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
@@ -34,7 +36,10 @@ export default async function LoginPage({ searchParams }: Props) {
             className="h-14 w-auto drop-shadow-lg"
           />
         </div>
-        <LoginForm initialError={errorMessage} />
+        <LoginForm
+          initialError={errorMessage}
+          notice={notice}
+        />
       </div>
     </div>
   );

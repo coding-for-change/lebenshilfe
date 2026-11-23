@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth-guards";
 import { getOnboardingStateUseCase } from "@/use-cases/get-onboarding-state";
 import { OnboardForm } from "@/features/invitations/components/onboard-form";
 import { InvalidInvitationCard } from "@/features/invitations/components/invalid-invitation-card";
+import { LOGIN_NOTICE } from "@/lib/login-notices";
 
 export default async function OnboardPage({
   searchParams,
@@ -20,6 +21,12 @@ export default async function OnboardPage({
   const state = token
     ? await getOnboardingStateUseCase(token)
     : { valid: false as const, reason: "missing" as const };
+
+  // The invitation link is the only URL many people know, so they reopen it
+  // later to get back in. They have an account: take them to the login.
+  if (!state.valid && state.reason === "used") {
+    redirect(`/login?notice=${LOGIN_NOTICE.INVITATION_ACCEPTED}`);
+  }
 
   return (
     <div className="relative flex min-h-svh flex-col items-center justify-center p-6 md:p-10">

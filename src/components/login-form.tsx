@@ -20,8 +20,9 @@ import { Input } from "@/components/ui/input";
 export function LoginForm({
   className,
   initialError,
+  notice,
   ...props
-}: React.ComponentProps<"div"> & { initialError?: string }) {
+}: React.ComponentProps<"div"> & { initialError?: string; notice?: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -70,6 +71,14 @@ export function LoginForm({
           <CardDescription className="text-sm">
             Bitte logge dich mit deinem Passwort ein.
           </CardDescription>
+          {notice && (
+            <p
+              role="status"
+              className="mt-2 rounded-md bg-muted px-3 py-2 text-sm text-foreground"
+            >
+              {notice}
+            </p>
+          )}
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit}>

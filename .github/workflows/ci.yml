@@ -71,5 +71,8 @@ jobs:
       - name: Run Linter
         run: npm run lint
 
+      - name: Check that every admin page guards itself
+        run: node scripts/check-admin-page-guards.mjs
+
       - name: Build Application
         run: npm run build

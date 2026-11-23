@@ -103,19 +103,6 @@ export const CreateEventSchema = z
 
 export type CreateEventInput = z.infer<typeof CreateEventSchema>;
 
-export const UpdateEventSchema = z
-  .object({
-    startTime: timeStringSchema.optional(),
-    endTime: timeStringSchema.optional(),
-    note: z.string().max(2000).nullable().optional(),
-  })
-  .refine((v) => !v.startTime || !v.endTime || v.endTime > v.startTime, {
-    message: "Ende muss nach Start liegen.",
-    path: ["endTime"],
-  });
-
-export type UpdateEventInput = z.infer<typeof UpdateEventSchema>;
-
 export const SubmitMonthlyReportSchema = z.object({
   year: z.number().int().min(2000).max(3000),
   month: z.number().int().min(1).max(12),

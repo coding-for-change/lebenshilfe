@@ -4,12 +4,10 @@ import {
   CreateEventSchema,
   CreatePoolWorkEventSchema,
   SubmitMonthlyReportSchema,
-  UpdateEventSchema,
   type ConfirmWorkEventsInput,
   type CreateEventInput,
   type CreatePoolWorkEventInput,
   type SubmitMonthlyReportInput,
-  type UpdateEventInput,
 } from "./schemas";
 import { logBusinessEvent } from "@/lib/logger";
 import {
@@ -29,7 +27,6 @@ import {
   insertWorkEvents,
   listMonthlyReportsForUser,
   signWorkEvents,
-  updateEventFields,
   uploadSignature,
 } from "./services";
 import { parseIsoDate } from "@/lib/dates";
@@ -183,33 +180,15 @@ export const TimesheetFacade = {
     return { createdCount: 1, signatureKey };
   },
 
-  async updateEvent(userId: string, eventId: string, input: UpdateEventInput) {
-    const parsed = UpdateEventSchema.parse(input);
-    const event = await findEventById(eventId);
-    if (!event || event.userId !== userId) {
-      throw new UserError("Eintrag nicht gefunden.");
-    }
-    const report = await findMonthlyReport(
-      userId,
-      event.date.getUTCFullYear(),
-      event.date.getUTCMonth() + 1,
-    );
-    assertMonthNotLocked(report);
-
-    if (event.type === "SICK" && (parsed.startTime || parsed.endTime)) {
-      throw new UserError("Krankheitseinträge haben keine Zeiten.");
-    }
-
-    return updateEventFields(eventId, {
-      startTime: parsed.startTime ?? event.startTime,
-      endTime: parsed.endTime ?? event.endTime,
-      note: parsed.note === undefined ? event.note : parsed.note,
-    });
-  },
-
+  // A signed entry is never changed in place: it is the record the person
+  // signed. Corrections by an admin soft-delete the original and create an
+  // unsigned replacement that the Schulbegleiter confirms with a new signature
+  // (confirmWorkEvents). The Schulbegleiter can withdraw their own entry until
+  // the month is handed over, but not touch an original an admin has already
+  // replaced (deleted: true): that row is the trail of the correction.
   async deleteEvent(userId: string, eventId: string) {
     const event = await findEventById(eventId);
-    if (!event || event.userId !== userId) {
+    if (!event || event.userId !== userId || event.deleted) {
       throw new UserError("Eintrag nicht gefunden.");
     }
     const report = await findMonthlyReport(

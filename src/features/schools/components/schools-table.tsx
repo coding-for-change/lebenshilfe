@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -78,10 +79,12 @@ export function SchoolsTable({ schools, holidayPlans }: Props) {
     if (selected.size === 0) return;
     setBatchBusy(true);
     try {
-      await assignHolidayPlanAction({
-        schoolIds: Array.from(selected),
-        holidayPlanId: planId,
-      });
+      await runAction(
+        assignHolidayPlanAction({
+          schoolIds: Array.from(selected),
+          holidayPlanId: planId,
+        }),
+      );
       toast.success(
         planId
           ? `Ferienplan ${selected.size} ${

@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { DetailSheet } from "@/components/detail-sheet";
@@ -54,7 +55,7 @@ export function WorkshopDetailSheet({ workshop, open, onOpenChange }: Props) {
     diff,
     persist: async (patch) => {
       if (!workshop) return;
-      await updateWorkshopAction(workshop.id, patch);
+      await runAction(updateWorkshopAction(workshop.id, patch));
     },
   });
   const [askSave, setAskSave] = useState(false);

@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { DetailSheet } from "@/components/detail-sheet";
@@ -42,7 +43,7 @@ export function HolidayPlanDetailSheet({ plan, open, onOpenChange }: Props) {
     diff,
     persist: async (patch) => {
       if (!plan) return;
-      await updateHolidayPlanAction(plan.id, patch);
+      await runAction(updateHolidayPlanAction(plan.id, patch));
     },
   });
   const [askSave, setAskSave] = useState(false);

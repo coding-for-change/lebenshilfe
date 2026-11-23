@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
@@ -29,7 +30,7 @@ export function WorkshopsRowActions({
 
   async function handleDelete() {
     try {
-      await deleteWorkshopAction(workshopId);
+      await runAction(deleteWorkshopAction(workshopId));
       toast.success(`${name} wurde entfernt.`);
     } catch (error) {
       toast.error(

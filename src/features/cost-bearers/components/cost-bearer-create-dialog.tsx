@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { toast } from "sonner";
@@ -62,7 +63,7 @@ export function CostBearerCreateDialog({
     }
     setBusy(true);
     try {
-      const result = await createCostBearerAction(parsed.data);
+      const result = await runAction(createCostBearerAction(parsed.data));
       toast.success(`Kostenträger "${result.costBearer.name}" angelegt.`);
       onCreated({
         id: result.costBearer.id,

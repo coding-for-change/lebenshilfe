@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -186,7 +187,7 @@ export function SchoolAssistantWizard({
 
     setBusy(true);
     try {
-      await createSchoolAssistantAction(submitInput);
+      await runAction(createSchoolAssistantAction(submitInput));
       toast.success("Einladung gesendet.");
       onOpenChange(false);
     } catch (error) {

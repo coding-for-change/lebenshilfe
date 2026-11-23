@@ -1,5 +1,7 @@
 "use server";
 
+import { serverAction } from "@/lib/server-action";
+
 import { revalidatePath } from "next/cache";
 import { inviteAdminUserUseCase } from "@/use-cases/invite-admin-user";
 import { promoteUserToOwnerUseCase } from "@/use-cases/promote-user-to-owner";
@@ -12,44 +14,52 @@ import type { InviteAdminUserInput } from "./schemas";
 
 const ROUTE = "/admin/user-management";
 
-export async function inviteAdminUserAction(input: InviteAdminUserInput) {
-  await inviteAdminUserUseCase(input);
-  revalidatePath(ROUTE);
-  return { success: true };
-}
+export const inviteAdminUserAction = serverAction(
+  async (input: InviteAdminUserInput) => {
+    await inviteAdminUserUseCase(input);
+    revalidatePath(ROUTE);
+    return { success: true };
+  },
+);
 
-export async function promoteUserToOwnerAction(userId: string) {
+export const promoteUserToOwnerAction = serverAction(async (userId: string) => {
   await promoteUserToOwnerUseCase(userId);
   revalidatePath(ROUTE);
   return { success: true };
-}
+});
 
-export async function removeAdminUserAction(userId: string) {
+export const removeAdminUserAction = serverAction(async (userId: string) => {
   await removeAdminUserUseCase(userId);
   revalidatePath(ROUTE);
   return { success: true };
-}
+});
 
-export async function resetUserTwoFactorAction(userId: string) {
+export const resetUserTwoFactorAction = serverAction(async (userId: string) => {
   await resetUserTwoFactorUseCase(userId);
   revalidatePath(ROUTE);
   return { success: true };
-}
+});
 
-export async function unlockUserTwoFactorAction(userId: string) {
-  await unlockUserTwoFactorUseCase(userId);
-  revalidatePath(ROUTE);
-  return { success: true };
-}
+export const unlockUserTwoFactorAction = serverAction(
+  async (userId: string) => {
+    await unlockUserTwoFactorUseCase(userId);
+    revalidatePath(ROUTE);
+    return { success: true };
+  },
+);
 
-export async function resendAdminInvitationAction(invitationId: string) {
-  await resendAdminInvitationUseCase(invitationId);
-  revalidatePath(ROUTE);
-  return { success: true };
-}
+export const resendAdminInvitationAction = serverAction(
+  async (invitationId: string) => {
+    await resendAdminInvitationUseCase(invitationId);
+    revalidatePath(ROUTE);
+    return { success: true };
+  },
+);
 
-export async function cancelAdminInvitationAction(invitationId: string) {
-  await cancelAdminInvitationUseCase(invitationId);
-  revalidatePath(ROUTE);
-  return { success: true };
-}
+export const cancelAdminInvitationAction = serverAction(
+  async (invitationId: string) => {
+    await cancelAdminInvitationUseCase(invitationId);
+    revalidatePath(ROUTE);
+    return { success: true };
+  },
+);

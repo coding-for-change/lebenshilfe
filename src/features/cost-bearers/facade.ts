@@ -11,6 +11,7 @@ import {
   updateKostentraeger,
 } from "./services";
 import { logBusinessEvent } from "@/lib/logger";
+import { UserError } from "@/lib/action-result";
 
 function normalize(input: CostBearerInput) {
   return {
@@ -39,7 +40,7 @@ export const CostBearersFacade = {
   async update(id: string, input: CostBearerInput) {
     const parsed = UpdateKostentraegerSchema.parse(input);
     const existing = await findKostentraegerById(id);
-    if (!existing) throw new Error("Kostenträger nicht gefunden.");
+    if (!existing) throw new UserError("Kostenträger nicht gefunden.");
     return updateKostentraeger(id, normalize(parsed));
   },
 

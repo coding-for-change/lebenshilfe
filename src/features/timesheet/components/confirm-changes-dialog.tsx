@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { AlertTriangle } from "lucide-react";
@@ -49,10 +50,12 @@ export function ConfirmChangesDialog({
   const handleSign = async (pngBase64: string) => {
     setSubmitting(true);
     try {
-      await confirmWorkEventsAction({
-        eventIds: events.map((e) => e.id),
-        signaturePngBase64: pngBase64,
-      });
+      await runAction(
+        confirmWorkEventsAction({
+          eventIds: events.map((e) => e.id),
+          signaturePngBase64: pngBase64,
+        }),
+      );
       toast.success("Änderungen bestätigt.");
       setSignOpen(false);
       onConfirmed();

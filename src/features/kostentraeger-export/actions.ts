@@ -1,5 +1,7 @@
 "use server";
 
+import { serverAction } from "@/lib/server-action";
+
 import { requireAdmin } from "@/lib/auth-guards";
 import { downloadObject } from "@/lib/storage";
 import { CostBearerExportFacade } from "./facade";
@@ -93,52 +95,52 @@ async function collectSignatures(
  * for `combined` scope, or one file per Schulbegleiter for `per-assistant`
  * scope. Files are base64-encoded for transport to the client.
  */
-export async function generateCostBearerExportAction(
-  input: ExportRequest,
-): Promise<{ files: ExportFile[] }> {
-  await requireAdmin();
-  const request = ExportRequestSchema.parse(input);
+export const generateCostBearerExportAction = serverAction(
+  async (input: ExportRequest): Promise<{ files: ExportFile[] }> => {
+    await requireAdmin();
+    const request = ExportRequestSchema.parse(input);
 
-  const documents = await CostBearerExportFacade.build(request);
-  const period = periodFilePart(request);
+    const documents = await CostBearerExportFacade.build(request);
+    const period = periodFilePart(request);
 
-  const signatures =
-    request.format === "pdf" && request.embedSignatures
-      ? await collectSignatures(documents)
-      : undefined;
+    const signatures =
+      request.format === "pdf" && request.embedSignatures
+        ? await collectSignatures(documents)
+        : undefined;
 
-  const files = await renderDocuments(
-    documents,
-    request.format,
-    period,
-    signatures,
-  );
-  return { files };
-}
+    const files = await renderDocuments(
+      documents,
+      request.format,
+      period,
+      signatures,
+    );
+    return { files };
+  },
+);
 
 /**
  * Builds the Einsatznachweis export for a pool. Returns one file for `combined`
  * scope, or one file per Schulbegleiter for `per-assistant` scope.
  */
-export async function generatePoolExportAction(
-  input: PoolExportRequest,
-): Promise<{ files: ExportFile[] }> {
-  await requireAdmin();
-  const request = PoolExportRequestSchema.parse(input);
+export const generatePoolExportAction = serverAction(
+  async (input: PoolExportRequest): Promise<{ files: ExportFile[] }> => {
+    await requireAdmin();
+    const request = PoolExportRequestSchema.parse(input);
 
-  const documents = await CostBearerExportFacade.buildForPool(request);
-  const period = periodFilePart(request);
+    const documents = await CostBearerExportFacade.buildForPool(request);
+    const period = periodFilePart(request);
 
-  const signatures =
-    request.format === "pdf" && request.embedSignatures
-      ? await collectSignatures(documents)
-      : undefined;
+    const signatures =
+      request.format === "pdf" && request.embedSignatures
+        ? await collectSignatures(documents)
+        : undefined;
 
-  const files = await renderDocuments(
-    documents,
-    request.format,
-    period,
-    signatures,
-  );
-  return { files };
-}
+    const files = await renderDocuments(
+      documents,
+      request.format,
+      period,
+      signatures,
+    );
+    return { files };
+  },
+);

@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
@@ -25,7 +26,7 @@ export function PoolRowActions({ poolId, poolName, onOpenDetails }: Props) {
 
   async function handleDelete() {
     try {
-      await deletePoolAction(poolId);
+      await runAction(deletePoolAction(poolId));
       toast.success(`Pool „${poolName}" wurde entfernt.`);
     } catch (error) {
       toast.error(

@@ -33,12 +33,13 @@ import {
   uploadSignature,
 } from "./services";
 import { parseIsoDate } from "@/lib/dates";
+import { UserError } from "@/lib/action-result";
 
 function assertMonthNotLocked(
   report: Awaited<ReturnType<typeof findMonthlyReport>>,
 ) {
   if (report) {
-    throw new Error(
+    throw new UserError(
       "Der Monat wurde bereits an die Lehrkraft übergeben und ist gesperrt.",
     );
   }
@@ -49,7 +50,7 @@ function checkIsMonthFinished(year: number, month: number) {
   const currentYear = now.getUTCFullYear();
   const currentMonth = now.getUTCMonth() + 1;
   if (year > currentYear || (year === currentYear && month >= currentMonth)) {
-    throw new Error(
+    throw new UserError(
       "Der Monat ist noch nicht abgeschlossen und kann erst nach Monatsende übergeben werden.",
     );
   }
@@ -156,7 +157,7 @@ export const TimesheetFacade = {
     const parsed = CreatePoolWorkEventSchema.parse(input);
     const poolId = await getUserPoolId(userId);
     if (!poolId) {
-      throw new Error("Du bist keinem Pool zugewiesen.");
+      throw new UserError("Du bist keinem Pool zugewiesen.");
     }
     const date = parseIsoDate(parsed.date);
 
@@ -186,7 +187,7 @@ export const TimesheetFacade = {
     const parsed = UpdateEventSchema.parse(input);
     const event = await findEventById(eventId);
     if (!event || event.userId !== userId) {
-      throw new Error("Eintrag nicht gefunden.");
+      throw new UserError("Eintrag nicht gefunden.");
     }
     const report = await findMonthlyReport(
       userId,
@@ -196,7 +197,7 @@ export const TimesheetFacade = {
     assertMonthNotLocked(report);
 
     if (event.type === "SICK" && (parsed.startTime || parsed.endTime)) {
-      throw new Error("Krankheitseinträge haben keine Zeiten.");
+      throw new UserError("Krankheitseinträge haben keine Zeiten.");
     }
 
     return updateEventFields(eventId, {
@@ -209,7 +210,7 @@ export const TimesheetFacade = {
   async deleteEvent(userId: string, eventId: string) {
     const event = await findEventById(eventId);
     if (!event || event.userId !== userId) {
-      throw new Error("Eintrag nicht gefunden.");
+      throw new UserError("Eintrag nicht gefunden.");
     }
     const report = await findMonthlyReport(
       userId,
@@ -227,7 +228,7 @@ export const TimesheetFacade = {
 
     const existing = await findMonthlyReport(userId, parsed.year, parsed.month);
     if (existing) {
-      throw new Error("Monat bereits freigegeben.");
+      throw new UserError("Monat bereits freigegeben.");
     }
     const key = `signatures/monthly/${userId}/${parsed.year}-${String(
       parsed.month,

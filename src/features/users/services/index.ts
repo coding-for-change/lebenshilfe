@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/generated/prisma";
 import { randomUUID } from "crypto";
+import { UserError } from "@/lib/action-result";
 
 export async function getUserByEmail(email: string) {
   return prisma.user.findUnique({ where: { email } });
@@ -67,7 +68,7 @@ export async function resetUserTwoFactor(id: string) {
   return prisma.$transaction(async (tx) => {
     const user = await tx.user.findUnique({ where: { id } });
     if (!user) {
-      throw new Error("Benutzer nicht gefunden.");
+      throw new UserError("Benutzer nicht gefunden.");
     }
     await tx.twoFactor.deleteMany({ where: { userId: id } });
     await tx.user.update({ where: { id }, data: { twoFactorEnabled: false } });
@@ -105,12 +106,12 @@ export async function deleteUserWithLastOwnerGuard(id: string) {
   return prisma.$transaction(async (tx) => {
     const user = await tx.user.findUnique({ where: { id } });
     if (!user) {
-      throw new Error("Benutzer nicht gefunden.");
+      throw new UserError("Benutzer nicht gefunden.");
     }
     if (user.role === Role.OWNER) {
       const owners = await tx.user.count({ where: { role: Role.OWNER } });
       if (owners <= 1) {
-        throw new Error("Der letzte Owner kann nicht entfernt werden.");
+        throw new UserError("Der letzte Owner kann nicht entfernt werden.");
       }
     }
     await tx.user.delete({ where: { id } });

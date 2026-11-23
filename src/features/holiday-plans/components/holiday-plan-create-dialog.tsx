@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { toast } from "sonner";
@@ -93,7 +94,7 @@ export function HolidayPlanCreateDialog({
     }
     setBusy(true);
     try {
-      const result = await createHolidayPlanAction(parsed.data);
+      const result = await runAction(createHolidayPlanAction(parsed.data));
       toast.success(`Ferienplan "${result.plan.name}" angelegt.`);
       onCreated(result.plan);
       onOpenChange(false);

@@ -1,4 +1,5 @@
 import { requireAdmin } from "@/lib/auth-guards";
+import { runAction } from "@/lib/run-action";
 import { todayIsoBerlin } from "@/lib/dates";
 import { MapsConsentGate } from "@/components/maps-consent-gate";
 import { MapView } from "./_components/map-view";
@@ -19,7 +20,7 @@ export default async function MapPage({
     params.date && /^\d{4}-\d{2}-\d{2}$/.test(params.date)
       ? params.date
       : todayIsoBerlin();
-  const initialData = await getMapDataForDate(initialDate);
+  const initialData = await runAction(getMapDataForDate(initialDate));
   return (
     <MapsConsentGate description="Zum Anzeigen der Einsatz-Karte wird Google Maps geladen; dabei werden Schul-/Adressdaten und Ihre IP-Adresse an Google in die USA übermittelt.">
       <MapView

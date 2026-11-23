@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useDetailEditor } from "@/components/use-detail-editor";
 import { updateChildAction } from "../../actions";
@@ -95,7 +96,7 @@ export function useGeneralEditor(child: SerializedChild | null) {
     diff,
     persist: async (patch) => {
       if (!child) return;
-      await updateChildAction(child.id, patch);
+      await runAction(updateChildAction(child.id, patch));
     },
   });
 }

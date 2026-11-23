@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
@@ -25,7 +26,7 @@ export function SchoolRowActions({ school, onOpenDetails }: Props) {
 
   async function handleDelete() {
     try {
-      await deleteSchoolAction(school.id);
+      await runAction(deleteSchoolAction(school.id));
       toast.success("Schule gelöscht.");
     } catch (err) {
       toast.error(

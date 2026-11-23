@@ -2,6 +2,7 @@ import { requireAdmin } from "@/lib/auth-guards";
 import { InvitationFacade } from "@/features/invitations/facade";
 import { SchoolAssistantsFacade } from "@/features/school-assistants/facade";
 import { logBusinessEvent } from "@/lib/logger";
+import { UserError } from "@/lib/action-result";
 
 /**
  * An admin deletes a Schulbegleiter entry. Also withdraws any open invitation
@@ -13,7 +14,7 @@ export async function deleteSchoolAssistantUseCase(profileId: string) {
 
   const profile = await SchoolAssistantsFacade.getById(profileId);
   if (!profile) {
-    throw new Error("Schulbegleiter nicht gefunden.");
+    throw new UserError("Schulbegleiter nicht gefunden.");
   }
 
   await SchoolAssistantsFacade.delete(profileId);

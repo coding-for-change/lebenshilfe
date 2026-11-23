@@ -1,5 +1,8 @@
 "use client";
 
+import type { ActionResult } from "@/lib/action-result";
+import { runAction } from "@/lib/run-action";
+
 import { createContext, useCallback, useContext, useState } from "react";
 
 // Google-Maps consent is stored server-side against the user account (an
@@ -30,19 +33,21 @@ export function MapsConsentProvider({
   children: React.ReactNode;
   initialConsent: boolean;
   authenticated: boolean;
-  onSetConsent: (granted: boolean) => Promise<unknown>;
+  onSetConsent: (granted: boolean) => Promise<ActionResult<unknown>>;
 }) {
   const [consent, setConsent] = useState(initialConsent);
 
   // Record consent server-side first, then flip local state — so Google is only
   // loaded after the decision is durably stored (never processing-before-consent).
   const grant = useCallback(async () => {
-    await onSetConsent(true);
+    // runAction throws if the server did not store the consent, so Google is
+    // never loaded on a failed save.
+    await runAction(onSetConsent(true));
     setConsent(true);
   }, [onSetConsent]);
 
   const revoke = useCallback(async () => {
-    await onSetConsent(false);
+    await runAction(onSetConsent(false));
     setConsent(false);
   }, [onSetConsent]);
 

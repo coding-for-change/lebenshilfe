@@ -5,6 +5,7 @@ import { SchoolAssistantsFacade } from "@/features/school-assistants/facade";
 import { UserFacade } from "@/features/users/facade";
 import type { CreateSchoolAssistantInput } from "@/features/school-assistants/schemas";
 import { logBusinessEvent } from "@/lib/logger";
+import { UserError } from "@/lib/action-result";
 
 /**
  * An admin creates a new Schulbegleiter:
@@ -21,13 +22,13 @@ export async function createSchoolAssistantUseCase(
   // "Einladung ausstehend" forever.
   const email = input.email.trim().toLowerCase();
   if (await UserFacade.getByEmail(email)) {
-    throw new Error("Es existiert bereits ein Benutzer mit dieser E-Mail.");
+    throw new UserError("Es existiert bereits ein Benutzer mit dieser E-Mail.");
   }
   // Sending this invitation would close an open Admin/Hauptadmin invitation for
   // the same email (one working link per email). Make the admin decide.
   const open = await InvitationFacade.listOpenByEmail(email);
   if (open.some((invite) => invite.role !== Role.SCHOOL_ASSISTANT)) {
-    throw new Error(
+    throw new UserError(
       "Für diese E-Mail gibt es eine offene Admin-Einladung. Bitte ziehen Sie sie zuerst in der Benutzerverwaltung zurück.",
     );
   }

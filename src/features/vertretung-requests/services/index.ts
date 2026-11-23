@@ -4,6 +4,7 @@ import {
   PendingRequestKind,
   PendingVertretungStatus,
 } from "@/generated/prisma";
+import { UserError } from "@/lib/action-result";
 
 export async function createPendingVertretungRequest(data: {
   substituteUserId: string;
@@ -134,12 +135,12 @@ export async function deleteOwnRequest(id: string, substituteUserId: string) {
   const request = await prisma.pendingVertretungRequest.findUnique({
     where: { id },
   });
-  if (!request) throw new Error("Antrag nicht gefunden.");
+  if (!request) throw new UserError("Antrag nicht gefunden.");
   if (request.substituteUserId !== substituteUserId) {
-    throw new Error("Keine Berechtigung.");
+    throw new UserError("Keine Berechtigung.");
   }
   if (request.status !== PendingVertretungStatus.PENDING) {
-    throw new Error("Nur offene Anträge können gelöscht werden.");
+    throw new UserError("Nur offene Anträge können gelöscht werden.");
   }
   await prisma.pendingVertretungRequest.delete({ where: { id } });
 }

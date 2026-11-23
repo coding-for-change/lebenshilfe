@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -54,7 +55,7 @@ export function WorkshopFormDialog({ open, onOpenChange }: Props) {
     setErrors({});
     setBusy(true);
     try {
-      await createWorkshopAction(parsed.data);
+      await runAction(createWorkshopAction(parsed.data));
       toast.success("Workshop angelegt.");
       onOpenChange(false);
     } catch (error) {

@@ -1,5 +1,3 @@
-"use server";
-
 import { requireOwner } from "@/lib/auth-guards";
 import { UserFacade } from "@/features/users/facade";
 

@@ -1,4 +1,7 @@
 "use client";
+import { runAction } from "@/lib/run-action";
+import type { UnsignedEntry } from "../schemas";
+import { UnsignedEntriesWarning } from "./unsigned-entries-warning";
 
 import { useState } from "react";
 import { Download } from "lucide-react";
@@ -69,8 +72,10 @@ export function PoolExportDialog({ poolId, poolName }: Props) {
   const [format, setFormat] = useState<ExportFormat>("pdf");
   const [embedSignatures, setEmbedSignatures] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Entries still waiting for a signature; set when the server held the export back.
+  const [unsigned, setUnsigned] = useState<UnsignedEntry[] | null>(null);
 
-  async function handleExport() {
+  async function handleExport(exportWithoutUnsigned = false) {
     const from = { year: fromYear, month: fromMonth };
     const to = mode === "single" ? from : { year: toYear, month: toMonth };
 
@@ -81,6 +86,7 @@ export function PoolExportDialog({ poolId, poolName }: Props) {
       from,
       to,
       embedSignatures,
+      exportWithoutUnsigned,
     });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "Ungültige Eingabe.");
@@ -89,7 +95,14 @@ export function PoolExportDialog({ poolId, poolName }: Props) {
 
     setBusy(true);
     try {
-      const { files } = await generatePoolExportAction(parsed.data);
+      const { files, unsigned: notSigned } = await runAction(
+        generatePoolExportAction(parsed.data),
+      );
+      if (files.length === 0 && notSigned.length > 0) {
+        setUnsigned(notSigned);
+        return;
+      }
+      setUnsigned(null);
       if (files.length === 0) {
         toast.error("Keine Einträge im gewählten Zeitraum.");
         return;
@@ -109,6 +122,19 @@ export function PoolExportDialog({ poolId, poolName }: Props) {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (unsigned) {
+    return (
+      <div className="flex flex-col gap-4">
+        <UnsignedEntriesWarning
+          entries={unsigned}
+          busy={busy}
+          onBack={() => setUnsigned(null)}
+          onExportWithout={() => handleExport(true)}
+        />
+      </div>
+    );
   }
 
   return (
@@ -240,7 +266,7 @@ export function PoolExportDialog({ poolId, poolName }: Props) {
 
       <Button
         type="button"
-        onClick={handleExport}
+        onClick={() => handleExport()}
         disabled={busy}
       >
         <Download className="size-4" />

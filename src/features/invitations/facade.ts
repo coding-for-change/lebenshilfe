@@ -11,6 +11,7 @@ import {
   getAllInvitations as fetchAllInvitations,
 } from "./services";
 import { Role } from "@/generated/prisma";
+import { UserError } from "@/lib/action-result";
 
 type Invitation = NonNullable<
   Awaited<ReturnType<typeof findInvitationByToken>>
@@ -87,10 +88,12 @@ export const InvitationFacade = {
   async cancelById(id: string) {
     const invitation = await findInvitationById(id);
     if (!invitation) {
-      throw new Error("Einladung nicht gefunden.");
+      throw new UserError("Einladung nicht gefunden.");
     }
     if (invitation.isUsed) {
-      throw new Error("Eingelöste Einladungen können nicht widerrufen werden.");
+      throw new UserError(
+        "Eingelöste Einladungen können nicht widerrufen werden.",
+      );
     }
     await expireInvitationById(id);
     return invitation;

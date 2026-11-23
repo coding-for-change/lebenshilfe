@@ -74,5 +74,8 @@ jobs:
       - name: Check that every admin page guards itself
         run: node scripts/check-admin-page-guards.mjs
 
+      - name: Check that Server Actions are called through runAction
+        run: node scripts/check-action-calls.mjs
+
       - name: Build Application
         run: npm run build

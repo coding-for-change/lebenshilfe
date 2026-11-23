@@ -4,12 +4,10 @@ import {
   CreateEventSchema,
   CreatePoolWorkEventSchema,
   SubmitMonthlyReportSchema,
-  UpdateEventSchema,
   type ConfirmWorkEventsInput,
   type CreateEventInput,
   type CreatePoolWorkEventInput,
   type SubmitMonthlyReportInput,
-  type UpdateEventInput,
 } from "./schemas";
 import { logBusinessEvent } from "@/lib/logger";
 import {
@@ -29,16 +27,16 @@ import {
   insertWorkEvents,
   listMonthlyReportsForUser,
   signWorkEvents,
-  updateEventFields,
   uploadSignature,
 } from "./services";
 import { parseIsoDate } from "@/lib/dates";
+import { UserError } from "@/lib/action-result";
 
 function assertMonthNotLocked(
   report: Awaited<ReturnType<typeof findMonthlyReport>>,
 ) {
   if (report) {
-    throw new Error(
+    throw new UserError(
       "Der Monat wurde bereits an die Lehrkraft übergeben und ist gesperrt.",
     );
   }
@@ -49,7 +47,7 @@ function checkIsMonthFinished(year: number, month: number) {
   const currentYear = now.getUTCFullYear();
   const currentMonth = now.getUTCMonth() + 1;
   if (year > currentYear || (year === currentYear && month >= currentMonth)) {
-    throw new Error(
+    throw new UserError(
       "Der Monat ist noch nicht abgeschlossen und kann erst nach Monatsende übergeben werden.",
     );
   }
@@ -156,7 +154,7 @@ export const TimesheetFacade = {
     const parsed = CreatePoolWorkEventSchema.parse(input);
     const poolId = await getUserPoolId(userId);
     if (!poolId) {
-      throw new Error("Du bist keinem Pool zugewiesen.");
+      throw new UserError("Du bist keinem Pool zugewiesen.");
     }
     const date = parseIsoDate(parsed.date);
 
@@ -182,34 +180,16 @@ export const TimesheetFacade = {
     return { createdCount: 1, signatureKey };
   },
 
-  async updateEvent(userId: string, eventId: string, input: UpdateEventInput) {
-    const parsed = UpdateEventSchema.parse(input);
-    const event = await findEventById(eventId);
-    if (!event || event.userId !== userId) {
-      throw new Error("Eintrag nicht gefunden.");
-    }
-    const report = await findMonthlyReport(
-      userId,
-      event.date.getUTCFullYear(),
-      event.date.getUTCMonth() + 1,
-    );
-    assertMonthNotLocked(report);
-
-    if (event.type === "SICK" && (parsed.startTime || parsed.endTime)) {
-      throw new Error("Krankheitseinträge haben keine Zeiten.");
-    }
-
-    return updateEventFields(eventId, {
-      startTime: parsed.startTime ?? event.startTime,
-      endTime: parsed.endTime ?? event.endTime,
-      note: parsed.note === undefined ? event.note : parsed.note,
-    });
-  },
-
+  // A signed entry is never changed in place: it is the record the person
+  // signed. Corrections by an admin soft-delete the original and create an
+  // unsigned replacement that the Schulbegleiter confirms with a new signature
+  // (confirmWorkEvents). The Schulbegleiter can withdraw their own entry until
+  // the month is handed over, but not touch an original an admin has already
+  // replaced (deleted: true): that row is the trail of the correction.
   async deleteEvent(userId: string, eventId: string) {
     const event = await findEventById(eventId);
-    if (!event || event.userId !== userId) {
-      throw new Error("Eintrag nicht gefunden.");
+    if (!event || event.userId !== userId || event.deleted) {
+      throw new UserError("Eintrag nicht gefunden.");
     }
     const report = await findMonthlyReport(
       userId,
@@ -227,7 +207,7 @@ export const TimesheetFacade = {
 
     const existing = await findMonthlyReport(userId, parsed.year, parsed.month);
     if (existing) {
-      throw new Error("Monat bereits freigegeben.");
+      throw new UserError("Monat bereits freigegeben.");
     }
     const key = `signatures/monthly/${userId}/${parsed.year}-${String(
       parsed.month,

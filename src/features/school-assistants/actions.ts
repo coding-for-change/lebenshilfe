@@ -1,5 +1,7 @@
 "use server";
 
+import { serverAction } from "@/lib/server-action";
+
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth-guards";
 import { SchoolAssistantsFacade } from "./facade";
@@ -13,52 +15,57 @@ import { deleteSchoolAssistantUseCase } from "@/use-cases/delete-school-assistan
 
 const ROUTE = "/admin/school-assistants";
 
-export async function createSchoolAssistantAction(
-  input: CreateSchoolAssistantInput,
-) {
-  await createSchoolAssistantUseCase(input);
-  revalidatePath(ROUTE);
-  return { success: true };
-}
+export const createSchoolAssistantAction = serverAction(
+  async (input: CreateSchoolAssistantInput) => {
+    await createSchoolAssistantUseCase(input);
+    revalidatePath(ROUTE);
+    return { success: true };
+  },
+);
 
-export async function updateSchoolAssistantAction(
-  profileId: string,
-  input: UpdateSchoolAssistantInput,
-) {
-  await requireAdmin();
-  await SchoolAssistantsFacade.update(profileId, input);
-  revalidatePath(ROUTE);
-  // A rename also affects the assignment chips and Einsatz labels in the
-  // child calendar (which read user.name), so refresh that route too.
-  revalidatePath("/admin/children");
-  return { success: true };
-}
+export const updateSchoolAssistantAction = serverAction(
+  async (profileId: string, input: UpdateSchoolAssistantInput) => {
+    await requireAdmin();
+    await SchoolAssistantsFacade.update(profileId, input);
+    revalidatePath(ROUTE);
+    // A rename also affects the assignment chips and Einsatz labels in the
+    // child calendar (which read user.name), so refresh that route too.
+    revalidatePath("/admin/children");
+    return { success: true };
+  },
+);
 
-export async function deleteSchoolAssistantAction(profileId: string) {
-  await deleteSchoolAssistantUseCase(profileId);
-  revalidatePath(ROUTE);
-  return { success: true };
-}
+export const deleteSchoolAssistantAction = serverAction(
+  async (profileId: string) => {
+    await deleteSchoolAssistantUseCase(profileId);
+    revalidatePath(ROUTE);
+    return { success: true };
+  },
+);
 
-export async function resendSchoolAssistantInvitationAction(profileId: string) {
-  await resendSchoolAssistantInvitationUseCase(profileId);
-  revalidatePath(ROUTE);
-  return { success: true };
-}
+export const resendSchoolAssistantInvitationAction = serverAction(
+  async (profileId: string) => {
+    await resendSchoolAssistantInvitationUseCase(profileId);
+    revalidatePath(ROUTE);
+    return { success: true };
+  },
+);
 
-export async function listWorkEventsForUserAction(userId: string) {
-  await requireAdmin();
-  const events = await SchoolAssistantsFacade.listWorkEventsForUser(userId);
-  return events.map((e) => ({
-    id: e.id,
-    date: e.date.toISOString().slice(0, 10),
-    startTime: e.startTime,
-    endTime: e.endTime,
-    note: e.note,
-    childName: e.child
-      ? `${e.child.firstName} ${e.child.lastName}`
-      : "Unbekannt",
-    childId: e.childId,
-    deleted: e.deleted,
-  }));
-}
+export const listWorkEventsForUserAction = serverAction(
+  async (userId: string) => {
+    await requireAdmin();
+    const events = await SchoolAssistantsFacade.listWorkEventsForUser(userId);
+    return events.map((e) => ({
+      id: e.id,
+      date: e.date.toISOString().slice(0, 10),
+      startTime: e.startTime,
+      endTime: e.endTime,
+      note: e.note,
+      childName: e.child
+        ? `${e.child.firstName} ${e.child.lastName}`
+        : "Unbekannt",
+      childId: e.childId,
+      deleted: e.deleted,
+    }));
+  },
+);

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { uploadSignaturePng } from "@/lib/storage";
-import { EventType, Prisma } from "@/generated/prisma";
+import { EventType } from "@/generated/prisma";
 import {
   WEEKDAYS,
   emptyAssignmentsByWeekday,
@@ -205,19 +205,14 @@ export async function signWorkEvents(
     where: {
       id: { in: eventIds },
       userId,
-      type: EventType.WORK,
+      // Admins correct both kinds in the child's history; both need the
+      // Schulbegleiter's signature before they are billed.
+      type: { in: [EventType.WORK, EventType.INDIRECT] },
       signatureKey: null,
       deleted: false,
     },
     data: { signatureKey },
   });
-}
-
-export async function updateEventFields(
-  id: string,
-  data: Prisma.EventUpdateInput,
-) {
-  return prisma.event.update({ where: { id }, data });
 }
 
 export async function deleteEventById(id: string) {

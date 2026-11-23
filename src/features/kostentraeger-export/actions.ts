@@ -1,5 +1,7 @@
 "use server";
 
+import { serverAction } from "@/lib/server-action";
+
 import { requireAdmin } from "@/lib/auth-guards";
 import { downloadObject } from "@/lib/storage";
 import { CostBearerExportFacade } from "./facade";
@@ -14,6 +16,7 @@ import {
   type ExportFile,
   type ExportRequest,
   type PoolExportRequest,
+  type UnsignedEntry,
 } from "./schemas";
 
 const MIME_TYPES: Record<ExportRequest["format"], string> = {
@@ -21,6 +24,10 @@ const MIME_TYPES: Record<ExportRequest["format"], string> = {
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   csv: "text/csv;charset=utf-8",
 };
+
+// `unsigned` non-empty with no files: nothing was exported yet; the admin decides.
+// `unsigned` non-empty with files: exported without those entries, as chosen.
+type ExportResult = { files: ExportFile[]; unsigned: UnsignedEntry[] };
 
 function periodFilePart(request: {
   from: { year: number; month: number };
@@ -93,52 +100,64 @@ async function collectSignatures(
  * for `combined` scope, or one file per Schulbegleiter for `per-assistant`
  * scope. Files are base64-encoded for transport to the client.
  */
-export async function generateCostBearerExportAction(
-  input: ExportRequest,
-): Promise<{ files: ExportFile[] }> {
-  await requireAdmin();
-  const request = ExportRequestSchema.parse(input);
+export const generateCostBearerExportAction = serverAction(
+  async (input: ExportRequest): Promise<ExportResult> => {
+    await requireAdmin();
+    const request = ExportRequestSchema.parse(input);
 
-  const documents = await CostBearerExportFacade.build(request);
-  const period = periodFilePart(request);
+    // Only signed entries are billed. If the period has entries still waiting
+    // for the Schulbegleiter's signature, tell the admin which ones first.
+    const unsigned = await CostBearerExportFacade.findUnsignedForChild(request);
+    if (unsigned.length > 0 && !request.exportWithoutUnsigned) {
+      return { files: [], unsigned };
+    }
 
-  const signatures =
-    request.format === "pdf" && request.embedSignatures
-      ? await collectSignatures(documents)
-      : undefined;
+    const documents = await CostBearerExportFacade.build(request);
+    const period = periodFilePart(request);
 
-  const files = await renderDocuments(
-    documents,
-    request.format,
-    period,
-    signatures,
-  );
-  return { files };
-}
+    const signatures =
+      request.format === "pdf" && request.embedSignatures
+        ? await collectSignatures(documents)
+        : undefined;
+
+    const files = await renderDocuments(
+      documents,
+      request.format,
+      period,
+      signatures,
+    );
+    return { files, unsigned };
+  },
+);
 
 /**
  * Builds the Einsatznachweis export for a pool. Returns one file for `combined`
  * scope, or one file per Schulbegleiter for `per-assistant` scope.
  */
-export async function generatePoolExportAction(
-  input: PoolExportRequest,
-): Promise<{ files: ExportFile[] }> {
-  await requireAdmin();
-  const request = PoolExportRequestSchema.parse(input);
+export const generatePoolExportAction = serverAction(
+  async (input: PoolExportRequest): Promise<ExportResult> => {
+    await requireAdmin();
+    const request = PoolExportRequestSchema.parse(input);
 
-  const documents = await CostBearerExportFacade.buildForPool(request);
-  const period = periodFilePart(request);
+    const unsigned = await CostBearerExportFacade.findUnsignedForPool(request);
+    if (unsigned.length > 0 && !request.exportWithoutUnsigned) {
+      return { files: [], unsigned };
+    }
 
-  const signatures =
-    request.format === "pdf" && request.embedSignatures
-      ? await collectSignatures(documents)
-      : undefined;
+    const documents = await CostBearerExportFacade.buildForPool(request);
+    const period = periodFilePart(request);
 
-  const files = await renderDocuments(
-    documents,
-    request.format,
-    period,
-    signatures,
-  );
-  return { files };
-}
+    const signatures =
+      request.format === "pdf" && request.embedSignatures
+        ? await collectSignatures(documents)
+        : undefined;
+
+    const files = await renderDocuments(
+      documents,
+      request.format,
+      period,
+      signatures,
+    );
+    return { files, unsigned };
+  },
+);

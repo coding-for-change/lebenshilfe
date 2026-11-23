@@ -12,9 +12,12 @@ const ACTION_NOT_FOUND_HEADER = "x-nextjs-action-not-found";
 // Request header present on every Server Action dispatch.
 const ACTION_REQUEST_HEADER = "next-action";
 
-// A Server Action POST that returns non-OK after a deploy is version skew: the
-// action ID rotated (404) or its encrypted closure args can't be decrypted by
-// the new build (500). Either way the tab must reload to get the new build.
+// A Server Action POST answered with 404 is version skew: the action ID no
+// longer exists in the running build, so the tab must reload. Other failures
+// (500) are real errors, not skew: Server Actions return expected failures as
+// values (src/lib/server-action.ts), and this app has no actions with bound,
+// encrypted closure arguments (the one 500-skew case). Offering a reload for a
+// 500 would only send people round in circles.
 function isServerActionRequest(
   input: RequestInfo | URL,
   init?: RequestInit,
@@ -52,9 +55,9 @@ export function DeploymentUpdateNotice() {
       const response = await nativeFetch.apply(window, args);
       try {
         const notFound = response.headers.get(ACTION_NOT_FOUND_HEADER) === "1";
-        const actionFailed =
-          !response.ok && isServerActionRequest(args[0], args[1]);
-        if (notFound || actionFailed) setUpdateAvailable(true);
+        const actionMissing =
+          response.status === 404 && isServerActionRequest(args[0], args[1]);
+        if (notFound || actionMissing) setUpdateAvailable(true);
       } catch {
         // Detection must never break the request.
       }

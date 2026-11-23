@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { MoreVertical, Send, X } from "lucide-react";
@@ -33,7 +34,7 @@ export function InvitationActions({ invitation, currentUser }: Props) {
   async function handleResend() {
     setBusy(true);
     try {
-      await resendAdminInvitationAction(invitation.id);
+      await runAction(resendAdminInvitationAction(invitation.id));
       toast.success("Einladung erneut gesendet.");
     } catch (error) {
       toast.error(
@@ -48,7 +49,7 @@ export function InvitationActions({ invitation, currentUser }: Props) {
 
   async function handleCancel() {
     try {
-      await cancelAdminInvitationAction(invitation.id);
+      await runAction(cancelAdminInvitationAction(invitation.id));
       toast.success("Einladung widerrufen.");
     } catch (error) {
       toast.error(

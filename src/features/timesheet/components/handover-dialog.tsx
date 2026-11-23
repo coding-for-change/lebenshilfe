@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useCallback, useMemo, useState } from "react";
 import { Check, ShieldCheck } from "lucide-react";
@@ -125,12 +126,14 @@ export function HandoverDialog({
   const submit = async (pngBase64: string) => {
     setSubmitting(true);
     try {
-      await submitMonthlyReportAction({
-        year,
-        month,
-        supervisorName: supervisorName.trim(),
-        signaturePngBase64: pngBase64,
-      });
+      await runAction(
+        submitMonthlyReportAction({
+          year,
+          month,
+          supervisorName: supervisorName.trim(),
+          signaturePngBase64: pngBase64,
+        }),
+      );
       setSigOpen(false);
       setStage("done");
       toast.success("Monat freigegeben.");

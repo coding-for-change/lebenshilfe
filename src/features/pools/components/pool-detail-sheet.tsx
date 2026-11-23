@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -143,20 +144,24 @@ export function PoolDetailSheet({
     setSaving(true);
     try {
       if (generalDirty) {
-        await updatePoolAction(pool.id, {
-          name: name.trim(),
-          schoolId,
-          kostentraegerId,
-        });
+        await runAction(
+          updatePoolAction(pool.id, {
+            name: name.trim(),
+            schoolId,
+            kostentraegerId,
+          }),
+        );
       }
       if (childrenDirty) {
-        await setPoolChildrenAction({ poolId: pool.id, childIds });
+        await runAction(setPoolChildrenAction({ poolId: pool.id, childIds }));
       }
       if (assistantsDirty) {
-        await setPoolAssistantsAction({
-          poolId: pool.id,
-          profileIds: assistantIds,
-        });
+        await runAction(
+          setPoolAssistantsAction({
+            poolId: pool.id,
+            profileIds: assistantIds,
+          }),
+        );
       }
       toast.success("Gespeichert.");
     } catch (err) {

@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { DetailSheet } from "@/components/detail-sheet";
@@ -82,7 +83,7 @@ export function SchoolDetailSheet({
     diff,
     persist: async (patch) => {
       if (!school) return;
-      await updateSchoolAction(school.id, patch);
+      await runAction(updateSchoolAction(school.id, patch));
     },
   });
   const [askSave, setAskSave] = useState(false);

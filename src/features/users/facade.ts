@@ -13,6 +13,7 @@ import {
   unlockUserTwoFactor,
 } from "./services";
 import { Role } from "@/generated/prisma";
+import { UserError } from "@/lib/action-result";
 
 export const UserFacade = {
   async ensureUserExistsAndProvision(email: string, role: Role, name: string) {
@@ -52,13 +53,13 @@ export const UserFacade = {
   async promoteToOwner(userId: string) {
     const user = await findUserById(userId);
     if (!user) {
-      throw new Error("Benutzer nicht gefunden.");
+      throw new UserError("Benutzer nicht gefunden.");
     }
     if (user.role === Role.OWNER) {
       return user;
     }
     if (user.role !== Role.ADMIN) {
-      throw new Error("Nur Admins können zum Owner befördert werden.");
+      throw new UserError("Nur Admins können zum Owner befördert werden.");
     }
     return updateUserRole(userId, Role.OWNER);
   },

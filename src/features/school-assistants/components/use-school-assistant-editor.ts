@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useCallback } from "react";
 import { useDetailEditor } from "@/components/use-detail-editor";
@@ -115,7 +116,7 @@ export function useSchoolAssistantEditor(
     diff,
     persist: async (patch) => {
       if (!profile) return;
-      await updateSchoolAssistantAction(profile.id, patch);
+      await runAction(updateSchoolAssistantAction(profile.id, patch));
     },
   });
 }

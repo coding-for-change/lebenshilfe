@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -134,18 +135,22 @@ export function PoolWizard({
     }
     setBusy(true);
     try {
-      const { pool } = await createPoolAction(parsed.data);
+      const { pool } = await runAction(createPoolAction(parsed.data));
       if (form.childIds.length > 0) {
-        await setPoolChildrenAction({
-          poolId: pool.id,
-          childIds: form.childIds,
-        });
+        await runAction(
+          setPoolChildrenAction({
+            poolId: pool.id,
+            childIds: form.childIds,
+          }),
+        );
       }
       if (form.assistantIds.length > 0) {
-        await setPoolAssistantsAction({
-          poolId: pool.id,
-          profileIds: form.assistantIds,
-        });
+        await runAction(
+          setPoolAssistantsAction({
+            poolId: pool.id,
+            profileIds: form.assistantIds,
+          }),
+        );
       }
       toast.success(`Pool „${parsed.data.name}" angelegt.`);
       onOpenChange(false);

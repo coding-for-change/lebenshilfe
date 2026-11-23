@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { MoreVertical, Pencil, Send, Trash2 } from "lucide-react";
@@ -38,7 +39,7 @@ export function SchoolAssistantRowActions({
   async function handleResend() {
     setResending(true);
     try {
-      await resendSchoolAssistantInvitationAction(profileId);
+      await runAction(resendSchoolAssistantInvitationAction(profileId));
       toast.success("Einladung erneut gesendet.");
     } catch (error) {
       toast.error(
@@ -53,7 +54,7 @@ export function SchoolAssistantRowActions({
 
   async function handleDelete() {
     try {
-      await deleteSchoolAssistantAction(profileId);
+      await runAction(deleteSchoolAssistantAction(profileId));
       toast.success(`${name} wurde entfernt.`);
     } catch (error) {
       toast.error(

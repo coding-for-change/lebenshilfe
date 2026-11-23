@@ -13,6 +13,7 @@ import {
   setPoolChildren,
   updatePool,
 } from "./services";
+import { UserError } from "@/lib/action-result";
 
 export const PoolsFacade = {
   async list() {
@@ -31,7 +32,7 @@ export const PoolsFacade = {
   async update(id: string, input: UpdatePoolInput) {
     const parsed = UpdatePoolSchema.parse(input);
     const existing = await findPoolById(id);
-    if (!existing) throw new Error("Pool nicht gefunden.");
+    if (!existing) throw new UserError("Pool nicht gefunden.");
     return updatePool(id, parsed);
   },
 
@@ -41,13 +42,13 @@ export const PoolsFacade = {
 
   async setChildren(poolId: string, childIds: string[]) {
     const existing = await findPoolById(poolId);
-    if (!existing) throw new Error("Pool nicht gefunden.");
+    if (!existing) throw new UserError("Pool nicht gefunden.");
     await setPoolChildren(poolId, childIds);
   },
 
   async setAssistants(poolId: string, profileIds: string[]) {
     const existing = await findPoolById(poolId);
-    if (!existing) throw new Error("Pool nicht gefunden.");
+    if (!existing) throw new UserError("Pool nicht gefunden.");
     await setPoolAssistants(poolId, profileIds);
   },
 };

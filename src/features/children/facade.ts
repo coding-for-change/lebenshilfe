@@ -58,6 +58,7 @@ import {
   deleteWorkEventAsAdmin,
   restoreWorkEventAsAdmin,
 } from "./services";
+import { UserError } from "@/lib/action-result";
 
 function childFieldsFromCreate(input: CreateChildInput) {
   return {
@@ -124,7 +125,7 @@ export const ChildrenFacade = {
 
   async assertChildExists(childId: string) {
     if (!(await childExists(childId))) {
-      throw new Error("Kind nicht gefunden.");
+      throw new UserError("Kind nicht gefunden.");
     }
   },
 
@@ -148,7 +149,7 @@ export const ChildrenFacade = {
   async update(id: string, input: UpdateChildInput) {
     const parsed = UpdateChildSchema.parse(input);
     const existing = await findChildById(id);
-    if (!existing) throw new Error("Kind nicht gefunden.");
+    if (!existing) throw new UserError("Kind nicht gefunden.");
     return updateChild(id, childFieldsFromUpdate(parsed));
   },
 
@@ -352,7 +353,7 @@ export const ChildrenFacade = {
       (id) => !coveredByVertretung.has(id),
     );
     if (stillUncovered.length > 0) {
-      throw new Error("Ein Kind ist diesem Konto nicht zugewiesen.");
+      throw new UserError("Ein Kind ist diesem Konto nicht zugewiesen.");
     }
   },
 

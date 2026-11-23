@@ -1,5 +1,7 @@
 "use server";
 
+import { serverAction } from "@/lib/server-action";
+
 import { requireAuth } from "@/lib/auth-guards";
 import { UserFacade } from "@/features/users";
 
@@ -8,8 +10,8 @@ import { UserFacade } from "@/features/users";
 // would inherit its `verified` flag onto the new secret, making every code read
 // as invalid. Clearing it first keeps 2FA setup self-healing — no admin reset
 // needed. No-op once 2FA is actually enabled (see facade/service guard).
-export async function prepareTwoFactorSetupAction() {
+export const prepareTwoFactorSetupAction = serverAction(async () => {
   const user = await requireAuth();
   await UserFacade.clearUnverifiedTwoFactor(user.id);
   return { success: true };
-}
+});

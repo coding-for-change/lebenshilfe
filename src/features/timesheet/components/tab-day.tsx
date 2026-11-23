@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useMemo, useState } from "react";
 import { match } from "ts-pattern";
@@ -246,7 +247,7 @@ export function TabDay({
   const handleDeleteRequest = async (id: string) => {
     setBusyId(id);
     try {
-      await deleteOwnVertretungRequestAction(id);
+      await runAction(deleteOwnVertretungRequestAction(id));
       toast.success("Antrag gelöscht.");
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Löschen fehlgeschlagen.");
@@ -258,7 +259,7 @@ export function TabDay({
   const handleDeleteVertretung = async (sbRequestId: string) => {
     setBusyId(sbRequestId);
     try {
-      await deleteOwnVertretungAction(sbRequestId);
+      await runAction(deleteOwnVertretungAction(sbRequestId));
       toast.success("Vertretung gelöscht.");
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Löschen fehlgeschlagen.");
@@ -313,7 +314,7 @@ export function TabDay({
   const handleDelete = async (id: string) => {
     setBusyId(id);
     try {
-      await deleteEventAction(id);
+      await runAction(deleteEventAction(id));
       toast.success("Eintrag gelöscht.");
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Löschen fehlgeschlagen.");
@@ -395,7 +396,7 @@ export function TabDay({
                         onClick={async () => {
                           setBusyId(a.id);
                           try {
-                            await cancelChildSickAction(a.id);
+                            await runAction(cancelChildSickAction(a.id));
                             toast.success("Krankmeldung zurückgenommen.");
                           } catch (e: unknown) {
                             toast.error(

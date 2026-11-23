@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState, useTransition } from "react";
 import { Check, ChevronsUpDown, X } from "lucide-react";
@@ -133,9 +134,11 @@ function RequestRow({
     if (!selectedChildId) return;
     startTransition(async () => {
       try {
-        await resolveIndirectRequestAction(request.id, {
-          childId: selectedChildId,
-        });
+        await runAction(
+          resolveIndirectRequestAction(request.id, {
+            childId: selectedChildId,
+          }),
+        );
         toast.success("Zuordnung gespeichert.");
       } catch (e: unknown) {
         toast.error(e instanceof Error ? e.message : "Fehler beim Speichern.");
@@ -146,7 +149,7 @@ function RequestRow({
   const handleReject = () => {
     startTransition(async () => {
       try {
-        await rejectIndirectRequestAction(request.id);
+        await runAction(rejectIndirectRequestAction(request.id));
         toast.success("Antrag abgelehnt.");
       } catch (e: unknown) {
         toast.error(e instanceof Error ? e.message : "Fehler.");

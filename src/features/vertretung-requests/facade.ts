@@ -38,6 +38,7 @@ import {
   PendingRequestKind,
   PendingVertretungStatus,
 } from "@/generated/prisma";
+import { UserError } from "@/lib/action-result";
 
 export const VertretungRequestsFacade = {
   async create(substituteUserId: string, input: CreateVertretungRequestInput) {
@@ -184,9 +185,9 @@ export const VertretungRequestsFacade = {
     const parsed = ResolveVertretungRequestSchema.parse(input);
 
     const request = await findRequestById(id);
-    if (!request) throw new Error("Antrag nicht gefunden.");
+    if (!request) throw new UserError("Antrag nicht gefunden.");
     if (request.status !== PendingVertretungStatus.PENDING) {
-      throw new Error("Dieser Antrag wurde bereits bearbeitet.");
+      throw new UserError("Dieser Antrag wurde bereits bearbeitet.");
     }
 
     const date = request.date;
@@ -243,9 +244,9 @@ export const VertretungRequestsFacade = {
    */
   async deleteOwnVertretung(requestId: string, userId: string) {
     const request = await findRequestById(requestId);
-    if (!request) throw new Error("Antrag nicht gefunden.");
+    if (!request) throw new UserError("Antrag nicht gefunden.");
     if (request.substituteUserId !== userId) {
-      throw new Error("Keine Berechtigung.");
+      throw new UserError("Keine Berechtigung.");
     }
 
     const childId = request.resolvedChildId ?? request.matchedChildId;
@@ -267,9 +268,9 @@ export const VertretungRequestsFacade = {
 
   async reject(id: string, adminUserId: string) {
     const request = await findRequestById(id);
-    if (!request) throw new Error("Antrag nicht gefunden.");
+    if (!request) throw new UserError("Antrag nicht gefunden.");
     if (request.status !== PendingVertretungStatus.PENDING) {
-      throw new Error("Dieser Antrag wurde bereits bearbeitet.");
+      throw new UserError("Dieser Antrag wurde bereits bearbeitet.");
     }
     return rejectRequest(id, adminUserId);
   },
@@ -325,15 +326,15 @@ export const VertretungRequestsFacade = {
     const parsed = ResolveIndirectRequestSchema.parse(input);
 
     const request = await findRequestById(id);
-    if (!request) throw new Error("Antrag nicht gefunden.");
+    if (!request) throw new UserError("Antrag nicht gefunden.");
     if (request.kind !== PendingRequestKind.INDIRECT) {
-      throw new Error("Antrag ist keine indirekte Leistung.");
+      throw new UserError("Antrag ist keine indirekte Leistung.");
     }
     if (request.status !== PendingVertretungStatus.PENDING) {
-      throw new Error("Dieser Antrag wurde bereits bearbeitet.");
+      throw new UserError("Dieser Antrag wurde bereits bearbeitet.");
     }
     if (!request.note) {
-      throw new Error("Antrag enthält keine Notiz.");
+      throw new UserError("Antrag enthält keine Notiz.");
     }
 
     await insertIndirectWorkEvent({

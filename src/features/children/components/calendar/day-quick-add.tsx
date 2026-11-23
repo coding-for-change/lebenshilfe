@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -70,7 +71,7 @@ export function DayQuickAddSection({
 
   async function handleDeleteAssignment(id: string) {
     try {
-      await deleteAssignmentAction(id);
+      await runAction(deleteAssignmentAction(id));
       toast.success("Zuweisung entfernt.");
       onChanged();
     } catch (err) {
@@ -82,7 +83,7 @@ export function DayQuickAddSection({
 
   async function handleDeleteAbsence(id: string) {
     try {
-      await deleteAbsenceAction(id);
+      await runAction(deleteAbsenceAction(id));
       toast.success("Krankheitstag entfernt.");
       onChanged();
     } catch (err) {
@@ -94,7 +95,7 @@ export function DayQuickAddSection({
 
   async function handleDeleteVertretung(childId: string, date: string) {
     try {
-      await deleteVertretungAction(childId, date);
+      await runAction(deleteVertretungAction(childId, date));
       toast.success("Vertretung entfernt.");
       onChanged();
     } catch (err) {
@@ -334,7 +335,9 @@ function VertretungChip({
     setBusy(true);
     setError(null);
     try {
-      await updateVertretungAction(childId, date, { substituteProfileId });
+      await runAction(
+        updateVertretungAction(childId, date, { substituteProfileId }),
+      );
       toast.success("Vertretung aktualisiert.");
       setOpen(false);
       onChanged();
@@ -464,14 +467,16 @@ function DayAssignmentForm({
     try {
       // Whole-day assignment — the server still requires start/end so we
       // pin them to the visible day boundaries.
-      await createAssignmentAction({
-        childId,
-        profileId,
-        weekday,
-        startTime: "00:00",
-        endTime: "23:59",
-        tandem,
-      });
+      await runAction(
+        createAssignmentAction({
+          childId,
+          profileId,
+          weekday,
+          startTime: "00:00",
+          endTime: "23:59",
+          tandem,
+        }),
+      );
       toast.success("Zuweisung gespeichert.");
       onSaved();
     } catch (err) {
@@ -561,11 +566,13 @@ function DayVertretungForm({
     setBusy(true);
     setError(null);
     try {
-      await createVertretungAction({
-        childId,
-        substituteProfileId,
-        date: formatIsoDateLocal(date),
-      });
+      await runAction(
+        createVertretungAction({
+          childId,
+          substituteProfileId,
+          date: formatIsoDateLocal(date),
+        }),
+      );
       toast.success("Vertretung gespeichert.");
       onSaved();
     } catch (err) {
@@ -638,11 +645,13 @@ function DayAbsenceForm({
     setBusy(true);
     setError(null);
     try {
-      await saveAbsenceAction({
-        childId,
-        date: formatIsoDateLocal(date),
-        note: note.trim() || null,
-      });
+      await runAction(
+        saveAbsenceAction({
+          childId,
+          date: formatIsoDateLocal(date),
+          note: note.trim() || null,
+        }),
+      );
       toast.success("Krankheitstag gespeichert.");
       onSaved();
     } catch (err) {

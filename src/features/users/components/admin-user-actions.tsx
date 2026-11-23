@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import {
@@ -83,7 +84,7 @@ export function AdminUserActions({ user, currentUser, ownerCount }: Props) {
   async function handlePromote() {
     setBusy(true);
     try {
-      await promoteUserToOwnerAction(user.id);
+      await runAction(promoteUserToOwnerAction(user.id));
       toast.success(`${user.name} ist jetzt Owner.`);
     } catch (error) {
       toast.error(
@@ -97,7 +98,7 @@ export function AdminUserActions({ user, currentUser, ownerCount }: Props) {
 
   async function handleRemove() {
     try {
-      await removeAdminUserAction(user.id);
+      await runAction(removeAdminUserAction(user.id));
       toast.success(`${user.name} wurde entfernt.`);
     } catch (error) {
       toast.error(
@@ -109,7 +110,7 @@ export function AdminUserActions({ user, currentUser, ownerCount }: Props) {
 
   async function handleResetTwoFactor() {
     try {
-      await resetUserTwoFactorAction(user.id);
+      await runAction(resetUserTwoFactorAction(user.id));
       toast.success(
         `2FA für ${user.name} zurückgesetzt. Beim nächsten Login wird eine neue Einrichtung verlangt.`,
       );
@@ -123,7 +124,7 @@ export function AdminUserActions({ user, currentUser, ownerCount }: Props) {
 
   async function handleUnlockTwoFactor() {
     try {
-      await unlockUserTwoFactorAction(user.id);
+      await runAction(unlockUserTwoFactorAction(user.id));
       toast.success(`2FA-Sperre für ${user.name} aufgehoben.`);
     } catch (error) {
       toast.error(

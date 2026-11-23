@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useMemo, useState } from "react";
 import {
@@ -409,19 +410,23 @@ function ScheduleFormSheet({
     setBusy(true);
     try {
       if (schedule) {
-        await updateScheduleAction(schedule.id, {
-          weekday,
-          startTime: start,
-          endTime: end,
-        });
+        await runAction(
+          updateScheduleAction(schedule.id, {
+            weekday,
+            startTime: start,
+            endTime: end,
+          }),
+        );
         toast.success("Stundenplan aktualisiert.");
       } else {
-        await createScheduleAction({
-          childId,
-          weekday,
-          startTime: start,
-          endTime: end,
-        });
+        await runAction(
+          createScheduleAction({
+            childId,
+            weekday,
+            startTime: start,
+            endTime: end,
+          }),
+        );
         toast.success("Stundenplan gespeichert.");
       }
       onChanged();
@@ -440,7 +445,7 @@ function ScheduleFormSheet({
     setError(null);
     setBusy(true);
     try {
-      await deleteScheduleAction(schedule.id);
+      await runAction(deleteScheduleAction(schedule.id));
       toast.success("Stundenplan gelöscht.");
       onChanged();
       onOpenChange(false);

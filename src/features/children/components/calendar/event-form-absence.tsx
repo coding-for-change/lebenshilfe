@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { toast } from "sonner";
@@ -38,11 +39,13 @@ export function EventFormAbsence({
     setError(null);
     setBusy(true);
     try {
-      await saveAbsenceAction({
-        childId,
-        date: absenceDate,
-        note: note.trim() || null,
-      });
+      await runAction(
+        saveAbsenceAction({
+          childId,
+          date: absenceDate,
+          note: note.trim() || null,
+        }),
+      );
       toast.success("Krankheitstag gespeichert.");
       onSaved();
     } catch (err) {

@@ -16,6 +16,7 @@ import {
   type ExportFile,
   type ExportRequest,
   type PoolExportRequest,
+  type UnsignedEntry,
 } from "./schemas";
 
 const MIME_TYPES: Record<ExportRequest["format"], string> = {
@@ -23,6 +24,10 @@ const MIME_TYPES: Record<ExportRequest["format"], string> = {
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   csv: "text/csv;charset=utf-8",
 };
+
+// `unsigned` non-empty with no files: nothing was exported yet; the admin decides.
+// `unsigned` non-empty with files: exported without those entries, as chosen.
+type ExportResult = { files: ExportFile[]; unsigned: UnsignedEntry[] };
 
 function periodFilePart(request: {
   from: { year: number; month: number };
@@ -96,9 +101,16 @@ async function collectSignatures(
  * scope. Files are base64-encoded for transport to the client.
  */
 export const generateCostBearerExportAction = serverAction(
-  async (input: ExportRequest): Promise<{ files: ExportFile[] }> => {
+  async (input: ExportRequest): Promise<ExportResult> => {
     await requireAdmin();
     const request = ExportRequestSchema.parse(input);
+
+    // Only signed entries are billed. If the period has entries still waiting
+    // for the Schulbegleiter's signature, tell the admin which ones first.
+    const unsigned = await CostBearerExportFacade.findUnsignedForChild(request);
+    if (unsigned.length > 0 && !request.exportWithoutUnsigned) {
+      return { files: [], unsigned };
+    }
 
     const documents = await CostBearerExportFacade.build(request);
     const period = periodFilePart(request);
@@ -114,7 +126,7 @@ export const generateCostBearerExportAction = serverAction(
       period,
       signatures,
     );
-    return { files };
+    return { files, unsigned };
   },
 );
 
@@ -123,9 +135,14 @@ export const generateCostBearerExportAction = serverAction(
  * scope, or one file per Schulbegleiter for `per-assistant` scope.
  */
 export const generatePoolExportAction = serverAction(
-  async (input: PoolExportRequest): Promise<{ files: ExportFile[] }> => {
+  async (input: PoolExportRequest): Promise<ExportResult> => {
     await requireAdmin();
     const request = PoolExportRequestSchema.parse(input);
+
+    const unsigned = await CostBearerExportFacade.findUnsignedForPool(request);
+    if (unsigned.length > 0 && !request.exportWithoutUnsigned) {
+      return { files: [], unsigned };
+    }
 
     const documents = await CostBearerExportFacade.buildForPool(request);
     const period = periodFilePart(request);
@@ -141,6 +158,6 @@ export const generatePoolExportAction = serverAction(
       period,
       signatures,
     );
-    return { files };
+    return { files, unsigned };
   },
 );

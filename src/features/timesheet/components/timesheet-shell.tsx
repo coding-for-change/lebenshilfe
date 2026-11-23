@@ -183,11 +183,14 @@ export function SchoolAssistantApp({
     setActiveTab(id);
   };
 
-  // Work entries an admin created or edited on the Schulbegleiter's behalf are
-  // stored without a signatureKey. They await the Schulbegleiter's confirming
+  // Work and indirect entries an admin created or edited on the
+  // Schulbegleiter's behalf are stored without a signatureKey. They await the Schulbegleiter's confirming
   // signature (soft-deleted originals are already filtered server-side).
   const unconfirmedWorkEvents = useMemo(
-    () => events.filter((e) => e.type === "WORK" && !e.signatureKey),
+    () =>
+      events.filter(
+        (e) => (e.type === "WORK" || e.type === "INDIRECT") && !e.signatureKey,
+      ),
     [events],
   );
 
@@ -431,6 +434,7 @@ export function SchoolAssistantApp({
             startTime: e.startTime,
             endTime: e.endTime,
             note: e.note,
+            type: e.type,
             child: e.child,
           }))}
           signerLabel={currentUser.name}

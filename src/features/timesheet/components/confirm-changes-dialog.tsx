@@ -24,6 +24,7 @@ export type PendingConfirmEvent = {
   startTime: string | null;
   endTime: string | null;
   note: string | null;
+  type?: string;
   child: { firstName: string; lastName: string } | null;
 };
 
@@ -105,6 +106,12 @@ export function ConfirmChangesDialog({
                       {ev.child
                         ? `${ev.child.firstName} ${ev.child.lastName}`
                         : "Arbeit"}
+                      {ev.type === "INDIRECT" && (
+                        <span className="font-normal text-muted-foreground">
+                          {" "}
+                          · indirekte Leistung
+                        </span>
+                      )}
                     </span>
                     <span className="font-mono text-xs tabular-nums text-muted-foreground">
                       {ev.startTime}–{ev.endTime}

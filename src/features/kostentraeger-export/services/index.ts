@@ -64,7 +64,7 @@ export type ExportEvent = Prisma.EventGetPayload<{
 }>;
 
 /**
- * All WORK and INDIRECT events for a child within `[startInclusive,
+ * All signed WORK and INDIRECT events for a child within `[startInclusive,
  * endExclusive)`, excluding soft-deleted entries.
  */
 export async function listEventsForChildInRange(
@@ -78,6 +78,9 @@ export async function listEventsForChildInRange(
       type: { in: [EventType.WORK, EventType.INDIRECT] },
       date: { gte: startInclusive, lt: endExclusive },
       deleted: false,
+      // Billed only once signed by the Schulbegleiter. Entries an admin created
+      // or corrected stay unsigned until confirmed (listUnsignedEvents…).
+      signatureKey: { not: null },
     },
     select: {
       id: true,
@@ -112,6 +115,7 @@ export async function listEventsForPoolInRange(
       type: EventType.WORK,
       date: { gte: startInclusive, lt: endExclusive },
       deleted: false,
+      signatureKey: { not: null },
     },
     select: {
       id: true,
@@ -124,6 +128,53 @@ export async function listEventsForPoolInRange(
       userId: true,
       user: { select: { id: true, name: true } },
     },
+    orderBy: [{ date: "asc" }, { startTime: "asc" }],
+  });
+}
+
+const unsignedSelect = {
+  id: true,
+  type: true,
+  date: true,
+  startTime: true,
+  endTime: true,
+  replacesEventId: true,
+  user: { select: { name: true } },
+} as const;
+
+/** Entries an admin created or corrected that the Schulbegleiter has not signed yet. */
+export async function listUnsignedEventsForChildInRange(
+  childId: string,
+  startInclusive: Date,
+  endExclusive: Date,
+) {
+  return prisma.event.findMany({
+    where: {
+      childId,
+      type: { in: [EventType.WORK, EventType.INDIRECT] },
+      date: { gte: startInclusive, lt: endExclusive },
+      deleted: false,
+      signatureKey: null,
+    },
+    select: unsignedSelect,
+    orderBy: [{ date: "asc" }, { startTime: "asc" }],
+  });
+}
+
+export async function listUnsignedEventsForPoolInRange(
+  poolId: string,
+  startInclusive: Date,
+  endExclusive: Date,
+) {
+  return prisma.event.findMany({
+    where: {
+      poolId,
+      type: EventType.WORK,
+      date: { gte: startInclusive, lt: endExclusive },
+      deleted: false,
+      signatureKey: null,
+    },
+    select: unsignedSelect,
     orderBy: [{ date: "asc" }, { startTime: "asc" }],
   });
 }

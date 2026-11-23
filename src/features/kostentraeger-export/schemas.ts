@@ -17,6 +17,9 @@ export const ExportRequestSchema = z
     to: MonthMarkerSchema,
     fillWithIndirect: z.boolean(),
     embedSignatures: z.boolean(),
+    // Set after the admin saw the warning about unsigned entries and chose to
+    // export without them. Unsigned entries are never billed either way.
+    exportWithoutUnsigned: z.boolean().default(false),
   })
   .superRefine((value, ctx) => {
     const span = monthIndex(value.to) - monthIndex(value.from);
@@ -57,6 +60,7 @@ export const PoolExportRequestSchema = z
     from: MonthMarkerSchema,
     to: MonthMarkerSchema,
     embedSignatures: z.boolean(),
+    exportWithoutUnsigned: z.boolean().default(false),
   })
   .superRefine((value, ctx) => {
     const span = monthIndex(value.to) - monthIndex(value.from);
@@ -149,4 +153,18 @@ export type ExportFile = {
   filename: string;
   mimeType: string;
   base64: string;
+};
+
+/**
+ * An entry the export leaves out because the Schulbegleiter has not signed it
+ * yet: created or corrected by an admin, awaiting confirmation in the app.
+ */
+export type UnsignedEntry = {
+  date: string; // YYYY-MM-DD
+  schulbegleiterName: string;
+  startTime: string | null;
+  endTime: string | null;
+  type: "WORK" | "INDIRECT";
+  /** true: an admin corrected a signed entry; false: an admin created it. */
+  isCorrection: boolean;
 };

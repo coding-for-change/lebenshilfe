@@ -70,15 +70,30 @@ function groupByMonth(events: WorkEvent[]) {
   return [...groups.entries()].map(([key, val]) => ({ key, ...val }));
 }
 
-function totalHours(events: WorkEvent[]) {
-  let mins = 0;
-  for (const e of events) {
-    if (!e.startTime || !e.endTime) continue;
-    const [h1, m1] = e.startTime.split(":").map(Number);
-    const [h2, m2] = e.endTime.split(":").map(Number);
-    mins += h2 * 60 + m2 - (h1 * 60 + m1);
-  }
+function minutesOf(e: WorkEvent) {
+  if (!e.startTime || !e.endTime) return 0;
+  const [h1, m1] = e.startTime.split(":").map(Number);
+  const [h2, m2] = e.endTime.split(":").map(Number);
+  return h2 * 60 + m2 - (h1 * 60 + m1);
+}
+
+function formatHours(mins: number) {
   return (mins / 60).toFixed(2).replace(".", ",");
+}
+
+// Header summary for one month. Struck-through rows (deleted, or replaced by
+// an admin correction) stay visible for the audit trail but are not counted;
+// unsigned rows are counted but called out, since the export leaves them out
+// until the Schulbegleiter signs.
+function monthSummary(rows: WorkEvent[]) {
+  const current = rows.filter((r) => !r.deleted);
+  const unsignedMins = current
+    .filter((r) => !r.signed)
+    .reduce((sum, r) => sum + minutesOf(r), 0);
+  const total = `${current.length} ${current.length === 1 ? "Eintrag" : "Einträge"} · ${formatHours(current.reduce((sum, r) => sum + minutesOf(r), 0))} h`;
+  return unsignedMins > 0
+    ? `${total} · davon ${formatHours(unsignedMins)} h noch nicht unterschrieben`
+    : total;
 }
 
 type Period = { year: number; month: number };
@@ -466,9 +481,8 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
                 >
                   <div className="flex items-baseline justify-between gap-2 border-b bg-muted/40 px-4 py-2">
                     <h4 className="text-sm font-medium">{label}</h4>
-                    <span className="text-xs text-muted-foreground">
-                      {rows.length} {rows.length === 1 ? "Eintrag" : "Einträge"}{" "}
-                      · {totalHours(rows)} h
+                    <span className="text-right text-xs text-muted-foreground">
+                      {monthSummary(rows)}
                     </span>
                   </div>
                   <ul className="divide-y">

@@ -205,7 +205,9 @@ export async function signWorkEvents(
     where: {
       id: { in: eventIds },
       userId,
-      type: EventType.WORK,
+      // Admins correct both kinds in the child's history; both need the
+      // Schulbegleiter's signature before they are billed.
+      type: { in: [EventType.WORK, EventType.INDIRECT] },
       signatureKey: null,
       deleted: false,
     },

@@ -1,5 +1,7 @@
 "use client";
 import { runAction } from "@/lib/run-action";
+import type { UnsignedEntry } from "../schemas";
+import { UnsignedEntriesWarning } from "./unsigned-entries-warning";
 
 import { useState } from "react";
 import { toast } from "sonner";
@@ -78,8 +80,10 @@ export function CostBearerExportDialog({
   const [fillWithIndirect, setFillWithIndirect] = useState(true);
   const [embedSignatures, setEmbedSignatures] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Entries still waiting for a signature; set when the server held the export back.
+  const [unsigned, setUnsigned] = useState<UnsignedEntry[] | null>(null);
 
-  async function handleExport() {
+  async function handleExport(exportWithoutUnsigned = false) {
     const from = { year: fromYear, month: fromMonth };
     const to = mode === "single" ? from : { year: toYear, month: toMonth };
 
@@ -91,6 +95,7 @@ export function CostBearerExportDialog({
       to,
       fillWithIndirect,
       embedSignatures,
+      exportWithoutUnsigned,
     });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "Ungültige Eingabe.");
@@ -99,9 +104,14 @@ export function CostBearerExportDialog({
 
     setBusy(true);
     try {
-      const { files } = await runAction(
+      const { files, unsigned: notSigned } = await runAction(
         generateCostBearerExportAction(parsed.data),
       );
+      if (files.length === 0 && notSigned.length > 0) {
+        setUnsigned(notSigned);
+        return;
+      }
+      setUnsigned(null);
       if (files.length === 0) {
         toast.error("Keine Einträge im gewählten Zeitraum.");
         return;
@@ -127,7 +137,11 @@ export function CostBearerExportDialog({
   return (
     <Dialog
       open={open}
-      onOpenChange={(next) => !busy && onOpenChange(next)}
+      onOpenChange={(next) => {
+        if (busy) return;
+        if (!next) setUnsigned(null);
+        onOpenChange(next);
+      }}
     >
       <DialogContent>
         <DialogHeader>
@@ -136,147 +150,159 @@ export function CostBearerExportDialog({
             Abrechnung für <strong>{childName}</strong> im Format der Tabelle 7.
           </DialogDescription>
         </DialogHeader>
-
-        <div className="flex flex-col gap-4">
-          <Field>
-            <FieldLabel htmlFor="export-mode">
-              <FieldContent>
-                <span>Zeitraum</span>
-              </FieldContent>
-            </FieldLabel>
-            <Select
-              value={mode}
-              onValueChange={(value) => setMode(value as PeriodMode)}
-            >
-              <SelectTrigger
-                id="export-mode"
-                className="w-full"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="single">Einzelner Monat</SelectItem>
-                <SelectItem value="range">Zeitraum (mehrere Monate)</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-
-          <MonthYearPicker
-            id="export-from"
-            label={mode === "single" ? "Monat" : "Von"}
-            month={fromMonth}
-            year={fromYear}
-            minYear={minYear}
-            onMonthChange={setFromMonth}
-            onYearChange={setFromYear}
+        {unsigned ? (
+          <UnsignedEntriesWarning
+            entries={unsigned}
+            busy={busy}
+            onBack={() => setUnsigned(null)}
+            onExportWithout={() => handleExport(true)}
           />
-
-          {mode === "range" && (
-            <MonthYearPicker
-              id="export-to"
-              label="Bis"
-              month={toMonth}
-              year={toYear}
-              minYear={minYear}
-              onMonthChange={setToMonth}
-              onYearChange={setToYear}
-            />
-          )}
-
-          <Field>
-            <FieldLabel htmlFor="export-scope">
-              <FieldContent>
-                <span>Aufteilung</span>
-              </FieldContent>
-            </FieldLabel>
-            <Select
-              value={scope}
-              onValueChange={(value) => setScope(value as ExportScope)}
-            >
-              <SelectTrigger
-                id="export-scope"
-                className="w-full"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SCOPE_OPTIONS.map((option) => (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
+        ) : (
+          <>
+            <div className="flex flex-col gap-4">
+              <Field>
+                <FieldLabel htmlFor="export-mode">
+                  <FieldContent>
+                    <span>Zeitraum</span>
+                  </FieldContent>
+                </FieldLabel>
+                <Select
+                  value={mode}
+                  onValueChange={(value) => setMode(value as PeriodMode)}
+                >
+                  <SelectTrigger
+                    id="export-mode"
+                    className="w-full"
                   >
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="single">Einzelner Monat</SelectItem>
+                    <SelectItem value="range">
+                      Zeitraum (mehrere Monate)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
 
-          <Field>
-            <FieldLabel htmlFor="export-format">
-              <FieldContent>
-                <span>Format</span>
-              </FieldContent>
-            </FieldLabel>
-            <Select
-              value={format}
-              onValueChange={(value) => setFormat(value as ExportFormat)}
-            >
-              <SelectTrigger
-                id="export-format"
-                className="w-full"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {FORMAT_OPTIONS.map((option) => (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
+              <MonthYearPicker
+                id="export-from"
+                label={mode === "single" ? "Monat" : "Von"}
+                month={fromMonth}
+                year={fromYear}
+                minYear={minYear}
+                onMonthChange={setFromMonth}
+                onYearChange={setFromYear}
+              />
+
+              {mode === "range" && (
+                <MonthYearPicker
+                  id="export-to"
+                  label="Bis"
+                  month={toMonth}
+                  year={toYear}
+                  minYear={minYear}
+                  onMonthChange={setToMonth}
+                  onYearChange={setToYear}
+                />
+              )}
+
+              <Field>
+                <FieldLabel htmlFor="export-scope">
+                  <FieldContent>
+                    <span>Aufteilung</span>
+                  </FieldContent>
+                </FieldLabel>
+                <Select
+                  value={scope}
+                  onValueChange={(value) => setScope(value as ExportScope)}
+                >
+                  <SelectTrigger
+                    id="export-scope"
+                    className="w-full"
                   >
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SCOPE_OPTIONS.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
 
-          <FlagRow
-            id="export-fill-indirect"
-            label="Stunden mit indirekter Leistung auffüllen"
-            description="Sicherheitsnetz: füllt die Zeile „Indirekte Leistung“ auf die genehmigte indirekte Leistung des Kindes auf, falls die geloggten Stunden nicht reichen."
-            checked={fillWithIndirect}
-            onChange={setFillWithIndirect}
-          />
+              <Field>
+                <FieldLabel htmlFor="export-format">
+                  <FieldContent>
+                    <span>Format</span>
+                  </FieldContent>
+                </FieldLabel>
+                <Select
+                  value={format}
+                  onValueChange={(value) => setFormat(value as ExportFormat)}
+                >
+                  <SelectTrigger
+                    id="export-format"
+                    className="w-full"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FORMAT_OPTIONS.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
 
-          {format === "pdf" && (
-            <FlagRow
-              id="export-embed-signatures"
-              label="Unterschriften einbetten"
-              description="Fügt je Tag die gespeicherte Unterschrift als kleine Spalte in das PDF ein."
-              checked={embedSignatures}
-              onChange={setEmbedSignatures}
-            />
-          )}
-        </div>
+              <FlagRow
+                id="export-fill-indirect"
+                label="Stunden mit indirekter Leistung auffüllen"
+                description="Sicherheitsnetz: füllt die Zeile „Indirekte Leistung“ auf die genehmigte indirekte Leistung des Kindes auf, falls die geloggten Stunden nicht reichen."
+                checked={fillWithIndirect}
+                onChange={setFillWithIndirect}
+              />
 
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={busy}
-          >
-            Abbrechen
-          </Button>
-          <Button
-            type="button"
-            onClick={handleExport}
-            disabled={busy}
-          >
-            {busy ? "Exportiert…" : "Exportieren"}
-          </Button>
-        </DialogFooter>
+              {format === "pdf" && (
+                <FlagRow
+                  id="export-embed-signatures"
+                  label="Unterschriften einbetten"
+                  description="Fügt je Tag die gespeicherte Unterschrift als kleine Spalte in das PDF ein."
+                  checked={embedSignatures}
+                  onChange={setEmbedSignatures}
+                />
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={busy}
+              >
+                Abbrechen
+              </Button>
+              <Button
+                type="button"
+                onClick={() => handleExport()}
+                disabled={busy}
+              >
+                {busy ? "Exportiert…" : "Exportieren"}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

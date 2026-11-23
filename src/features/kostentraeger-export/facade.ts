@@ -6,12 +6,15 @@ import {
   type ExportMonth,
   type ExportRequest,
   type PoolExportRequest,
+  type UnsignedEntry,
 } from "./schemas";
 import {
   findChildForExport,
   findPoolForExport,
   listEventsForChildInRange,
   listEventsForPoolInRange,
+  listUnsignedEventsForChildInRange,
+  listUnsignedEventsForPoolInRange,
   type ExportEvent,
 } from "./services";
 import {
@@ -268,7 +271,55 @@ function buildMonth(
   };
 }
 
+function exportRange(request: {
+  from: { year: number; month: number };
+  to: { year: number; month: number };
+}) {
+  return {
+    start: utcDate(request.from.year, request.from.month, 1),
+    end: utcDate(
+      request.to.month === 12 ? request.to.year + 1 : request.to.year,
+      request.to.month === 12 ? 1 : request.to.month + 1,
+      1,
+    ),
+  };
+}
+
+function toUnsignedEntries(
+  events: Awaited<ReturnType<typeof listUnsignedEventsForChildInRange>>,
+): UnsignedEntry[] {
+  return events.map((e) => ({
+    date: e.date.toISOString().slice(0, 10),
+    schulbegleiterName: e.user.name,
+    startTime: e.startTime,
+    endTime: e.endTime,
+    type: e.type === "INDIRECT" ? "INDIRECT" : "WORK",
+    isCorrection: e.replacesEventId !== null,
+  }));
+}
+
 export const CostBearerExportFacade = {
+  /**
+   * Entries in the export period that the Schulbegleiter has not signed yet.
+   * They are never billed; the admin is told which ones still need a signature.
+   */
+  async findUnsignedForChild(input: ExportRequest): Promise<UnsignedEntry[]> {
+    const request = ExportRequestSchema.parse(input);
+    const { start, end } = exportRange(request);
+    return toUnsignedEntries(
+      await listUnsignedEventsForChildInRange(request.childId, start, end),
+    );
+  },
+
+  async findUnsignedForPool(
+    input: PoolExportRequest,
+  ): Promise<UnsignedEntry[]> {
+    const request = PoolExportRequestSchema.parse(input);
+    const { start, end } = exportRange(request);
+    return toUnsignedEntries(
+      await listUnsignedEventsForPoolInRange(request.poolId, start, end),
+    );
+  },
   /**
    * Builds the Einsatznachweis document(s) for a child and period. Returns a
    * single document for `combined` scope, or one document per Schulbegleiter

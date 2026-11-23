@@ -50,17 +50,21 @@ const ORGS = {
     loginEmailPlaceholder: "name@lebenshilfe.de",
     isDemo: false,
   },
+  // The public demo. The key keeps its original name (it is wired into the
+  // deploy workflow), but the instance is no longer branded for one Verein:
+  // people from several Lebenshilfen are invited, and mail is sent by us.
   "hamburg-demo": {
-    name: "Lebenshilfe Hamburg",
-    legalName: "Lebenshilfe Hamburg e.V.",
+    name: "Lebenshilfe Demo-Anwendung",
+    // Footer of every email. Names who actually runs the demo, not a Verein.
+    legalName: "Demo-Anwendung · Coding for Change",
     shortName: "Lebenshilfe",
-    // Dachmarken-Logo (no Hamburg-specific wordmark on hand). 1024×280.
+    // Dachmarken-Logo. 1024×280.
     logo: { src: "/lebenshilfe-logo.png", width: 1024, height: 280 },
     emailLogo: "/lebenshilfe-logo.png",
     // Routed to us, not to the Verein — nobody there is expecting demo mail.
     supportEmail: "info@codingforchange.com",
     feedbackEmail: "info@codingforchange.com",
-    loginEmailPlaceholder: "name@lebenshilfe-hamburg.de",
+    loginEmailPlaceholder: "name@beispiel.de",
     isDemo: true,
   },
 } satisfies Record<string, OrgBranding>;

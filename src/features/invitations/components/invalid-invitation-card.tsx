@@ -62,13 +62,14 @@ export function InvalidInvitationCard({
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
-        {/* Secondary on purpose: these visitors have no account yet. */}
+        {/* A way out of every dead end. Signed-in visitors never get here
+            (/onboard sends them to their start page), so for everyone who
+            does, "/" leads on to the login. */}
         <Button
           asChild
-          variant="outline"
           className="h-11 w-full text-base font-medium"
         >
-          <Link href="/login">Ich habe bereits ein Konto – zur Anmeldung</Link>
+          <Link href="/">Zur Startseite</Link>
         </Button>
       </CardContent>
     </Card>

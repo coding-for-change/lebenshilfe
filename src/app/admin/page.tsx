@@ -1,9 +1,15 @@
+import { requireAdmin } from "@/lib/auth-guards";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
 import { ALL_NAV_ITEMS } from "./_components/nav-items";
 
-export default function AdminDashboard() {
+export default async function AdminDashboard() {
+  // Every admin page checks access itself. The admin layout's check is not
+  // enough: on client navigation Next.js renders only the segments below the
+  // shared layout, so a request can reach this page without the layout running.
+  await requireAdmin();
+
   return (
     <div className="space-y-6">
       <div className="rounded-xl border bg-card px-6 py-6 shadow-none sm:px-8 sm:py-8">

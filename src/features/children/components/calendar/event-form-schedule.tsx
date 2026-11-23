@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { toast } from "sonner";
@@ -34,12 +35,14 @@ export function EventFormSchedule({
     setError(null);
     setBusy(true);
     try {
-      await createScheduleAction({
-        childId,
-        weekday,
-        startTime: start,
-        endTime: end,
-      });
+      await runAction(
+        createScheduleAction({
+          childId,
+          weekday,
+          startTime: start,
+          endTime: end,
+        }),
+      );
       toast.success("Stundenplan gespeichert.");
       onSaved();
     } catch (err) {

@@ -25,6 +25,7 @@ import {
   shiftTime,
   weekdayShort,
 } from "./format";
+import { UserError } from "@/lib/action-result";
 
 function utcDate(year: number, month: number, day: number): Date {
   return new Date(Date.UTC(year, month - 1, day));
@@ -280,7 +281,7 @@ export const CostBearerExportFacade = {
 
     const child = await findChildForExport(request.childId);
     if (!child) {
-      throw new Error("Kind nicht gefunden.");
+      throw new UserError("Kind nicht gefunden.");
     }
     const childName = `${child.firstName} ${child.lastName}`.trim();
 
@@ -343,7 +344,7 @@ export const CostBearerExportFacade = {
     }
 
     if (byAssistant.size === 0) {
-      throw new Error(
+      throw new UserError(
         "Im gewählten Zeitraum gibt es keine Einträge für dieses Kind.",
       );
     }
@@ -383,7 +384,7 @@ export const CostBearerExportFacade = {
 
     const pool = await findPoolForExport(request.poolId);
     if (!pool) {
-      throw new Error("Pool nicht gefunden.");
+      throw new UserError("Pool nicht gefunden.");
     }
 
     const noQuarterHour = { before: false, after: false };
@@ -427,7 +428,7 @@ export const CostBearerExportFacade = {
     }
 
     if (byAssistant.size === 0) {
-      throw new Error(
+      throw new UserError(
         "Im gewählten Zeitraum gibt es keine Einträge für diesen Pool.",
       );
     }

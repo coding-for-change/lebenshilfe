@@ -14,6 +14,7 @@ import {
   listSchools,
   updateSchool,
 } from "./services";
+import { UserError } from "@/lib/action-result";
 
 function schoolData(input: SchoolInput) {
   return {
@@ -43,7 +44,7 @@ export const SchoolsFacade = {
   async update(id: string, input: UpdateSchoolInput) {
     const parsed = UpdateSchoolSchema.parse(input);
     const existing = await findSchoolById(id);
-    if (!existing) throw new Error("Schule nicht gefunden.");
+    if (!existing) throw new UserError("Schule nicht gefunden.");
     // Only write keys that were actually provided so a partial edit cannot
     // clear untouched columns.
     const data: Partial<ReturnType<typeof schoolData>> = {};

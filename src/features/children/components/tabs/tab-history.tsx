@@ -1,4 +1,6 @@
 "use client";
+import { runAction } from "@/lib/run-action";
+import type { ActionData } from "@/lib/action-result";
 
 import { useEffect, useMemo, useReducer, useState, useTransition } from "react";
 import {
@@ -52,7 +54,7 @@ type Props = {
   schoolAssistantOptions: { id: string; name: string }[];
 };
 
-type HistoryResult = Awaited<ReturnType<typeof listWorkEventsForChildAction>>;
+type HistoryResult = ActionData<typeof listWorkEventsForChildAction>;
 type WorkEvent = HistoryResult["events"][number];
 
 function groupByMonth(events: WorkEvent[]) {
@@ -225,7 +227,7 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
             order: state.order,
           }
         : undefined;
-    listWorkEventsForChildAction(child.id, query)
+    runAction(listWorkEventsForChildAction(child.id, query))
       .then((res) => {
         if (cancelled) return;
         dispatch({
@@ -299,7 +301,7 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
     if (!confirm("Eintrag wirklich löschen?")) return;
     startTransition(async () => {
       try {
-        await deleteWorkEventAsAdminAction(id);
+        await runAction(deleteWorkEventAsAdminAction(id));
         toast.success("Eintrag gelöscht.");
         reload();
       } catch (err) {
@@ -313,7 +315,7 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
   const handleRestore = (id: string) => {
     startTransition(async () => {
       try {
-        await restoreWorkEventAsAdminAction(id);
+        await runAction(restoreWorkEventAsAdminAction(id));
         toast.success("Eintrag wiederhergestellt.");
         reload();
       } catch (err) {
@@ -329,23 +331,27 @@ export function TabHistory({ child, schoolAssistantOptions }: Props) {
     startTransition(async () => {
       try {
         if (editingEvent) {
-          await updateWorkEventAsAdminAction(editingEvent.id, {
-            ...formData,
-            userId: formData.userId || undefined,
-            note: formData.note || undefined,
-          });
+          await runAction(
+            updateWorkEventAsAdminAction(editingEvent.id, {
+              ...formData,
+              userId: formData.userId || undefined,
+              note: formData.note || undefined,
+            }),
+          );
           toast.success("Eintrag aktualisiert.");
           reload();
         } else {
           if (!formData.userId) throw new Error("Benutzer auswählen.");
-          await createWorkEventAsAdminAction({
-            childId: child.id,
-            userId: formData.userId,
-            date: formData.date,
-            startTime: formData.startTime,
-            endTime: formData.endTime,
-            note: formData.note || undefined,
-          });
+          await runAction(
+            createWorkEventAsAdminAction({
+              childId: child.id,
+              userId: formData.userId,
+              date: formData.date,
+              startTime: formData.startTime,
+              endTime: formData.endTime,
+              note: formData.note || undefined,
+            }),
+          );
           toast.success("Eintrag hinzugefügt.");
           // Jump to the new entry's month so it is visible even if it lands
           // outside the period currently shown; this also refetches.

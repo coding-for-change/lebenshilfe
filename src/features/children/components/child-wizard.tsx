@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -121,7 +122,7 @@ export function ChildWizard({
     }
     setBusy(true);
     try {
-      const result = await createChildAction(input);
+      const result = await runAction(createChildAction(input));
       toast.success(`${input.firstName} ${input.lastName} hinzugefügt.`);
       if (mode === "open-calendar") {
         onOpenChange(false);

@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState, useTransition } from "react";
 import {
@@ -251,7 +252,9 @@ function VertretungQuickAction({
     if (!substituteProfileId) return;
     startTransition(async () => {
       try {
-        await createVertretungAction({ childId, substituteProfileId, date });
+        await runAction(
+          createVertretungAction({ childId, substituteProfileId, date }),
+        );
         toast.success("Vertretung eingetragen.");
         setOpen(false);
         setSubstituteProfileId(null);
@@ -320,7 +323,7 @@ function DeleteWorkQuickAction({ workEventId }: { workEventId: string }) {
     if (!confirm("WORK-Eintrag wirklich löschen?")) return;
     startTransition(async () => {
       try {
-        await deleteWorkEventAsAdminAction(workEventId);
+        await runAction(deleteWorkEventAsAdminAction(workEventId));
         toast.success("WORK-Eintrag gelöscht.");
       } catch (err) {
         toast.error(

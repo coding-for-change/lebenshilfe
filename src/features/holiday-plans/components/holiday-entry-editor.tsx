@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { toast } from "sonner";
@@ -35,12 +36,14 @@ export function HolidayEntryEditor({ planId, entries }: Props) {
     }
     setBusy(true);
     try {
-      await addHolidayEntryAction({
-        planId,
-        name: name.trim() || null,
-        startDate: range.startDate,
-        endDate: range.endDate,
-      });
+      await runAction(
+        addHolidayEntryAction({
+          planId,
+          name: name.trim() || null,
+          startDate: range.startDate,
+          endDate: range.endDate,
+        }),
+      );
       toast.success("Ferien hinzugefügt.");
       setRange(EMPTY_RANGE);
       setName("");
@@ -114,11 +117,13 @@ function EntryRow({ entry }: { entry: SerializedHolidayEntry }) {
     }
     setBusy(true);
     try {
-      await updateHolidayEntryAction(entry.id, {
-        name: name.trim() || null,
-        startDate: range.startDate,
-        endDate: range.endDate,
-      });
+      await runAction(
+        updateHolidayEntryAction(entry.id, {
+          name: name.trim() || null,
+          startDate: range.startDate,
+          endDate: range.endDate,
+        }),
+      );
       toast.success("Ferien aktualisiert.");
     } catch (err) {
       toast.error(
@@ -132,7 +137,7 @@ function EntryRow({ entry }: { entry: SerializedHolidayEntry }) {
   async function handleDelete() {
     setBusy(true);
     try {
-      await deleteHolidayEntryAction(entry.id);
+      await runAction(deleteHolidayEntryAction(entry.id));
       toast.success("Ferien gelöscht.");
     } catch (err) {
       toast.error(

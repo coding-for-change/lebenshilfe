@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { ArrowUpCircle, MoreVertical, Send, Trash2, X } from "lucide-react";
@@ -58,7 +59,7 @@ export function UserRowActions({ subject, currentUser, ownerCount }: Props) {
       setBusy(true);
       try {
         if (subject.kind !== "user") return;
-        await promoteUserToOwnerAction(subject.id);
+        await runAction(promoteUserToOwnerAction(subject.id));
         toast.success(`${subject.name} ist jetzt Owner.`);
       } catch (error) {
         toast.error(
@@ -75,7 +76,7 @@ export function UserRowActions({ subject, currentUser, ownerCount }: Props) {
     async function handleRemove() {
       try {
         if (subject.kind !== "user") return;
-        await removeAdminUserAction(subject.id);
+        await runAction(removeAdminUserAction(subject.id));
         toast.success(`${subject.name} wurde entfernt.`);
       } catch (error) {
         toast.error(
@@ -168,7 +169,7 @@ export function UserRowActions({ subject, currentUser, ownerCount }: Props) {
     setBusy(true);
     try {
       if (subject.kind !== "invitation") return;
-      await resendAdminInvitationAction(subject.id);
+      await runAction(resendAdminInvitationAction(subject.id));
       toast.success("Einladung erneut gesendet.");
     } catch (error) {
       toast.error(
@@ -184,7 +185,7 @@ export function UserRowActions({ subject, currentUser, ownerCount }: Props) {
   async function handleCancel() {
     try {
       if (subject.kind !== "invitation") return;
-      await cancelAdminInvitationAction(subject.id);
+      await runAction(cancelAdminInvitationAction(subject.id));
       toast.success("Einladung widerrufen.");
     } catch (error) {
       toast.error(

@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
@@ -57,7 +58,7 @@ export function ChildSearchCombobox({
           return;
         }
         try {
-          const rows = await searchAssignedChildrenAction(q);
+          const rows = await runAction(searchAssignedChildrenAction(q));
           setResults(rows);
         } catch {
           setResults([]);

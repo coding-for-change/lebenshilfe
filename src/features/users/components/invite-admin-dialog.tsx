@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { toast } from "sonner";
@@ -71,7 +72,7 @@ export function InviteAdminDialog({
 
     setBusy(true);
     try {
-      await inviteAdminUserAction(parsed.data);
+      await runAction(inviteAdminUserAction(parsed.data));
       toast.success(`Einladung an ${parsed.data.email} gesendet.`);
       reset();
       onOpenChange(false);

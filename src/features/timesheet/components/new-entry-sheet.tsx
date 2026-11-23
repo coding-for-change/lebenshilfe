@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { match } from "ts-pattern";
@@ -416,7 +417,9 @@ export function NewEntrySheet({
     let cancelled = false;
     const handle = setTimeout(async () => {
       try {
-        const res = await lookupVertretungPrefillAction({ name, date });
+        const res = await runAction(
+          lookupVertretungPrefillAction({ name, date }),
+        );
         if (cancelled) return;
         if (!res.matched) {
           setVertretungQuarter(null);
@@ -446,56 +449,66 @@ export function NewEntrySheet({
     setSubmitting(true);
     try {
       if (type === EventType.WORK && workVariant === "VERTRETUNG") {
-        await createVertretungRequestAction({
-          childNameText: vertretungChildName.trim(),
-          date,
-          startTime,
-          endTime,
-          signaturePngBase64: pngBase64,
-        });
+        await runAction(
+          createVertretungRequestAction({
+            childNameText: vertretungChildName.trim(),
+            date,
+            startTime,
+            endTime,
+            signaturePngBase64: pngBase64,
+          }),
+        );
         toast.success("Vertretungs-Antrag eingereicht.");
       } else if (type === EventType.SICK) {
-        await createEventAction({
-          type: EventType.SICK,
-          date,
-          childIds: [],
-          note: note.trim() || undefined,
-          signaturePngBase64: pngBase64,
-        });
+        await runAction(
+          createEventAction({
+            type: EventType.SICK,
+            date,
+            childIds: [],
+            note: note.trim() || undefined,
+            signaturePngBase64: pngBase64,
+          }),
+        );
         toast.success("Krankheit gespeichert");
       } else if (workVariant === "OWN" && inPool) {
-        await createPoolWorkEventAction({
-          date,
-          startTime,
-          endTime,
-          note: note.trim() || undefined,
-          signaturePngBase64: pngBase64,
-        });
+        await runAction(
+          createPoolWorkEventAction({
+            date,
+            startTime,
+            endTime,
+            note: note.trim() || undefined,
+            signaturePngBase64: pngBase64,
+          }),
+        );
         toast.success("Eintrag gespeichert");
       } else if (workVariant === "OWN") {
-        await createEventAction({
-          type: EventType.WORK,
-          date,
-          childIds,
-          startTime,
-          endTime,
-          note: note.trim() || undefined,
-          signaturePngBase64: pngBase64,
-        });
+        await runAction(
+          createEventAction({
+            type: EventType.WORK,
+            date,
+            childIds,
+            startTime,
+            endTime,
+            note: note.trim() || undefined,
+            signaturePngBase64: pngBase64,
+          }),
+        );
         toast.success(
           `Eintrag gespeichert (${childIds.length} Kind${
             childIds.length === 1 ? "" : "er"
           })`,
         );
       } else {
-        const result = await createIndirectEventByNameAction({
-          childNameText: indirectChildName.trim(),
-          date,
-          startTime,
-          endTime,
-          note: note.trim(),
-          signaturePngBase64: pngBase64,
-        });
+        const result = await runAction(
+          createIndirectEventByNameAction({
+            childNameText: indirectChildName.trim(),
+            date,
+            startTime,
+            endTime,
+            note: note.trim(),
+            signaturePngBase64: pngBase64,
+          }),
+        );
         if (result.status === "QUEUED") {
           toast.success(
             "Indirekte Leistung gespeichert — wird vom Admin dem Kind zugeordnet.",
@@ -684,11 +697,13 @@ export function NewEntrySheet({
                             onClick={async () => {
                               setSubmitting(true);
                               try {
-                                await reportChildSickAction({
-                                  childId: sickChildId,
-                                  date,
-                                  note: note.trim() || undefined,
-                                });
+                                await runAction(
+                                  reportChildSickAction({
+                                    childId: sickChildId,
+                                    date,
+                                    note: note.trim() || undefined,
+                                  }),
+                                );
                                 toast.success(
                                   `${child.firstName} wurde krank gemeldet.`,
                                 );

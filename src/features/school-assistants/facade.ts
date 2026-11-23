@@ -16,6 +16,7 @@ import {
   listWorkEventsForUser,
 } from "./services";
 import { logBusinessEvent } from "@/lib/logger";
+import { UserError } from "@/lib/action-result";
 
 function toFields(input: CreateSchoolAssistantInput) {
   return {
@@ -55,7 +56,7 @@ export const SchoolAssistantsFacade = {
 
     const existing = await findProfileByEmail(parsed.email);
     if (existing) {
-      throw new Error(
+      throw new UserError(
         "Ein Schulbegleiter mit dieser E-Mail existiert bereits.",
       );
     }
@@ -74,7 +75,7 @@ export const SchoolAssistantsFacade = {
     const parsed = UpdateSchulbegleiterSchema.parse(input);
     const existing = await findProfileById(profileId);
     if (!existing) {
-      throw new Error("Schulbegleiter nicht gefunden.");
+      throw new UserError("Schulbegleiter nicht gefunden.");
     }
 
     const patch: Parameters<typeof updateProfilePartial>[0]["patch"] = {};
@@ -116,9 +117,9 @@ export const SchoolAssistantsFacade = {
 
   async getEmailForResend(profileId: string) {
     const profile = await findProfileById(profileId);
-    if (!profile) throw new Error("Schulbegleiter nicht gefunden.");
+    if (!profile) throw new UserError("Schulbegleiter nicht gefunden.");
     if (profile.status === SchulbegleiterStatus.ACCEPTED) {
-      throw new Error(
+      throw new UserError(
         "Einladung kann nicht erneut gesendet werden — bereits angenommen.",
       );
     }

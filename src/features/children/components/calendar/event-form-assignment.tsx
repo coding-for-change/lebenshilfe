@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { toast } from "sonner";
@@ -50,14 +51,16 @@ export function EventFormAssignment({
     }
     setBusy(true);
     try {
-      await createAssignmentAction({
-        childId,
-        profileId,
-        weekday,
-        startTime: start,
-        endTime: end,
-        tandem,
-      });
+      await runAction(
+        createAssignmentAction({
+          childId,
+          profileId,
+          weekday,
+          startTime: start,
+          endTime: end,
+          tandem,
+        }),
+      );
       toast.success("Zuweisung gespeichert.");
       onSaved();
     } catch (err) {

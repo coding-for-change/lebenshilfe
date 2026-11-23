@@ -1,5 +1,7 @@
 "use server";
 
+import { serverAction } from "@/lib/server-action";
+
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth-guards";
 import { TimesheetFacade } from "./facade";
@@ -14,57 +16,60 @@ import type {
   UpdateEventInput,
 } from "./schemas";
 
-export async function createEventAction(input: CreateEventInput) {
-  const { id: userId } = await requireAuth();
-  const result = await createTimesheetEvent(userId, input);
-  revalidatePath("/");
-  return result;
-}
+export const createEventAction = serverAction(
+  async (input: CreateEventInput) => {
+    const { id: userId } = await requireAuth();
+    const result = await createTimesheetEvent(userId, input);
+    revalidatePath("/");
+    return result;
+  },
+);
 
-export async function createPoolWorkEventAction(
-  input: CreatePoolWorkEventInput,
-) {
-  const { id: userId } = await requireAuth();
-  const result = await TimesheetFacade.createPoolWorkEvent(userId, input);
-  revalidatePath("/");
-  return result;
-}
+export const createPoolWorkEventAction = serverAction(
+  async (input: CreatePoolWorkEventInput) => {
+    const { id: userId } = await requireAuth();
+    const result = await TimesheetFacade.createPoolWorkEvent(userId, input);
+    revalidatePath("/");
+    return result;
+  },
+);
 
-export async function createIndirectEventByNameAction(
-  input: CreateIndirectByNameInput,
-) {
-  const { id: userId } = await requireAuth();
-  const result = await createIndirectEventByName(userId, input);
-  revalidatePath("/");
-  return result;
-}
+export const createIndirectEventByNameAction = serverAction(
+  async (input: CreateIndirectByNameInput) => {
+    const { id: userId } = await requireAuth();
+    const result = await createIndirectEventByName(userId, input);
+    revalidatePath("/");
+    return result;
+  },
+);
 
-export async function updateEventAction(
-  eventId: string,
-  input: UpdateEventInput,
-) {
-  const { id: userId } = await requireAuth();
-  await TimesheetFacade.updateEvent(userId, eventId, input);
-  revalidatePath("/");
-}
+export const updateEventAction = serverAction(
+  async (eventId: string, input: UpdateEventInput) => {
+    const { id: userId } = await requireAuth();
+    await TimesheetFacade.updateEvent(userId, eventId, input);
+    revalidatePath("/");
+  },
+);
 
-export async function deleteEventAction(eventId: string) {
+export const deleteEventAction = serverAction(async (eventId: string) => {
   const { id: userId } = await requireAuth();
   await TimesheetFacade.deleteEvent(userId, eventId);
   revalidatePath("/");
-}
+});
 
-export async function submitMonthlyReportAction(
-  input: SubmitMonthlyReportInput,
-) {
-  const { id: userId } = await requireAuth();
-  await TimesheetFacade.submitMonthlyReport(userId, input);
-  revalidatePath("/");
-}
+export const submitMonthlyReportAction = serverAction(
+  async (input: SubmitMonthlyReportInput) => {
+    const { id: userId } = await requireAuth();
+    await TimesheetFacade.submitMonthlyReport(userId, input);
+    revalidatePath("/");
+  },
+);
 
-export async function confirmWorkEventsAction(input: ConfirmWorkEventsInput) {
-  const { id: userId } = await requireAuth();
-  const result = await TimesheetFacade.confirmWorkEvents(userId, input);
-  revalidatePath("/");
-  return result;
-}
+export const confirmWorkEventsAction = serverAction(
+  async (input: ConfirmWorkEventsInput) => {
+    const { id: userId } = await requireAuth();
+    const result = await TimesheetFacade.confirmWorkEvents(userId, input);
+    revalidatePath("/");
+    return result;
+  },
+);

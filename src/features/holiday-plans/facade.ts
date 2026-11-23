@@ -22,6 +22,7 @@ import {
   updateHolidayPlan,
 } from "./services";
 import type { PlanHolidayRange } from "./serialize";
+import { UserError } from "@/lib/action-result";
 
 export const HolidayPlansFacade = {
   async list() {
@@ -45,7 +46,7 @@ export const HolidayPlansFacade = {
   async update(id: string, input: UpdateHolidayPlanInput) {
     const parsed = UpdateHolidayPlanSchema.parse(input);
     const existing = await findHolidayPlanById(id);
-    if (!existing) throw new Error("Ferienplan nicht gefunden.");
+    if (!existing) throw new UserError("Ferienplan nicht gefunden.");
     if (parsed.name === undefined) return existing;
     return updateHolidayPlan(id, { name: parsed.name });
   },

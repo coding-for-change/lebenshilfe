@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -105,7 +106,7 @@ export function KinderWeekCalendar({
 
   useEffect(() => {
     const weekStartIso = formatIsoDateLocal(weekStart);
-    listWorkEventsForChildInRangeAction(childId, weekStartIso)
+    runAction(listWorkEventsForChildInRangeAction(childId, weekStartIso))
       .then(setWorkEvents)
       .catch(() => setWorkEvents([]));
   }, [childId, weekStart]);
@@ -240,9 +241,9 @@ export function KinderWeekCalendar({
   async function handleDelete(layer: CalendarEvent["layer"], id: string) {
     if (layer === "event") return;
     try {
-      if (layer === "assignment") await deleteAssignmentAction(id);
-      else if (layer === "schedule") await deleteScheduleAction(id);
-      else await deleteAbsenceAction(id);
+      if (layer === "assignment") await runAction(deleteAssignmentAction(id));
+      else if (layer === "schedule") await runAction(deleteScheduleAction(id));
+      else await runAction(deleteAbsenceAction(id));
       toast.success("Eintrag gelöscht.");
       onChanged();
     } catch (err) {
@@ -261,17 +262,21 @@ export function KinderWeekCalendar({
       const startTime = hoursToTime(newStartHour);
       const endTime = hoursToTime(newEndHour);
       if (ev.layer === "assignment") {
-        await updateAssignmentAction(ev.id, {
-          weekday: ev.weekday,
-          startTime,
-          endTime,
-        });
+        await runAction(
+          updateAssignmentAction(ev.id, {
+            weekday: ev.weekday,
+            startTime,
+            endTime,
+          }),
+        );
       } else if (ev.layer === "schedule") {
-        await updateScheduleAction(ev.id, {
-          weekday: ev.weekday,
-          startTime,
-          endTime,
-        });
+        await runAction(
+          updateScheduleAction(ev.id, {
+            weekday: ev.weekday,
+            startTime,
+            endTime,
+          }),
+        );
       } else {
         return;
       }

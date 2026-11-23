@@ -13,6 +13,7 @@ import {
   updateWorkshopPartial,
 } from "./services";
 import { logBusinessEvent } from "@/lib/logger";
+import { UserError } from "@/lib/action-result";
 
 function normaliseDescription(description: string | null | undefined) {
   const trimmed = description?.trim();
@@ -41,7 +42,7 @@ export const WorkshopsFacade = {
   async update(id: string, input: UpdateWorkshopInput) {
     const parsed = UpdateWorkshopSchema.parse(input);
     const existing = await findWorkshopById(id);
-    if (!existing) throw new Error("Workshop nicht gefunden.");
+    if (!existing) throw new UserError("Workshop nicht gefunden.");
 
     const patch: { name?: string; description?: string | null } = {};
     if (parsed.name !== undefined) patch.name = parsed.name;
@@ -55,7 +56,7 @@ export const WorkshopsFacade = {
   async delete(id: string) {
     const attendanceCount = await countAttendancesForWorkshop(id);
     if (attendanceCount > 0) {
-      throw new Error(
+      throw new UserError(
         "Workshop kann nicht gelöscht werden, da Teilnahmen existieren.",
       );
     }

@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { Download } from "lucide-react";
@@ -89,7 +90,7 @@ export function PoolExportDialog({ poolId, poolName }: Props) {
 
     setBusy(true);
     try {
-      const { files } = await generatePoolExportAction(parsed.data);
+      const { files } = await runAction(generatePoolExportAction(parsed.data));
       if (files.length === 0) {
         toast.error("Keine Einträge im gewählten Zeitraum.");
         return;

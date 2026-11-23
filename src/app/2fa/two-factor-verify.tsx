@@ -15,6 +15,30 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
+// Better Auth's error codes for the second step, in words for the person at
+// the login. A lockout must not read as "wrong code": the code may well be
+// right, and the person needs to know to wait or to ask an admin.
+function verifyErrorMessage(
+  error: { code?: string; status?: number },
+  mode: "totp" | "backup",
+): string {
+  if (error.code === "ACCOUNT_TEMPORARILY_LOCKED") {
+    return "Nach zu vielen falschen Codes ist die Anmeldung für 15 Minuten gesperrt. Ein Admin kann die Sperre in der Benutzerverwaltung vorzeitig aufheben.";
+  }
+  if (
+    error.code === "TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE" ||
+    error.code === "INVALID_TWO_FACTOR_COOKIE"
+  ) {
+    return "Zu viele Versuche oder die Anmeldung ist abgelaufen. Bitte melde dich erneut mit E-Mail und Passwort an.";
+  }
+  if (error.status === 429) {
+    return "Zu viele Versuche in kurzer Zeit. Bitte warte einen Moment und versuche es dann erneut.";
+  }
+  return mode === "backup"
+    ? "Dieser Wiederherstellungscode ist ungültig oder wurde bereits verwendet."
+    : "Der Code ist ungültig oder abgelaufen. Bitte versuche es erneut.";
+}
+
 export function TwoFactorVerify() {
   const router = useRouter();
   const [mode, setMode] = useState<"totp" | "backup">("totp");
@@ -33,11 +57,7 @@ export function TwoFactorVerify() {
         : await authClient.twoFactor.verifyBackupCode({ code });
 
     if (result.error) {
-      setErrorMsg(
-        mode === "backup"
-          ? "Dieser Wiederherstellungscode ist ungültig oder wurde bereits verwendet."
-          : "Der Code ist ungültig oder abgelaufen. Bitte versuche es erneut.",
-      );
+      setErrorMsg(verifyErrorMessage(result.error, mode));
       setStatus("error");
       return;
     }

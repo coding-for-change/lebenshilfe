@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
@@ -25,7 +26,7 @@ export function HolidayPlanRowActions({ plan, onOpenDetails }: Props) {
 
   async function handleDelete() {
     try {
-      await deleteHolidayPlanAction(plan.id);
+      await runAction(deleteHolidayPlanAction(plan.id));
       toast.success("Ferienplan gelöscht.");
     } catch (err) {
       toast.error(

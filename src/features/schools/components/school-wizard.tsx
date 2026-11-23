@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -102,7 +103,7 @@ export function SchoolWizard({
     }
     setBusy(true);
     try {
-      const result = await createSchoolAction(parsed.data);
+      const result = await runAction(createSchoolAction(parsed.data));
       toast.success(`Schule "${result.school.name}" angelegt.`);
       onCreated?.(result.school);
       onOpenChange(false);

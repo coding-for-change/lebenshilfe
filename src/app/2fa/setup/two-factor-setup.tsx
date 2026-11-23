@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -41,7 +42,7 @@ export function TwoFactorSetup() {
     // so better-auth generates a fresh, unverified secret instead of inheriting
     // the old row's `verified` flag (which makes every code read as invalid).
     try {
-      await prepareTwoFactorSetupAction();
+      await runAction(prepareTwoFactorSetupAction());
     } catch {
       setErrorMsg("Die Einrichtung konnte nicht vorbereitet werden.");
       setStatus("error");

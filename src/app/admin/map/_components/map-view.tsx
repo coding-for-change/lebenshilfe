@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -89,7 +90,7 @@ export function MapView({
     setActiveKey(null);
     startTransition(async () => {
       try {
-        const fresh = await getMapDataForDate(next);
+        const fresh = await runAction(getMapDataForDate(next));
         setData(fresh);
       } catch {}
       router.replace(`/admin/map?date=${next}`, { scroll: false });

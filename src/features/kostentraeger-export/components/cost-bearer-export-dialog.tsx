@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { toast } from "sonner";
@@ -98,7 +99,9 @@ export function CostBearerExportDialog({
 
     setBusy(true);
     try {
-      const { files } = await generateCostBearerExportAction(parsed.data);
+      const { files } = await runAction(
+        generateCostBearerExportAction(parsed.data),
+      );
       if (files.length === 0) {
         toast.error("Keine Einträge im gewählten Zeitraum.");
         return;

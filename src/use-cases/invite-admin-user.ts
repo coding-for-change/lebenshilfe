@@ -8,6 +8,7 @@ import {
 } from "@/features/users/schemas";
 import { Role } from "@/generated/prisma";
 import { logBusinessEvent } from "@/lib/logger";
+import { UserError } from "@/lib/action-result";
 
 export async function inviteAdminUserUseCase(input: InviteAdminUserInput) {
   // Anyone with admin or owner access may invite a new ADMIN; only OWNERs may invite a new OWNER.
@@ -21,14 +22,14 @@ export async function inviteAdminUserUseCase(input: InviteAdminUserInput) {
 
   const existingUser = await UserFacade.getByEmail(parsed.email);
   if (existingUser) {
-    throw new Error("Es existiert bereits ein Benutzer mit dieser E-Mail.");
+    throw new UserError("Es existiert bereits ein Benutzer mit dieser E-Mail.");
   }
 
   // A pending Schulbegleiter entry for the same email would otherwise linger
   // in the Schulbegleiter list next to the new admin. Make the admin decide.
   const pendingProfile = await SchoolAssistantsFacade.getByEmail(parsed.email);
   if (pendingProfile) {
-    throw new Error(
+    throw new UserError(
       "Für diese E-Mail gibt es einen offenen Schulbegleiter-Eintrag. Bitte löschen Sie ihn zuerst unter „Schulbegleiter“.",
     );
   }

@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from "@/lib/run-action";
 
 import { useState } from "react";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
@@ -25,7 +26,7 @@ export function ChildRowActions({ childId, childName, onOpenDetails }: Props) {
 
   async function handleDelete() {
     try {
-      await deleteChildAction(childId);
+      await runAction(deleteChildAction(childId));
       toast.success(`${childName} wurde entfernt.`);
     } catch (error) {
       toast.error(

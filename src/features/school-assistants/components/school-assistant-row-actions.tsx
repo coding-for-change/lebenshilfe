@@ -109,10 +109,23 @@ export function SchoolAssistantRowActions({
         onOpenChange={setConfirmOpen}
         title="Schulbegleiter löschen?"
         description={
-          <>
-            <strong>{name}</strong> sowie alle zugehörigen Workshop-Teilnahmen
-            werden unwiderruflich entfernt.
-          </>
+          // Say what actually goes: for an accepted Schulbegleiter the login
+          // and every Stundennachweis are deleted with the entry (cascade).
+          status === SchulbegleiterStatus.ACCEPTED ? (
+            <>
+              <strong>{name}</strong> wird unwiderruflich gelöscht – mit
+              Benutzerkonto, allen Stundennachweisen und Monatsberichten,
+              Kinder-Zuordnungen, Vertretungen und Workshop-Teilnahmen. Eine
+              Anmeldung ist danach nicht mehr möglich.
+            </>
+          ) : (
+            <>
+              <strong>{name}</strong> wird mit allen Kinder-Zuordnungen und
+              Workshop-Teilnahmen entfernt. Die offene Einladung wird
+              zurückgezogen, der Link in der E-Mail funktioniert danach nicht
+              mehr.
+            </>
+          )
         }
         confirmLabel="Löschen"
         variant="destructive"

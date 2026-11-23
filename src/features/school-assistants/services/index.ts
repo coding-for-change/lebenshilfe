@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { Prisma, SchulbegleiterStatus, EventType } from "@/generated/prisma";
+import {
+  Prisma,
+  Role,
+  SchulbegleiterStatus,
+  EventType,
+} from "@/generated/prisma";
 
 export type ProfileWithAttendances = Prisma.SchoolAssistantProfileGetPayload<{
   include: { attendances: { include: { workshop: true } }; pool: true };
@@ -113,7 +118,12 @@ export async function deleteProfileById(profileId: string) {
   if (!profile) return;
   await prisma.schoolAssistantProfile.delete({ where: { id: profileId } });
   if (profile.userId) {
-    await prisma.user.delete({ where: { id: profile.userId } });
+    // Only a Schulbegleiter login goes with its entry. If the linked account has
+    // since become an Admin or Hauptadmin, it stays: deleting a Schulbegleiter
+    // entry must never delete an admin.
+    await prisma.user.deleteMany({
+      where: { id: profile.userId, role: Role.SCHOOL_ASSISTANT },
+    });
   }
 }
 

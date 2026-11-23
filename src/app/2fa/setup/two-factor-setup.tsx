@@ -50,7 +50,10 @@ export function TwoFactorSetup() {
     }
 
     const result = await authClient.twoFactor.enable({ password });
-    if (result.error || !result.data) {
+    // Better Auth 1.7 answers with `method: "otp"` for email/SMS codes too;
+    // only TOTP (authenticator app) is configured here, so anything else is a
+    // failed setup.
+    if (result.error || !result.data || result.data.method !== "totp") {
       setErrorMsg(
         "Das Passwort ist falsch oder die Aktivierung ist fehlgeschlagen.",
       );

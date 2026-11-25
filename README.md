@@ -1,13 +1,55 @@
 # Lebenshilfe
 
-A Next.js application for Lebenshilfe, built with Prisma and Better Auth.
+Time tracking and administration for school support (_Schulbegleitung_) at
+Lebenshilfe München.
 
-## Local Development Setup
+School assistants (_Schulbegleiter_) record the hours they spend with the children they
+support and sign every entry. Administrators manage children, schools, assignments and
+substitutes, and export signed hours for billing to the cost bearers (_Kostenträger_).
+
+## Features
+
+<table>
+  <tr>
+    <td width="70%"><img src="docs/images/admin/uebersicht.png" alt="Admin area overview" /></td>
+    <td width="30%"><img src="docs/images/schulbegleiter/neuer-eintrag.png" alt="New time entry on a phone" /></td>
+  </tr>
+  <tr>
+    <td align="center">Admin area</td>
+    <td align="center">Schulbegleiter: new entry</td>
+  </tr>
+</table>
+
+**For Schulbegleiter** (`/`, mobile-first)
+
+- Record entries: work (_Arbeit_), indirect work (_Indirekt_), sick days (_Krank_) and
+  substitute days (_Vertretung_). Each entry is signed on screen.
+- Day, week and month views of their own entries and timetable.
+- Report a child as sick.
+- Close a month (_Monatsabschluss_) with the supervisor's signature. Closed months are
+  locked.
+
+**For admins and owners** (`/admin`)
+
+| Area                   | What it covers                                                             |
+| ---------------------- | -------------------------------------------------------------------------- |
+| Schulbegleiter         | Profiles, invitations, weekly hours, pools, workshop attendance            |
+| Kinder                 | Master data, school, Kostenträger, assignments, timetable, history         |
+| Schulen / Ferienpläne  | Schools with address lookup, holiday plans shared between schools          |
+| Pools / Workshops      | Pools of children and assistants per school, training workshops            |
+| Handlungsbedarf        | To-do list: open substitute and indirect-work requests to assign           |
+| Karte                  | Map of all assignments on a given day (Google Maps, with consent)          |
+| Benutzerverwaltung     | Users, roles, invitations, two-factor reset                                |
+
+End-user documentation (German) lives in [`docs/`](docs/) as a Mintlify site. Preview it
+with `npm run docs:dev`.
+
+## Local setup
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v20+)
-- [Docker](https://www.docker.com/) (for the local PostgreSQL database)
+- [Node.js](https://nodejs.org/) 22 or newer (CI uses 22, the Docker image uses 26)
+- [Docker](https://www.docker.com/) for the database, mail and file-storage containers
 
 ### 1. Install dependencies
 
@@ -15,90 +57,95 @@ A Next.js application for Lebenshilfe, built with Prisma and Better Auth.
 npm install
 ```
 
-### 2. Start the database
+This also generates the Prisma client into `src/generated/prisma`. Run
+`npx prisma generate` again whenever `prisma/schema.prisma` changes.
 
-Spin up the local PostgreSQL instance:
-
-```bash
-docker compose up -d
-```
-
-This starts a PostgreSQL 17 container on port `5432` with default dev credentials (see `docker-compose.yml`).
-
-### 3. Configure environment variables
+### 2. Configure environment variables
 
 ```bash
 cp .env.example .env
 ```
 
-Then generate a secret for Better Auth:
+Generate a secret and paste it into `BETTER_AUTH_SECRET` in `.env`:
 
 ```bash
-# macOS / Linux
 openssl rand -base64 32
 ```
 
-Paste the output into `BETTER_AUTH_SECRET` in your `.env` file.
+The other defaults match `docker-compose.yml` and work as they are. The Google Maps key
+is optional; without it, school address lookup and the map stay empty.
 
-### 4. Set up the database
-
-Push the Prisma schema to your local PostgreSQL:
-
-```bash
-npx prisma db push
-```
-
-Generate the Prisma client:
+### 3. Create and seed the database
 
 ```bash
-npx prisma generate
+npm run db:seed
 ```
 
-### 5. Start the dev server
+This starts the containers, rebuilds the database from the migrations in
+`prisma/migrations` (`prisma migrate reset`) and fills it with test data
+(`scripts/seed.ts`). It **deletes all local data**, so run it again whenever you want a
+fresh start.
+
+> [!WARNING]
+> **Known issue: MinIO images are no longer available.** MinIO removed the
+> `minio/minio` and `minio/mc` images from Docker Hub, so `docker compose up` and
+> `npm run db:seed` currently fail. Until `docker-compose.yml` is updated, start only the
+> database and mail server and run the two seed steps yourself:
+>
+> ```bash
+> docker compose up -d --wait db mailpit
+> npx dotenv -e .env -- prisma migrate reset --force --skip-seed
+> BETTER_AUTH_URL=http://localhost:3000 npx dotenv -e .env -- npx tsx scripts/seed.ts
+> ```
+>
+> The app runs, but signing entries fails because signatures are stored in S3 (MinIO).
+
+### 4. Start the dev server
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000).
 
-## Tech Stack
+### Test accounts
 
-| Layer          | Technology                                        |
-| -------------- | ------------------------------------------------- |
-| Framework      | [Next.js](https://nextjs.org/) (App Router)       |
-| Database       | PostgreSQL (via Docker Compose)                    |
-| ORM            | [Prisma](https://www.prisma.io/)                  |
-| Authentication | [Better Auth](https://www.better-auth.com/)       |
-| Styling        | [Tailwind CSS](https://tailwindcss.com/)           |
+All seeded accounts use the password `Lebenshilfe-Dev-2026!`.
 
-## Authentication
+| Email                          | Role                           |
+| ------------------------------ | ------------------------------ |
+| `owner@lebenshilfe.de`         | Owner                          |
+| `admin@lebenshilfe.de`         | Admin                          |
+| `anna.schmidt@lebenshilfe.de`  | Schulbegleiter (also `ben.weber@…`, `clara.becker@…`) |
 
-Authentication is handled by Better Auth with email/password sign-up/sign-in. The admin plugin provides two roles:
+**Roles:** `SCHOOL_ASSISTANT` (Schulbegleiter), `ADMIN`, and `OWNER` (everything an admin
+can do, plus managing owners). Users join only through an invitation.
 
-- **admin** — full control over user management
-- **user** — default role for regular users
+Admins and owners must set up two-factor authentication on their first login. Use any
+authenticator app (TOTP); there is no bypass in development. Re-seeding resets it, so
+remove the old entry from your authenticator app afterwards.
 
-API routes for auth are served at `/api/auth/*`.
+### Local services
 
-## Deployment
+| Service      | URL / port                                       | Purpose                                         |
+| ------------ | ------------------------------------------------ | ----------------------------------------------- |
+| App          | [localhost:3000](http://localhost:3000)          | Next.js dev server                              |
+| MySQL 8      | `localhost:3306` (user `root`, pw `lebenshilfe`) | Database `lebenshilfe_dev`                      |
+| Mailpit      | [localhost:8025](http://localhost:8025)          | Catches all outgoing mail (invitations, resets) |
+| MinIO        | [localhost:9001](http://localhost:9001)          | S3-compatible storage for signatures            |
 
-Every push to `main` builds the image and deploys it to infra-v2 (`.github/workflows/deploy.yml`):
-the image goes to `docker-registry.codingforchange.com/lebenshilfe:<git sha>`, then the deploy job starts
-the workflow `deploy-dispatch.yml` in `coding-for-change/infra-v2` and waits for it: it starts the
-inactive blue/green slot, waits for its health check and switches Caddy. The deploy logs are in
-infra-v2 (private). `prisma migrate deploy` runs when the container
-starts, so every migration must also work with the previous version (both slots share the database).
+## Tech stack
 
-The server side (compose file, runtime secrets, database, Caddy) lives in infra-v2, role
-`lebenshilfe`. Runtime configuration and secrets are changed there, not in this repo.
+| Layer          | Technology                                                                                      |
+| -------------- | ----------------------------------------------------------------------------------------------- |
+| Framework      | [Next.js](https://nextjs.org/) 16 (App Router, Server Actions), React 19 with the React Compiler |
+| Language       | TypeScript                                                                                      |
+| Database       | MySQL 8 (Docker Compose locally)                                                                |
+| ORM            | [Prisma](https://www.prisma.io/) 6 with migrations in `prisma/migrations`                       |
+| Authentication | [Better Auth](https://www.better-auth.com/): invitation-based sign-up, TOTP two-factor           |
+| Validation     | [Zod](https://zod.dev/)                                                                         |
+| Styling / UI   | [Tailwind CSS](https://tailwindcss.com/) 4, [shadcn/ui](https://ui.shadcn.com/) on Radix         |
+| File storage   | S3-compatible object storage (MinIO locally) for signatures                                     |
+| Email          | React Email templates, sent via Mailpit (local) or [Resend](https://resend.com/)                |
+| Tooling        | ESLint with `eslint-plugin-boundaries`, Prettier, Husky + lint-staged                           |
 
-Until the DNS switch, deploys land on `https://lebenshilfe-new.codingforchange.com`.
-
-### GitHub secrets
-
-| Secret | Where | Description |
-|--------|-------|-------------|
-| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | repo | Build argument |
-| `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` | repo | Build argument; must equal the value in infra-v2's vault and never change |
-| `REGISTRY_*`, `DEPLOY_APP_ID`, `DEPLOY_APP_PRIVATE_KEY` | org | Set by infra-v2 (`playbook-setup-github.yml`) |

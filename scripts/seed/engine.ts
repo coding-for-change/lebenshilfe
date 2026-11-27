@@ -118,6 +118,18 @@ async function wipe(d: SeedDataset) {
   });
   await prisma.schedule.deleteMany({ where: { childId: { in: childIds } } });
   await prisma.child.deleteMany({ where: { id: { in: childIds } } });
+  // Pools point at a school and a Kostenträger without a cascade, and demo users create
+  // pools on the dataset's schools: without this the school delete below fails (P2003) and
+  // the container never starts. Children, events and profiles in such a pool lose the
+  // reference by themselves (onDelete: SetNull).
+  await prisma.pool.deleteMany({
+    where: {
+      OR: [
+        { schoolId: { in: d.schools.map((s) => s.id) } },
+        { kostentraegerId: { in: d.kostentraeger.map((k) => k.id) } },
+      ],
+    },
+  });
   await prisma.school.deleteMany({
     where: { id: { in: d.schools.map((s) => s.id) } },
   });

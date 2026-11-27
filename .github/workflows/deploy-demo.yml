@@ -1,167 +1,152 @@
 name: Deploy Demo
 
-# The public demo at demo-lebenshilfe.codingforchange.com, on the old VPS.
+# The public demo (Hamburg branding), on infra-v2 (role `lebenshilfe_demo`: blue/green behind
+# Caddy, its own MySQL database, a RustFS S3 sidecar, the demo seed on every start). Build the
+# demo image, push it to the registry of infra-v2, then start the deploy in infra-v2 and wait
+# for it, like deploy.yml does for production.
 #
-# Deploys on every push to the demo branch. The demo lives on this branch only
-# (main deploys production to infra-v2), and GitHub only offers "Run workflow"
-# for workflows that exist on the default branch, so a manual start from the UI
-# is not possible. To ship fixes from main: merge main into this branch, push.
+# Until DNS points at the new server, a deploy lands on the rehearsal address
+# demo-lebenshilfe-new.codingforchange.com.
+#
+# Deploys on every push to the demo branch. The demo lives on this branch only (main deploys
+# production), and GitHub only offers "Run workflow" for workflows that exist on the default
+# branch, so a manual start from the UI is not possible. To ship fixes from main: merge main
+# into this branch, push.
+#
+# Secrets:
+#   - .config/secrets.yml (inline vault, repo secret ANSIBLE_VAULT_PASSWORD): only the build
+#     arguments DEMO_SERVER_ACTIONS_ENCRYPTION_KEY (must equal the one in infra-v2's vault)
+#     and NEXT_PUBLIC_GOOGLE_MAPS_API_KEY. Runtime secrets are in infra-v2's vault.
+#   - org secrets REGISTRY_*, DEPLOY_APP_ID, DEPLOY_APP_PRIVATE_KEY
 on:
   push:
     branches: [claude/lebenshilfe-hamburg-demo-8f5538]
   workflow_dispatch:
 
-permissions:
-  contents: read
+env:
+  # The Docker registry of the infrastructure, the same for every project
+  REGISTRY: docker-registry.codingforchange.com
 
 concurrency:
   group: deploy-demo
   cancel-in-progress: false
 
-env:
-  DEMO_HOST: demo-lebenshilfe.codingforchange.com
-  DEMO_DIR: /var/www/lebenshilfe-demo
-  # Loopback-bound (see docker-compose.demo.yml), so this never collides with the
-  # 8000–8999 range the feature deploys hash themselves into.
-  APP_PORT: "12135"
+permissions:
+  contents: read
 
 jobs:
-  deploy:
+  build:
+    name: Build and push the demo image
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
+      - name: Check out the code
         uses: actions/checkout@v7
 
-      - name: Decrypt Secrets
+      # Writes only the two build arguments, masked, to a file outside the workspace
+      - name: Decrypt the build arguments
         run: |
           if ! command -v ansible-playbook &> /dev/null; then
             pipx install ansible-core
           fi
-          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault_pass
+          SECRETS_DIR="$RUNNER_TEMP/secrets"
+          mkdir -p "$SECRETS_DIR" && chmod 700 "$SECRETS_DIR"
+          echo "SECRETS_DIR=$SECRETS_DIR" >> "$GITHUB_ENV"
+          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > "$SECRETS_DIR/.vault_pass"
 
-          cat << 'EOF' > dump.yml
+          cat << EOF > "$SECRETS_DIR/dump.yml"
           - hosts: localhost
             gather_facts: false
             vars_files:
-              - .config/secrets.yml
+              - $GITHUB_WORKSPACE/.config/secrets.yml
             tasks:
               - copy:
-                  content: "{{ vars | to_nice_json }}"
-                  dest: decrypted.json
+                  dest: $SECRETS_DIR/decrypted.json
+                  content: >
+                    {{ {
+                      "DEMO_SERVER_ACTIONS_ENCRYPTION_KEY": DEMO_SERVER_ACTIONS_ENCRYPTION_KEY | default(""),
+                      "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY": NEXT_PUBLIC_GOOGLE_MAPS_API_KEY | default("")
+                    } | to_json }}
+                no_log: true
           EOF
-          ansible-playbook dump.yml --vault-password-file .vault_pass
+          ansible-playbook "$SECRETS_DIR/dump.yml" --vault-password-file "$SECRETS_DIR/.vault_pass"
 
-          echo "::add-mask::$(jq -r '.REGISTRY_USERNAME // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.REGISTRY_PASSWORD // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.RESEND_API_KEY // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.DEMO_BETTER_AUTH_SECRET // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.DEMO_SERVER_ACTIONS_ENCRYPTION_KEY // empty' decrypted.json)"
-          echo "::add-mask::$(jq -r '.DEMO_DB_PASSWORD // empty' decrypted.json)"
-          # VPS_DEPLOY_KEY is deliberately NOT masked here — see deploy-feature.yml
-          # for why echoing a multiline key into add-mask leaks it instead.
-
-      # The demo must not share production's signing keys: a session cookie or a
-      # TOTP secret minted here would otherwise be valid against the real app.
-      # Fail loudly rather than silently falling back to the production values.
-      - name: Check demo secrets are present
-        run: |
-          missing=""
-          for key in DEMO_BETTER_AUTH_SECRET DEMO_SERVER_ACTIONS_ENCRYPTION_KEY DEMO_DB_PASSWORD; do
-            if [ -z "$(jq -r --arg k "$key" '.[$k] // empty' decrypted.json)" ]; then
-              missing="$missing $key"
-            fi
+          for key in DEMO_SERVER_ACTIONS_ENCRYPTION_KEY NEXT_PUBLIC_GOOGLE_MAPS_API_KEY; do
+            value=$(jq -r --arg k "$key" '.[$k] // empty' "$SECRETS_DIR/decrypted.json")
+            [ -n "$value" ] || { echo "::error::$key missing in .config/secrets.yml"; exit 1; }
+            echo "::add-mask::$value"
           done
-          if [ -n "$missing" ]; then
-            echo "::error::Missing in .config/secrets.yml:$missing"
-            echo "Add each with:  ansible-vault encrypt_string --vault-password-file <file> '<value>' --name '<KEY>'"
-            echo "Generate values with:  openssl rand -hex 32  (DEMO_DB_PASSWORD is embedded unescaped in DATABASE_URL, so avoid base64's + / =)"
-            exit 1
-          fi
 
-      - name: Build Docker image
+      - name: Log in to the registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      # Tag = commit sha only. No `latest`: the nightly prune deletes by digest and would
+      # take the running image's manifest with it. The image name must match what the
+      # infra-v2 role pulls: localhost:5000/lebenshilfe-demo
+      - name: Build and push
         run: |
+          IMAGE="$REGISTRY/lebenshilfe-demo:${{ github.sha }}"
           docker build \
-            -t registry.infra.codingforchange.com/lebenshilfe-demo:${{ github.sha }} \
-            -t registry.infra.codingforchange.com/lebenshilfe-demo:latest \
+            -t "$IMAGE" \
             --build-arg NEXT_PUBLIC_ORG=hamburg-demo \
-            --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY // empty' decrypted.json)" \
-            --build-arg NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="$(jq -r '.DEMO_SERVER_ACTIONS_ENCRYPTION_KEY // empty' decrypted.json)" \
+            --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY' "$SECRETS_DIR/decrypted.json")" \
+            --build-arg NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="$(jq -r '.DEMO_SERVER_ACTIONS_ENCRYPTION_KEY' "$SECRETS_DIR/decrypted.json")" \
             .
+          docker push "$IMAGE"
 
-      - name: Login to registry
-        run: |
-          jq -r '.REGISTRY_PASSWORD // empty' decrypted.json | docker login registry.infra.codingforchange.com \
-            -u "$(jq -r '.REGISTRY_USERNAME // empty' decrypted.json)" \
-            --password-stdin
-
-      - name: Push Docker image
-        run: |
-          docker push registry.infra.codingforchange.com/lebenshilfe-demo:${{ github.sha }}
-          docker push registry.infra.codingforchange.com/lebenshilfe-demo:latest
-
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          jq -r '.VPS_DEPLOY_KEY // empty' decrypted.json > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H codingforchange.com >> ~/.ssh/known_hosts
-
-      - name: Generate configs
-        run: |
-          cat << EOF > Caddyfile.demo
-          ${{ env.DEMO_HOST }} {
-              reverse_proxy localhost:${{ env.APP_PORT }}
-          }
-          EOF
-
-          DB_PASSWORD="$(jq -r '.DEMO_DB_PASSWORD // empty' decrypted.json)"
-          # Signatures go to the RustFS container in docker-compose.demo.yml, not to
-          # production's Hetzner bucket. Its root secret is derived from the demo DB
-          # password instead of being a vault entry of its own: both only guard
-          # containers on the demo's private compose network, and this way adding
-          # the store needed no further vault edit. The same two credentials
-          # configure RustFS's root user and the app; the endpoint is the compose
-          # service name.
-          S3_SECRET_ACCESS_KEY="$(printf '%s' "${DB_PASSWORD}" | sha256sum | cut -d' ' -f1)"
-          echo "::add-mask::${S3_SECRET_ACCESS_KEY}"
-          printf '%s\n' \
-            "IMAGE_TAG=${{ github.sha }}" \
-            "APP_PORT=${{ env.APP_PORT }}" \
-            "DB_PASSWORD=${DB_PASSWORD}" \
-            "DATABASE_URL=mysql://root:${DB_PASSWORD}@db:3306/lebenshilfe_demo" \
-            "BETTER_AUTH_SECRET=$(jq -r '.DEMO_BETTER_AUTH_SECRET // empty' decrypted.json)" \
-            "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=$(jq -r '.DEMO_SERVER_ACTIONS_ENCRYPTION_KEY // empty' decrypted.json)" \
-            "RESEND_API_KEY=$(jq -r '.RESEND_API_KEY // empty' decrypted.json)" \
-            "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY // empty' decrypted.json)" \
-            "S3_ENDPOINT=http://s3:9000" \
-            "S3_REGION=eu-central-1" \
-            "S3_BUCKET=lebenshilfe-demo" \
-            "S3_ACCESS_KEY_ID=lebenshilfe-demo" \
-            "S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}" \
-            "NEXT_PUBLIC_ORG=hamburg-demo" \
-            "BETTER_AUTH_URL=https://${{ env.DEMO_HOST }}" \
-            "NEXT_PUBLIC_APP_URL=https://${{ env.DEMO_HOST }}" \
-            "EMAIL_FROM=info@codingforchange.com" \
-            > .env.demo
-
-      - name: Deploy to VPS
-        run: |
-          SSH="ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key"
-          SCP="scp -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key"
-          TARGET="deploy-lebenshilfe@codingforchange.com"
-
-          $SSH $TARGET "mkdir -p ${{ env.DEMO_DIR }}"
-          $SCP docker-compose.demo.yml ${TARGET}:${{ env.DEMO_DIR }}/docker-compose.yml
-          $SCP Caddyfile.demo ${TARGET}:${{ env.DEMO_DIR }}/Caddyfile
-          $SCP .env.demo ${TARGET}:${{ env.DEMO_DIR }}/.env
-
-          $SSH $TARGET "cd ${{ env.DEMO_DIR }} && \
-            docker compose pull && \
-            docker compose up -d"
-
-      - name: Clean up Secrets
+      - name: Clean up secrets
         if: always()
+        run: rm -rf "$RUNNER_TEMP/secrets"
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # The deploy runs in the private repo infra-v2 (workflow deploy-dispatch.yml): this job
+    # starts it with a token of the GitHub App "c4c-infra-deploy" and waits for the result.
+    # Its logs stay in infra-v2.
+    steps:
+      - name: Get a token for infra-v2
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.DEPLOY_APP_ID }}
+          private-key: ${{ secrets.DEPLOY_APP_PRIVATE_KEY }}
+          owner: coding-for-change
+          repositories: infra-v2
+          permission-actions: write
+
+      - name: Start the deploy in infra-v2 and wait for it
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP: lebenshilfe_demo
+          IMAGE_TAG: ${{ github.sha }}
+          CALLER: ${{ github.repository }}#${{ github.run_id }}-${{ github.run_attempt }}
+          INFRA_REPO: coding-for-change/infra-v2
         run: |
-          rm -f .vault_pass dump.yml decrypted.json .env.demo Caddyfile.demo
+          gh workflow run deploy-dispatch.yml --repo "$INFRA_REPO" --ref main \
+            -f app="$APP" -f image_tag="$IMAGE_TAG" -f caller="$CALLER"
+
+          # The run name ends with "(<caller>)": find our run
+          RUN_ID=""
+          for _ in $(seq 1 30); do
+            RUN_ID=$(gh run list --repo "$INFRA_REPO" --workflow deploy-dispatch.yml \
+                --event workflow_dispatch --limit 30 --json databaseId,displayTitle \
+              | jq -r --arg c "($CALLER)" '[.[] | select(.displayTitle | endswith($c))][0].databaseId // empty')
+            [ -n "$RUN_ID" ] && break
+            sleep 5
+          done
+          [ -n "$RUN_ID" ] || { echo "::error::deploy run in infra-v2 not found"; exit 1; }
+          echo "Deploy run in infra-v2 (private): https://github.com/$INFRA_REPO/actions/runs/$RUN_ID" | tee -a "$GITHUB_STEP_SUMMARY"
+
+          while :; do
+            STATE=$(gh run view "$RUN_ID" --repo "$INFRA_REPO" --json status,conclusion --jq '.status + " " + .conclusion')
+            [ "${STATE%% *}" = completed ] && break
+            sleep 15
+          done
+          echo "Result: ${STATE#* }" | tee -a "$GITHUB_STEP_SUMMARY"
+          [ "${STATE#* }" = success ]

@@ -23,54 +23,40 @@ optional ein Datensatz, ein Workflow. Keine Codeänderung an der App selbst.
 > werden in das Client-Bundle einkompiliert; nur zur Laufzeit gesetzt, bliebe
 > die Oberfläche beim Branding desjenigen, der das Image gebaut hat.
 
-## Einmalig einrichten
+## Betrieb
 
-Die Demo darf die Signaturschlüssel der Produktion nicht mitbenutzen — ein hier
-erzeugtes Session-Cookie oder TOTP-Secret wäre sonst auch gegen die echte App
-gültig. Dazu kommt das Passwort der eigenen Datenbank. Deshalb drei eigene
-Werte in `.config/secrets.yml`:
+Die Demo läuft auf infra-v2 (Rolle `lebenshilfe_demo` im Repo `infra-v2`), getrennt von
+der Produktion in allem:
 
-```bash
-for KEY in DEMO_BETTER_AUTH_SECRET DEMO_SERVER_ACTIONS_ENCRYPTION_KEY DEMO_DB_PASSWORD; do
-  ansible-vault encrypt_string "$(openssl rand -hex 32)" --name "$KEY" >> .config/secrets.yml
-done
-```
+- eigene MySQL-Datenbank `lebenshilfe_demo` auf dem Datenbank-Host
+- eigener S3-Container (RustFS) für die Unterschriften, erreichbar nur über das
+  Docker-Netz der Demo. Die Produktion schreibt in einen R2-Bucket.
+- eigene Secrets (Auth, Server-Actions-Schlüssel) im Vault von infra-v2
+- Blue/Green hinter Caddy wie die anderen Apps
 
-(`-hex` statt `-base64`: `DEMO_DB_PASSWORD` steht unmaskiert in der
-`DATABASE_URL`, dort stören `+`, `/` und `=`.) Das Secret des S3-Containers
-leitet der Workflow aus `DEMO_DB_PASSWORD` ab; es braucht keinen eigenen
-Vault-Eintrag.
-
-Fehlt einer davon, bricht der Workflow mit einer benannten Fehlermeldung ab,
-statt still auf die Produktionswerte zurückzufallen.
-
-DNS ist bereits erledigt: `*.codingforchange.com` zeigt auf den VPS, Caddy holt
-das Zertifikat beim ersten Aufruf selbst.
+Die Compose-Datei ist ein Template in infra-v2, nicht mehr hier im Repo. Ein
+hier erzeugtes Session-Cookie oder TOTP-Secret ist gegen die echte App nicht
+gültig, weil die Demo eigene Schlüssel hat.
 
 ## Deployen
 
 Jeder Push auf den Demo-Branch (`claude/lebenshilfe-hamburg-demo-8f5538`)
-deployt die Demo. Die Demo lebt nur auf diesem Branch — `main` deployt die
-Produktion nach infra-v2, und GitHub bietet *Run workflow* nur für Workflows an,
-die auf dem Default-Branch liegen. Fixes aus `main` kommen so in die Demo:
-`main` in den Demo-Branch mergen, pushen.
+deployt die Demo (`.github/workflows/deploy-demo.yml`): Image
+`lebenshilfe-demo` bauen, in die Registry von infra-v2 pushen, dann den Deploy in
+infra-v2 starten (`deploy-dispatch.yml`, App `lebenshilfe_demo`). Die Demo lebt
+nur auf diesem Branch — `main` deployt die Produktion, und GitHub bietet *Run
+workflow* nur für Workflows an, die auf dem Default-Branch liegen. Fixes aus
+`main` kommen so in die Demo: `main` in den Demo-Branch mergen, pushen.
 
-Der Workflow braucht das Repo-Secret `ANSIBLE_VAULT_PASSWORD` (entschlüsselt
-`.config/secrets.yml`). Nicht löschen, solange die Demo auf dem alten VPS läuft
-— ein gleichnamiges Org-Secret von infra-v2 hat einen anderen Wert.
-
-Auf dem VPS landet alles unter `/var/www/lebenshilfe-demo` — eigene Compose-
-Datei, eigener MySQL-Container, eigener S3-Container für die Unterschriften
-(Volumes `demo_db` und `demo_s3`), Port 12135 nur auf Loopback. Die Produktion
-schreibt Unterschriften in einen Hetzner-Bucket; die Demo bekommt stattdessen
-RustFS mit derselben S3-API, erreichbar nur über das Compose-Netz. (RustFS
-statt MinIO: die MinIO-Images lassen sich nicht mehr von Docker Hub ziehen —
-auch die in `docker-compose.yml` gepinnten Digests nicht.)
+Build-Argumente kommen aus `.config/secrets.yml` (Repo-Secret
+`ANSIBLE_VAULT_PASSWORD`): `DEMO_SERVER_ACTIONS_ENCRYPTION_KEY` (muss gleich dem
+Wert im Vault von infra-v2 sein) und `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`. Alle
+Laufzeit-Secrets liegen in infra-v2.
 
 ## Zugangsdaten
 
-Werden bei jedem Seed-Lauf ins Container-Log geschrieben
-(`docker compose logs app`). Passwort für alle Demo-Konten: `Demo-Hamburg-2026!`
+Werden bei jedem Seed-Lauf ins Container-Log geschrieben (Grafana/Loki:
+`{job="app", app="lebenshilfe-demo"}`). Passwort für alle Demo-Konten: `Demo-Hamburg-2026!`
 
 | Rolle            | Konto                                   |
 | ---------------- | --------------------------------------- |
@@ -84,12 +70,8 @@ Wer nur klicken möchte, nimmt ein Schulbegleitungs-Konto — dort entfällt das
 
 ## Daten zurücksetzen
 
-Der Seed läuft bei jedem Containerstart. Für einen nächtlichen Reset auf dem VPS:
-
-```bash
-# crontab -e  (als deploy-lebenshilfe)
-0 4 * * * cd /var/www/lebenshilfe-demo && docker compose restart app
-```
+Der Seed läuft bei jedem Containerstart, also bei jedem Deploy, bevor der neue
+Slot Traffic bekommt.
 
 `wipe()` in `scripts/seed/engine.ts` löscht nur Zeilen, die der Datensatz selbst
 besitzt (eigene IDs, eigene E-Mail-Adressen). Ein echter Mensch, der in die Demo

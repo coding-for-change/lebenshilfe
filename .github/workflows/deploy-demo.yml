@@ -1,0 +1,152 @@
+name: Deploy Demo
+
+# The public demo (Hamburg branding), on infra-v2 (role `lebenshilfe_demo`: blue/green behind
+# Caddy, its own MySQL database, a RustFS S3 sidecar, the demo seed on every start). Build the
+# demo image, push it to the registry of infra-v2, then start the deploy in infra-v2 and wait
+# for it, like deploy.yml does for production.
+#
+# Until DNS points at the new server, a deploy lands on the rehearsal address
+# demo-lebenshilfe-new.codingforchange.com.
+#
+# Deploys on every push to the demo branch. The demo lives on this branch only (main deploys
+# production), and GitHub only offers "Run workflow" for workflows that exist on the default
+# branch, so a manual start from the UI is not possible. To ship fixes from main: merge main
+# into this branch, push.
+#
+# Secrets:
+#   - .config/secrets.yml (inline vault, repo secret ANSIBLE_VAULT_PASSWORD): only the build
+#     arguments DEMO_SERVER_ACTIONS_ENCRYPTION_KEY (must equal the one in infra-v2's vault)
+#     and NEXT_PUBLIC_GOOGLE_MAPS_API_KEY. Runtime secrets are in infra-v2's vault.
+#   - org secrets REGISTRY_*, DEPLOY_APP_ID, DEPLOY_APP_PRIVATE_KEY
+on:
+  push:
+    branches: [claude/lebenshilfe-hamburg-demo-8f5538]
+  workflow_dispatch:
+
+env:
+  # The Docker registry of the infrastructure, the same for every project
+  REGISTRY: docker-registry.codingforchange.com
+
+concurrency:
+  group: deploy-demo
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and push the demo image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v7
+
+      # Writes only the two build arguments, masked, to a file outside the workspace
+      - name: Decrypt the build arguments
+        run: |
+          if ! command -v ansible-playbook &> /dev/null; then
+            pipx install ansible-core
+          fi
+          SECRETS_DIR="$RUNNER_TEMP/secrets"
+          mkdir -p "$SECRETS_DIR" && chmod 700 "$SECRETS_DIR"
+          echo "SECRETS_DIR=$SECRETS_DIR" >> "$GITHUB_ENV"
+          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > "$SECRETS_DIR/.vault_pass"
+
+          cat << EOF > "$SECRETS_DIR/dump.yml"
+          - hosts: localhost
+            gather_facts: false
+            vars_files:
+              - $GITHUB_WORKSPACE/.config/secrets.yml
+            tasks:
+              - copy:
+                  dest: $SECRETS_DIR/decrypted.json
+                  content: >
+                    {{ {
+                      "DEMO_SERVER_ACTIONS_ENCRYPTION_KEY": DEMO_SERVER_ACTIONS_ENCRYPTION_KEY | default(""),
+                      "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY": NEXT_PUBLIC_GOOGLE_MAPS_API_KEY | default("")
+                    } | to_json }}
+                no_log: true
+          EOF
+          ansible-playbook "$SECRETS_DIR/dump.yml" --vault-password-file "$SECRETS_DIR/.vault_pass"
+
+          for key in DEMO_SERVER_ACTIONS_ENCRYPTION_KEY NEXT_PUBLIC_GOOGLE_MAPS_API_KEY; do
+            value=$(jq -r --arg k "$key" '.[$k] // empty' "$SECRETS_DIR/decrypted.json")
+            [ -n "$value" ] || { echo "::error::$key missing in .config/secrets.yml"; exit 1; }
+            echo "::add-mask::$value"
+          done
+
+      - name: Log in to the registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      # Tag = commit sha only. No `latest`: the nightly prune deletes by digest and would
+      # take the running image's manifest with it. The image name must match what the
+      # infra-v2 role pulls: localhost:5000/lebenshilfe-demo
+      - name: Build and push
+        run: |
+          IMAGE="$REGISTRY/lebenshilfe-demo:${{ github.sha }}"
+          docker build \
+            -t "$IMAGE" \
+            --build-arg NEXT_PUBLIC_ORG=hamburg-demo \
+            --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="$(jq -r '.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY' "$SECRETS_DIR/decrypted.json")" \
+            --build-arg NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="$(jq -r '.DEMO_SERVER_ACTIONS_ENCRYPTION_KEY' "$SECRETS_DIR/decrypted.json")" \
+            .
+          docker push "$IMAGE"
+
+      - name: Clean up secrets
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/secrets"
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # The deploy runs in the private repo infra-v2 (workflow deploy-dispatch.yml): this job
+    # starts it with a token of the GitHub App "c4c-infra-deploy" and waits for the result.
+    # Its logs stay in infra-v2.
+    steps:
+      - name: Get a token for infra-v2
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.DEPLOY_APP_ID }}
+          private-key: ${{ secrets.DEPLOY_APP_PRIVATE_KEY }}
+          owner: coding-for-change
+          repositories: infra-v2
+          permission-actions: write
+
+      - name: Start the deploy in infra-v2 and wait for it
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP: lebenshilfe_demo
+          IMAGE_TAG: ${{ github.sha }}
+          CALLER: ${{ github.repository }}#${{ github.run_id }}-${{ github.run_attempt }}
+          INFRA_REPO: coding-for-change/infra-v2
+        run: |
+          gh workflow run deploy-dispatch.yml --repo "$INFRA_REPO" --ref main \
+            -f app="$APP" -f image_tag="$IMAGE_TAG" -f caller="$CALLER"
+
+          # The run name ends with "(<caller>)": find our run
+          RUN_ID=""
+          for _ in $(seq 1 30); do
+            RUN_ID=$(gh run list --repo "$INFRA_REPO" --workflow deploy-dispatch.yml \
+                --event workflow_dispatch --limit 30 --json databaseId,displayTitle \
+              | jq -r --arg c "($CALLER)" '[.[] | select(.displayTitle | endswith($c))][0].databaseId // empty')
+            [ -n "$RUN_ID" ] && break
+            sleep 5
+          done
+          [ -n "$RUN_ID" ] || { echo "::error::deploy run in infra-v2 not found"; exit 1; }
+          echo "Deploy run in infra-v2 (private): https://github.com/$INFRA_REPO/actions/runs/$RUN_ID" | tee -a "$GITHUB_STEP_SUMMARY"
+
+          while :; do
+            STATE=$(gh run view "$RUN_ID" --repo "$INFRA_REPO" --json status,conclusion --jq '.status + " " + .conclusion')
+            [ "${STATE%% *}" = completed ] && break
+            sleep 15
+          done
+          echo "Result: ${STATE#* }" | tee -a "$GITHUB_STEP_SUMMARY"
+          [ "${STATE#* }" = success ]

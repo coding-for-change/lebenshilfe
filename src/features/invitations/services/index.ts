@@ -5,6 +5,7 @@ import { createElement } from "react";
 import { sendMail } from "@/lib/mail";
 import { renderEmail } from "@/lib/email/render";
 import { InvitationEmail } from "@/lib/email/templates/invitation-email";
+import { branding } from "@/lib/branding";
 
 export async function insertInvitation(
   email: string,
@@ -33,9 +34,9 @@ export async function expireInvitationById(id: string) {
 }
 
 const SUBJECTS: Record<Role, string> = {
-  SCHOOL_ASSISTANT: "Einladung: Willkommen bei der Lebenshilfe München",
-  ADMIN: "Einladung als Admin – Lebenshilfe München",
-  OWNER: "Einladung als Hauptadmin – Lebenshilfe München",
+  SCHOOL_ASSISTANT: `Einladung: Willkommen bei der ${branding.name}`,
+  ADMIN: `Einladung als Admin – ${branding.name}`,
+  OWNER: `Einladung als Hauptadmin – ${branding.name}`,
 };
 
 export async function processNewInvitation(

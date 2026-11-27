@@ -7,6 +7,7 @@ import { sendMail } from "./mail";
 import { renderEmail } from "./email/render";
 import { ResetPasswordEmail } from "./email/templates/reset-password-email";
 import { logger } from "@/lib/logger";
+import { branding } from "@/lib/branding";
 import { haveIBeenPwned, twoFactor } from "better-auth/plugins";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { INVITE_TOKEN_HEADER } from "./invite-token";
@@ -40,7 +41,7 @@ function sendResetPasswordMail(to: string, resetUrl: string) {
     );
     await sendMail({
       to,
-      subject: "Passwort zurücksetzen – Lebenshilfe München",
+      subject: `Passwort zurücksetzen – ${branding.name}`,
       html,
       text,
     });
@@ -107,7 +108,7 @@ export const auth = betterAuth({
     // better-auth encrypts the TOTP secret at rest with BETTER_AUTH_SECRET; backup
     // codes default to plaintext, so encrypt them too.
     twoFactor({
-      issuer: "Lebenshilfe München",
+      issuer: branding.name,
       backupCodeOptions: { storeBackupCodes: "encrypted" },
     }),
   ],

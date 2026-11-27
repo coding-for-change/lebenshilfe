@@ -3,6 +3,7 @@ import Image from "next/image";
 
 import { getSession, hasPendingTwoFactor } from "@/lib/auth-guards";
 import { TwoFactorVerify } from "./two-factor-verify";
+import { branding } from "@/lib/branding";
 
 export default async function TwoFactorVerifyPage() {
   // A full session means 2FA is already satisfied (or wasn't required) — nothing
@@ -33,10 +34,10 @@ export default async function TwoFactorVerifyPage() {
       <div className="flex w-full max-w-sm flex-col gap-8">
         <div className="flex justify-center">
           <Image
-            src="/lebenshilfe-muenchen-logo_2026.svg"
-            alt="Lebenshilfe München"
-            width={220}
-            height={64}
+            src={branding.logo.src}
+            alt={branding.name}
+            width={branding.logo.width}
+            height={branding.logo.height}
             priority
             className="h-14 w-auto drop-shadow-lg"
           />

@@ -2,6 +2,7 @@ import { Heading, Section, Text } from "@react-email/components";
 import { Role } from "@/generated/prisma";
 import { BrandButton } from "@/lib/email/components/button";
 import { BrandLayout } from "@/lib/email/components/layout";
+import { branding } from "@/lib/branding";
 import {
   emailCallout,
   emailCtaWrap,
@@ -44,13 +45,13 @@ export function InvitationEmail({ inviteUrl, role, replacesEarlier }: Props) {
   const needsTwoFactor = role !== Role.SCHOOL_ASSISTANT;
 
   return (
-    <BrandLayout preview="Willkommen bei der Lebenshilfe München – richten Sie Ihr Profil ein">
-      <Heading style={emailHeading}>
-        Willkommen bei der Lebenshilfe München
-      </Heading>
+    <BrandLayout
+      preview={`Willkommen bei der ${branding.name} – richten Sie Ihr Profil ein`}
+    >
+      <Heading style={emailHeading}>Willkommen bei der {branding.name}</Heading>
       <Text style={emailParagraph}>
-        Sie wurden {copy.invitedAs} eingeladen, dem Portal der Lebenshilfe
-        München beizutreten. {copy.youWill}
+        Sie wurden {copy.invitedAs} eingeladen, dem Portal der {branding.name}{" "}
+        beizutreten. {copy.youWill}
       </Text>
       <Text style={emailParagraph}>
         Klicken Sie auf den folgenden Button, um Ihr Profil einzurichten und Ihr

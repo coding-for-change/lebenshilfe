@@ -32,6 +32,13 @@ ENV NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 ARG NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
 ENV NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=$NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
 
+# Selects the branding preset in src/lib/branding.ts ("muenchen" by default,
+# "hamburg-demo" for the demo instance). NEXT_PUBLIC_* values are compiled into
+# the client bundle, so this has to be set at BUILD time — passing it only at
+# runtime leaves the image branded for whoever built it.
+ARG NEXT_PUBLIC_ORG=muenchen
+ENV NEXT_PUBLIC_ORG=$NEXT_PUBLIC_ORG
+
 # Build Next.js (standalone output)
 RUN npm run build
 

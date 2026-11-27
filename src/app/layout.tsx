@@ -4,7 +4,9 @@ import "./globals.css";
 import { MapsConsentProvider } from "@/lib/maps/maps-consent";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { DeploymentUpdateNotice } from "@/components/deployment-update-notice";
+import { DemoBanner } from "@/components/demo-banner";
 import { getSession } from "@/lib/auth-guards";
+import { branding } from "@/lib/branding";
 import { ConsentFacade } from "@/features/consent";
 import { setMapsConsentAction } from "@/features/consent/actions";
 
@@ -19,15 +21,18 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Lebenshilfe München",
-  description: "Lebenshilfe München Portal",
-  applicationName: "Lebenshilfe München",
+  title: branding.name,
+  description: `${branding.name} Portal`,
+  applicationName: branding.name,
+  // Belt and braces with app/robots.ts: the demo holds invented data and
+  // published credentials, so it stays out of search results.
+  ...(branding.isDemo ? { robots: { index: false, follow: false } } : {}),
   // Makes the site launch full-screen (no Safari chrome) when added to the iOS
   // home screen, and sets the label shown under the icon. The home-screen icon
   // itself is supplied by src/app/apple-icon.png (apple-touch-icon).
   appleWebApp: {
     capable: true,
-    title: "Lebenshilfe",
+    title: branding.shortName,
     statusBarStyle: "default",
   },
 };
@@ -60,6 +65,7 @@ export default async function RootLayout({
       className={`${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
+        <DemoBanner />
         {/* Keeps content fresh on resume/poll — critical for the standalone
             iOS home-screen app, which has no reload UI and freezes on
             background. */}

@@ -11,10 +11,10 @@ import {
   Text,
 } from "@react-email/components";
 import type { ReactNode } from "react";
+import { branding } from "@/lib/branding";
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-const logoUrl =
-  process.env.EMAIL_LOGO_URL || `${baseUrl}/lebenshilfe-muenchen-logo_2026.png`;
+const logoUrl = process.env.EMAIL_LOGO_URL || `${baseUrl}${branding.emailLogo}`;
 
 type Props = {
   preview: string;
@@ -50,7 +50,7 @@ export function BrandLayout({ preview, children }: Props) {
           <Section style={header}>
             <Img
               src={logoUrl}
-              alt="Lebenshilfe München"
+              alt={branding.name}
               width="200"
               style={logo}
             />
@@ -59,7 +59,7 @@ export function BrandLayout({ preview, children }: Props) {
           <Section style={content}>{children}</Section>
           <Hr style={divider} />
           <Section style={footer}>
-            <Text style={footerBrand}>Lebenshilfe München e.V.</Text>
+            <Text style={footerBrand}>{branding.legalName}</Text>
             <Text style={footerSmall}>
               Diese E-Mail wurde automatisch versendet. Bei Fragen wenden Sie
               sich bitte an Ihre Ansprechperson.

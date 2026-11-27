@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { NavUser } from "@/components/nav-user";
+import { branding } from "@/lib/branding";
 
 type AdminShellProps = {
   currentUser: { id: string; name: string; email: string };
@@ -109,10 +110,10 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
                 aria-label="Zur Übersicht"
               >
                 <Image
-                  src="/lebenshilfe-muenchen-logo_2026.svg"
-                  alt="Lebenshilfe München"
-                  width={160}
-                  height={160}
+                  src={branding.logo.src}
+                  alt={branding.name}
+                  width={branding.logo.width}
+                  height={branding.logo.height}
                   priority
                   className="h-14 w-auto object-contain transition-all group-data-[collapsible=icon]:h-8 md:h-20"
                 />
@@ -161,7 +162,7 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
                       tooltip="Support"
                     >
                       <a
-                        href="mailto:support@lebenshilfe-muenchen.de"
+                        href={`mailto:${branding.supportEmail}`}
                         className="text-muted-foreground"
                       >
                         <LifeBuoy />
@@ -175,7 +176,7 @@ export function AdminShell({ currentUser, children }: AdminShellProps) {
                       tooltip="Feedback"
                     >
                       <a
-                        href="mailto:feedback@lebenshilfe-muenchen.de"
+                        href={`mailto:${branding.feedbackEmail}`}
                         className="text-muted-foreground"
                       >
                         <Send />

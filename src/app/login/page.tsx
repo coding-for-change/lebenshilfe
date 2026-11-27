@@ -1,6 +1,7 @@
 import Image from "next/image";
 
 import { LoginForm } from "@/components/login-form";
+import { branding } from "@/lib/branding";
 import { loginNoticeText } from "@/lib/login-notices";
 
 type Props = {
@@ -28,10 +29,10 @@ export default async function LoginPage({ searchParams }: Props) {
       <div className="flex w-full max-w-sm flex-col gap-8">
         <div className="flex justify-center">
           <Image
-            src="/lebenshilfe-muenchen-logo_2026.svg"
-            alt="Lebenshilfe München"
-            width={220}
-            height={64}
+            src={branding.logo.src}
+            alt={branding.name}
+            width={branding.logo.width}
+            height={branding.logo.height}
             priority
             className="h-14 w-auto drop-shadow-lg"
           />

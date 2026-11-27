@@ -6,6 +6,7 @@ import { getOnboardingStateUseCase } from "@/use-cases/get-onboarding-state";
 import { OnboardForm } from "@/features/invitations/components/onboard-form";
 import { InvalidInvitationCard } from "@/features/invitations/components/invalid-invitation-card";
 import { LOGIN_NOTICE } from "@/lib/login-notices";
+import { branding } from "@/lib/branding";
 
 export default async function OnboardPage({
   searchParams,
@@ -43,10 +44,10 @@ export default async function OnboardPage({
       <div className="flex w-full max-w-md flex-col gap-8">
         <div className="flex justify-center">
           <Image
-            src="/lebenshilfe-muenchen-logo_2026.svg"
-            alt="Lebenshilfe München"
-            width={220}
-            height={64}
+            src={branding.logo.src}
+            alt={branding.name}
+            width={branding.logo.width}
+            height={branding.logo.height}
             priority
             className="h-14 w-auto drop-shadow-lg"
           />
